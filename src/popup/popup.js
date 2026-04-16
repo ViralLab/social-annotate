@@ -33,24 +33,18 @@ chrome.storage.local.get('config', function(data) {
     for (var key in data.config.surveys){
         var option = document.createElement('li');
         option.data = key;
-        // event for clicking on a survey name on the dropdown, selecting that survey
+            // event for clicking on a survey name on the dropdown, selecting that survey
         option.addEventListener("click", function(){
-            // @TODO also keep guided for all different survey types, maybe even enable separately and a separate big
-            //      toggle for everything. this needs some thinking.
             let chosenSurvey = this.data;
             document.getElementById('survey-id').innerHTML = chosenSurvey;
             // update the active survey in the stored config variable.
             chrome.storage.local.get('config', function (data) {
                 data.config.activeSurveys = [chosenSurvey];
                 chrome.storage.local.set({'config':data.config}, function() {
-                    // @TODO there are a lot of unnecessary storage calls here, consolidate.
-                    updateAnnotationCount();  //@TODO this isn't doing anything.
+                    updateAnnotationCount();  
+                    refresh_page();
                 });
-
             });
-
-            refresh_page();
-
         });
 
         option.innerHTML = "<a href='#'>" + key + "</a>";
@@ -70,9 +64,13 @@ chrome.storage.local.get('config', function(data) {
 
 
 document.querySelector('#exportLink').addEventListener('click', function(e) {
-    chrome.storage.local.get('resultsArrays', function(data) {
-        let resultsArrays = data.resultsArrays;
-        exportStoredResults(resultsArrays);
+    chrome.storage.local.get(['resultsArrays', 'config'], function(data) {
+        let activeSurvey = data.config.activeSurveys[0];
+        if (data.resultsArrays && data.resultsArrays[activeSurvey]) {
+            let filteredResults = {};
+            filteredResults[activeSurvey] = data.resultsArrays[activeSurvey];
+            exportStoredResults(filteredResults);
+        }
     });
 });
 

@@ -10,34 +10,41 @@ new Context('twitter-tweet', enableTweetObserver, null)];
 const reactRoot = document.getElementById('react-root');
 
 // Options for the observer (which mutations to observe)
-const obsConfig = { attributes: true, childList: false, subtree: true, attributeFilter: ['role'], attributeOldValue: true };
+const obsConfig = { attributes: true, childList: true, subtree: true, attributeFilter: ['role'] };
+
+function processArticleNode(articleNode) {
+    let insertElement = articleNode.parentNode;
+    if (insertElement && insertElement.getElementsByClassName('survey-container-tweet').length === 0) {
+        let tweetDetails = extractTweetDetails(insertElement);
+
+        if (tweetDetails) {
+            injectTwitterTweetSurvey(insertElement, tweetDetails.tweetID);
+            availableContextsTwitter[1].renderSurvey(
+                tweetDetails.tweetOwner, 
+                tweetDetails.tweetID, 
+                { tweetContent: tweetDetails.tweetContent }
+            );
+        }
+    }
+}
+
 // @TODO All this observer stuff needs to be twitter specific, so that instagram etc. can have theirs as well.
 const observerCallback = function (mutationsList, observer) {
-    let primaryColID = 'primaryColumn';
-    let attName = 'data-testid';
     for (let mutation of mutationsList) {
-        if (mutation.type === 'attributes') {
-            if (mutation.target.getAttribute('role') === "article") {
-                // this event fires every time mouseover on tweet container because attributes are changing, just check
-                // if the survey is already in there before injecting. There may be a better way but I'm just dealing
-                // with this.
-                // maybe later...
-                // let insertElement = mutation.target.parentNode.parentNode; // need to do one parent less after a twitter update...
-                let insertElement = mutation.target.parentNode;
-                if (insertElement.getElementsByClassName('survey-container-tweet').length === 0) {
-                    let tweetDetails = extractTweetDetails(insertElement);
-
-                    if (tweetDetails) {
-                        injectTwitterTweetSurvey(insertElement, tweetDetails.tweetID);
-                        availableContextsTwitter[1].renderSurvey(
-                            tweetDetails.tweetOwner, 
-                            tweetDetails.tweetID, 
-                            { 
-                                tweetContent: tweetDetails.tweetContent
-                            }
-                        );
+        if (mutation.type === 'childList') {
+            mutation.addedNodes.forEach(node => {
+                if (node.nodeType === 1) { // ELEMENT_NODE
+                    if (node.getAttribute('role') === 'article') {
+                        processArticleNode(node);
+                    } else {
+                        let articles = node.querySelectorAll('article[role="article"]');
+                        articles.forEach(processArticleNode);
                     }
                 }
+            });
+        } else if (mutation.type === 'attributes') {
+            if (mutation.target.getAttribute('role') === "article") {
+                processArticleNode(mutation.target);
             }
         }
     }
@@ -96,6 +103,7 @@ function injectTwitterUserSurvey(injectElement, userID) {
 }
 
 function enableTweetObserver(injectElement) {
+    document.querySelectorAll('article[role="article"]').forEach(processArticleNode);
     observer.observe(reactRoot, obsConfig)
 }
 

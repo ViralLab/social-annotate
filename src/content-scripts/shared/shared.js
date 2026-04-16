@@ -58,19 +58,31 @@ const metadataForms = [
     }
 ];
 
-const notificationContainer = document.createElement('DIV');
-notificationContainer.classList.add('notification-container');
-let placeholderSpan = document.createElement('SPAN');
-// placeholderSpan.innerText = "getittogether.";
-notificationContainer.appendChild(placeholderSpan);
+const notificationContainer = document.createElement("div");
+notificationContainer.className = "notification-container";
+notificationContainer.style.background = "transparent";
+notificationContainer.style.textAlign = "center";
+notificationContainer.style.padding = "10px 0";
+notificationContainer.style.width = "100%";
+notificationContainer.style.fontFamily = "-apple-system, BlinkMacSystemFont, sans-serif";
 
-const overwriteSpan = document.createElement('SPAN');
-overwriteSpan.classList.add('notification-message-overwrite');
-overwriteSpan.innerHTML = "Record already exists. New submissions will overwrite.";  // add span here
+var defaultSpan = document.createElement("SPAN");
+defaultSpan.style.display = "none";  // Default placeholder is invisible
+notificationContainer.appendChild(defaultSpan);
 
-const successSpan = document.createElement('SPAN');
-successSpan.classList.add('notification-message-success');
-successSpan.innerHTML = "Submission Successful!";  // add span here
+const overwriteSpan = document.createElement("SPAN");
+overwriteSpan.className = "label label-warning";
+overwriteSpan.innerText = "Record already exists. New submissions will overwrite.";
+overwriteSpan.style.color = "#FFD400";
+overwriteSpan.style.fontWeight = "bold";
+overwriteSpan.style.padding = "5px 15px";
+
+const successSpan = document.createElement("SPAN");
+successSpan.className = "label label-success";
+successSpan.innerText = "Submission Successful!";
+successSpan.style.color = "#00BA7C";
+successSpan.style.fontWeight = "bold";
+successSpan.style.padding = "5px 15px";
 
 
 class Context {
@@ -176,7 +188,10 @@ class Context {
 //          can use some further work.
 const failureSpan = document.createElement('SPAN');
 failureSpan.classList.add('notification-message-failure');
-failureSpan.innerHTML = "Submission Failed. Please try again.";  // add span here
+failureSpan.innerHTML = "Submission Failed. Please try again.";
+failureSpan.style.color = "#F4212E";
+failureSpan.style.fontWeight = "bold";
+failureSpan.style.padding = "5px 15px";
 
 function storeResults(surveyResults, socialMediaPlatform) {
     //surveyResults.userID = getCurrentScreenName(socialMediaPlatform);

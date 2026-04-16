@@ -65,8 +65,7 @@ var config = {
                 "form": [
                     {
                         "key": "hatespeech",
-                        "type": "radiobuttons",
-                        "activeClass": "btn-success"
+                        "type": "radiobuttons"
                     },
                     {
                         "type": "submit",
@@ -100,20 +99,17 @@ var config = {
                         "default": 3,
                         "minimum": 0,
                         "maximum": 5,
-                        "exclusiveMinimum": true,
                         "required": true
                     }
                 },
                 "form": [
                     {
                         "key": "bot",
-                        "type": "radiobuttons",
-                        "activeClass": "btn-success"
+                        "type": "radiobuttons"
                     },
                     {
                         "key": "confidence",
-                        "type": "range",
-                        "activeClass": "btn-success"
+                        "type": "range"
                     },
                     {
                         "type": "submit",

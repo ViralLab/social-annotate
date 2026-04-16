@@ -290,7 +290,7 @@ jsonform.elementTypes = {
   'url': inputFieldTemplate('url'),
   'week': inputFieldTemplate('week'),
   'range': {
-    'template': '<input type="range" ' +
+    'template': '<div style="display:flex; align-items:center; width:100%;"><input type="range" ' +
       '<%= (fieldHtmlClass ? "class=\'" + fieldHtmlClass + "\' " : "") %>' +
       'name="<%= node.name %>" value="<%= escape(value) %>" id="<%= id %>"' +
       '<%= (node.disabled? " disabled" : "")%>' +
@@ -298,9 +298,14 @@ jsonform.elementTypes = {
       ' max=<%= range.max %>' +
       ' step=<%= range.step %>' +
       '<%= (node.schemaElement && node.schemaElement.required ? " required=\'required\'" : "") %>' +
-      ' />',
+      ' /><span class="range-output" style="margin-left:16px; background: rgba(29, 155, 240, 0.15); padding: 6px 16px; border-radius: 12px; font-weight:700; font-size:16px; color:#1d9bf0; min-width: 25px; text-align:center;"><%= escape(value) %></span></div>',
     'fieldtemplate': true,
     'inputfield': true,
+    'onInsert': function(evt, node) {
+      $(node.el).find('input[type="range"]').on('input change', function() {
+        $(this).siblings('.range-output').text($(this).val());
+      });
+    },
     'onBeforeRender': function (data, node) {
       data.range = {
         min: 1,

@@ -7,7 +7,7 @@
 var config = {
     "exportFormat": "jsonl",
     "apiEndpoint": "",  // http://127.0.0.1:5000/response
-    "activeSurveys": ["twitter-tweet", "twitter-user"], // "twitter-tweet", "instagram-user"
+    "activeSurveys": ["twitter-tweet"], // default to only twitter-tweet to prevent dual rendering
     "surveys": {
         // "instagram-user":{
         //     "socialMediaPlatform": "instagram",

@@ -22,14 +22,24 @@ function processArticleNode(articleNode) {
             availableContextsTwitter[1].renderSurvey(
                 tweetDetails.tweetOwner, 
                 tweetDetails.tweetID, 
-                { tweetContent: tweetDetails.tweetContent }
+                { 
+                    tweetContent: () => extractTweetTextContent(insertElement),
+                    mediaUrls: () => extractTweetMedia(insertElement)
+                }
             );
         }
     }
 }
 
+let lastKnownUrl = window.location.href;
+
 // @TODO All this observer stuff needs to be twitter specific, so that instagram etc. can have theirs as well.
 const observerCallback = function (mutationsList, observer) {
+    if (window.location.href !== lastKnownUrl) {
+        lastKnownUrl = window.location.href;
+        initializeSurveys(); // Re-trigger injection logic if URL physically changed via Single Page Application routing
+    }
+
     for (let mutation of mutationsList) {
         if (mutation.type === 'childList') {
             mutation.addedNodes.forEach(node => {
@@ -67,6 +77,11 @@ function crawlUserName() {
 
 
 function injectTwitterUserSurvey(injectElement, userID) {
+    let existingContainer = document.getElementById("surveyFormContainer");
+    if (existingContainer) {
+        existingContainer.remove();
+    }
+
     let surveyContainer = document.createElement('div');
     surveyContainer.className = "survey-container-user";
     surveyContainer.setAttribute("id", "surveyFormContainer");
@@ -107,6 +122,53 @@ function enableTweetObserver(injectElement) {
     observer.observe(reactRoot, obsConfig)
 }
 
+function extractTweetMedia(articleNode) {
+    if (!articleNode) return "";
+    let mediaUrls = [];
+
+    // Extract standard high-res image sources
+    let photos = articleNode.querySelectorAll('[data-testid="tweetPhoto"] img');
+    photos.forEach(img => {
+        if (img.src) mediaUrls.push(img.src);
+    });
+
+    // Extract videos (Attempt to grab raw MP4 source first, fallback to thumbnail if stream is encrypted blob)
+    let videos = articleNode.querySelectorAll('[data-testid="videoPlayer"] video');
+    videos.forEach(video => {
+        let mp4Source = video.querySelector('source');
+        if (mp4Source && mp4Source.src && !mp4Source.src.startsWith('blob:')) {
+            mediaUrls.push(mp4Source.src);
+        } else if (video.src && !video.src.startsWith('blob:')) {
+            mediaUrls.push(video.src);
+        } else if (video.poster) {
+            mediaUrls.push("[Video Thumbnail] " + video.poster);
+        }
+    });
+
+    return mediaUrls;
+}
+
+function extractTweetTextContent(articleNode) {
+    let tweetTextParts = [];
+    
+    // Grab all tweet text blocks natively
+    let textNodes = articleNode.querySelectorAll('[data-testid="tweetText"]');
+    textNodes.forEach(node => {
+        if (node.innerText) tweetTextParts.push(node.innerText.trim());
+    });
+
+    // Grab URLs from link previews instead of the bulky card text
+    let cardNodes = articleNode.querySelectorAll('[data-testid="card.wrapper"]');
+    cardNodes.forEach(node => {
+        let linkNode = node.querySelector('a');
+        if (linkNode && linkNode.href) {
+            tweetTextParts.push(linkNode.href);
+        }
+    });
+    
+    return tweetTextParts.join('\n\n');
+}
+
 function extractTweetDetails(articleNode) {
     // there is only one time element, at least for now...
     let timeElement = articleNode.querySelector("time");
@@ -117,15 +179,10 @@ function extractTweetDetails(articleNode) {
     let tweetLink = timeElement.parentNode.href;
     tweetLink = tweetLink.split('/');
 
-    // Extract textual content
-    let tweetTextNode = articleNode.querySelector('[data-testid="tweetText"]');
-    let tweetText = tweetTextNode ? tweetTextNode.innerText : "";
-
     return { 
         tweetOwner: tweetLink[3], 
-        tweetID: tweetLink[tweetLink.length - 1],
-        tweetContent: tweetText
-    }
+        tweetID: tweetLink[tweetLink.length - 1]
+    };
 }
 
 // var tweetCount = 0;
@@ -187,55 +244,44 @@ function checkUserURL() {
     */
 }
 
-// get the current config from storage
-chrome.storage.local.get(['config', 'isEnabled', 'activeTargetList', 'clientID'], function (result) {
-    // check if context is enabled
-    // @TODO implement this check in a way that will eliminate typo issues.
-    // let currentContext = 'twitter-user';
-    const currentPlatform = 'twitter';  // manifest ensures this file is only called for twitter.
-    for (let index = 0; index < availableContextsTwitter.length; ++index) {
-        let currentContext = availableContextsTwitter[index];
-        if (!currentContext.name.includes(currentPlatform)) {
-            continue;
-        }
-        let contextFlag = result.config.activeSurveys.includes(currentContext.name);
-        let auxFlag = currentContext.auxiliaryCheck();
-        if (result.isEnabled === true && contextFlag === true && auxFlag === true) {
-            // if (true) {
-            // there can be more than one survey active at one time, so iterate over a list
-            // of currentContext if necessary instead of direct assignment.
-            // var activeSurvey = result.config.activeSurvey;
+function initializeSurveys() {
+    chrome.storage.local.get(['config', 'isEnabled', 'activeTargetList', 'clientID'], function (result) {
+        const currentPlatform = 'twitter';
+        for (let index = 0; index < availableContextsTwitter.length; ++index) {
+            let currentContext = availableContextsTwitter[index];
+            if (!currentContext.name.includes(currentPlatform)) continue;
+            
+            let contextFlag = result.config.activeSurveys.includes(currentContext.name);
+            let auxFlag = currentContext.auxiliaryCheck();
+            
+            if (result.isEnabled === true && contextFlag === true && auxFlag === true) {
+                let activeSurvey = currentContext.name;
+                let config = result.config['surveys'][activeSurvey];
 
-            let activeSurvey = currentContext.name;
-            let config = result.config['surveys'][activeSurvey];
+                let studyID = config.studyID;
+                let clientID = config.clientID;
 
-            // Attach the onSubmit event handler to the schema
+                function submitAction(errors, values) {
+                    if (!errors) {
+                        values.surveyType = currentContext.name;
+                        values.studyID = studyID;
+                        values.clientID = clientID;
+                        storeResults(values, currentPlatform);
+                    }
+                }
 
-            let studyID = config.studyID;
-            let clientID = config.clientID;
+                currentContext.formTemplate = config.surveyFormSchema;
+                currentContext.submitAction = submitAction;
+                currentContext.injectSurvey(config.injectElement);
 
-            function submitAction(errors, values) {
-                if (!errors) {
-                    let bringNextUser = false;
-                    let platform = currentPlatform;
-                    let nextUser = '';
-                    values.surveyType = currentContext.name;
-                    values.studyID = studyID;
-                    values.clientID = clientID;
-                    storeResults(values, platform);  // store values and updateUserID field
+                if (currentContext.name !== 'twitter-tweet') {
+                    let surveyID = crawlUserName();
+                    currentContext.renderSurvey(surveyID);
                 }
             }
-
-            currentContext.formTemplate = config.surveyFormSchema;
-            currentContext.submitAction = submitAction;
-
-            currentContext.injectSurvey(config.injectElement);  // @TODO: pass survey ID here
-            // twitter-tweet renders inside the observer callback, observer is enabled with injectSurvey on the line
-            // above, so it is guaranteed to never call render before it was defined and set.
-            if (currentContext.name !== 'twitter-tweet') {
-                surveyID = crawlUserName();
-                currentContext.renderSurvey(surveyID);
-            }
         }
-    }
-});
+    });
+}
+
+// Fire the survey initializer on script load
+initializeSurveys();

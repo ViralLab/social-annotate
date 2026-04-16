@@ -2,10 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <link rel="stylesheet" type="text/css" href="popup.css">
-
   <link rel="stylesheet" type="text/css"  href="../dep/bootstrap.min.css">
   <link rel="stylesheet" type="text/css"  href="../dep/jsonform/deps/opt/bootstrap.css">
+  <link rel="stylesheet" type="text/css" href="popup.css">
   <script src="../dep/jquery.min.js"></script>
   <script src="../dep/bootstrap.min.js"></script>
   <script src="../dep/analytics.js"></script>
@@ -15,9 +14,7 @@
 <nav class="navbar">
   <div class="container-fluid">
     <div class="navbar-header">
-      <div>
       <a href="#" class="navbar-brand"><img src="../images/ca32.png"></a>
-      </div>
       <ul class="nav navbar-nav">
         <li class="dropdown"><a class="dropdown-toggle" data-toggle="dropdown" href="#">Survey<span class="caret"></span></a>
           <ul class="dropdown-menu" id="dropdown-menu">
@@ -44,9 +41,11 @@
 
     <div class="row">
       <div class="col">
-        <div class="input-group">
-          <button type="button" id="disableLink" class="btn btn-primary form-control">Disable</button>
-          <span class="input-group-addon"><input type="checkbox" id="toggleGuidedMode"> Guided mode</span>
+        <div class="button-container">
+          <button type="button" id="disableLink" class="btn btn-primary">Disable Extension</button>
+          <label class="glass-pill">
+              <input type="checkbox" id="toggleGuidedMode"> Guided Mode
+          </label>
         </div>
       </div>  
     </div>

@@ -1,32 +1,145 @@
 body {
   margin: 0;
-  /* padding: 0; */
-  width: 400px;
-  min-height: 100px;
+  width: 360px;
+  min-height: 250px;
+  background-color: #15202B; /* Twitter dark mode */
+  color: #FFFFFF;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
   -webkit-font-smoothing: antialiased;
 }
 
-.navbar-collapse.collapse {
-  display: block!important;
+.navbar {
+  background: rgba(29, 155, 240, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 0px;
 }
 
-.navbar-nav>li, .navbar-nav {
-  float: left !important;
+.navbar-brand {
+	padding: 12px 15px;
 }
 
-.navbar-nav.navbar-right:last-child {
-  margin-right: -15px !important;
+.navbar-brand img {
+  height: 26px;
 }
 
-.navbar-right {
-  float: right!important;
+.navbar-header {
+  display: flex !important;
+  align-items: center;
+  width: 100%;
+}
+
+.navbar-collapse.collapse { display: block!important; }
+.navbar-nav { margin: 0 !important; display: flex; flex-direction: row; }
+.navbar-nav>li { float: none !important; }
+.navbar-right { float: right!important; }
+
+.navbar-nav>li>a {
+  color: #1d9bf0 !important;
+  font-weight: 600;
+  padding: 15px 12px;
+  transition: all 0.2s;
+}
+.navbar-nav>li>a:hover, .navbar-nav>li>a:focus,
+.nav .open>a, .nav .open>a:hover, .nav .open>a:focus {
+  background-color: rgba(29, 155, 240, 0.1) !important;
+  color: #1d9bf0 !important;
+}
+
+/* Dropdown Menu overrides */
+.dropdown-menu {
+  background-color: #192734;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  padding: 8px 0;
+}
+.dropdown-menu>li>a {
+  color: #ffffff;
+  padding: 8px 20px;
+  font-weight: 500;
+}
+.dropdown-menu>li>a:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #1d9bf0;
+}
+
+/* Main Container */
+#popup-form {
+  padding: 24px;
+}
+
+#survey-id {
+  font-size: 24px;
+  font-weight: 800;
+  color: #ffffff;
+  margin-bottom: 8px;
+  display: block;
+}
+
+p {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 15px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
 }
 
 #annotationCount {
-	font-weight: bold;
+  font-size: 16px;
+  font-weight: 700;
+  color: #00BA7C;
+  padding: 4px 10px;
+  background: rgba(0, 186, 124, 0.15);
+  border-radius: 12px;
+  margin-left: 8px;
 }
 
-#popup-form {
-    margin: 20px;
+/* Button & Config Group */
+.button-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
 }
 
+.btn-primary {
+  background-color: #1d9bf0;
+  border: none;
+  font-weight: 700;
+  font-size: 16px;
+  padding: 10px 16px;
+  border-radius: 24px;
+  box-shadow: 0 4px 12px rgba(29, 155, 240, 0.4);
+  transition: all 0.2s ease;
+  width: 100%;
+  height: 48px;
+  color: #ffffff;
+}
+
+.btn-primary:active, .btn-primary:hover, .btn-primary:focus {
+  background-color: #1a8cd8 !important;
+  color: #ffffff !important;
+  outline: none;
+}
+
+.glass-pill {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+  border-radius: 16px;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+input[type="checkbox"] {
+  accent-color: #1d9bf0;
+  width: 18px;
+  height: 18px;
+  margin: 0 !important;
+}

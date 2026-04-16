@@ -170,9 +170,9 @@ div.form-group .btn-default.active {
 	transform: scale(1.05);
 }
 
-/* Dynamic Submit Button */
+/* Stage 1: Default RED — no annotation selected yet */
 .surveySubmitBtn {
-	background: linear-gradient(135deg, #1d9bf0, #1a8cd8) !important;
+	background: linear-gradient(135deg, #F4212E, #c01822) !important;
 	border: none !important;
 	color: white !important;
 	font-weight: 700 !important;
@@ -182,16 +182,52 @@ div.form-group .btn-default.active {
 	margin: 0 !important;
 	cursor: pointer;
 	transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
-	box-shadow: 0 6px 16px rgba(29, 155, 240, 0.35) !important;
+	box-shadow: 0 4px 14px rgba(244, 33, 46, 0.35) !important;
 	flex: 0 0 auto;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	align-self: stretch; /* Match height of form-group container */
+	align-self: stretch;
 }
 
-.surveySubmitBtn:hover {
+.surveySubmitBtn:not(.ready-to-submit):not(.submitted):hover {
 	transform: translateY(-2px) !important;
-	box-shadow: 0 10px 20px rgba(29, 155, 240, 0.5) !important;
+	box-shadow: 0 8px 20px rgba(244, 33, 46, 0.5) !important;
+	background: linear-gradient(135deg, #ff4d58, #F4212E) !important;
+}
+
+/* Stage 2: BLUE — annotation selected, ready to submit */
+.surveySubmitBtn.ready-to-submit {
+	background: linear-gradient(135deg, #1d9bf0, #1a8cd8) !important;
+	border: none !important;
+	color: white !important;
+	box-shadow: 0 4px 16px rgba(29, 155, 240, 0.4) !important;
+	animation: pulseBtn 2s infinite;
+}
+
+.surveySubmitBtn.ready-to-submit:hover {
+	transform: translateY(-2px) !important;
+	box-shadow: 0 8px 24px rgba(29, 155, 240, 0.6) !important;
 	background: linear-gradient(135deg, #4cb0f9, #1d9bf0) !important;
+}
+
+/* Stage 3: GREEN — successfully submitted */
+.surveySubmitBtn.submitted {
+	background: linear-gradient(135deg, #00BA7C, #009262) !important;
+	border: none !important;
+	color: white !important;
+	box-shadow: 0 4px 16px rgba(0, 186, 124, 0.4) !important;
+	animation: none !important;
+	cursor: default !important;
+}
+
+.surveySubmitBtn.submitted:hover {
+	transform: none !important;
+	box-shadow: 0 4px 16px rgba(0, 186, 124, 0.4) !important;
+}
+
+@keyframes pulseBtn {
+    0% { box-shadow: 0 0 0 0 rgba(29, 155, 240, 0.6); }
+    70% { box-shadow: 0 0 0 12px rgba(29, 155, 240, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(29, 155, 240, 0); }
 }

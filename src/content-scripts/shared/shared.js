@@ -146,7 +146,11 @@ class Context {
                         }
                         if (ctxData.extras) {
                             for (let k in ctxData.extras) {
-                                event.data.values[k] = ctxData.extras[k];
+                                if (typeof ctxData.extras[k] === 'function') {
+                                    event.data.values[k] = ctxData.extras[k]();
+                                } else {
+                                    event.data.values[k] = ctxData.extras[k];
+                                }
                             }
                         }
                         ctxData.context.submitAction(event.data.errors, event.data.values);

@@ -2,18 +2,19 @@
   "name": "Content Annotator",
   "version": "1.0",
   "description": "Content annotator application developed by Ismail Uluturk and Onur Varol",
-  "permissions": ["activeTab", "declarativeContent", "storage", "downloads", "tabs", "webNavigation", "*://twitter.com/*", "*://instagram.com/*"],
+  "permissions": ["activeTab", "declarativeContent", "storage", "downloads", "tabs", "webNavigation"],
+  "host_permissions": ["*://twitter.com/*", "*://instagram.com/*", "*://www.instagram.com/*", "*://x.com/*"],
   "options_page": "options/options.html",
   "background": {
-    "scripts": [
-      "config.js",
-      "background/background.js",
-      "dep/analytics.js"
-    ],
-    "persistent": false
+    "service_worker": "background/background.js"
   },
-  "content_security_policy": "script-src 'self' https://ssl.google-analytics.com; object-src 'self'",
-  "browser_action": {
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+  "sandbox": {
+    "pages": ["sandbox/survey.html"]
+  },
+  "action": {
     "default_title": "social-annotate",
     "default_popup": "popup/popup.html",
     "default_icon": {
@@ -25,9 +26,9 @@
   },
   "content_scripts": [
     {
-      "matches": ["*://twitter.com/*"],
+      "matches": ["*://twitter.com/*", "*://x.com/*"],
       "run_at": "document_end",
-      "exclude_matches": ["*://twitter.com/settings/*"],
+      "exclude_matches": ["*://twitter.com/settings/*", "*://x.com/settings/*"],
       "css": [
         "content-scripts/twitter/inject.css",
         "dep/jsonform/deps/opt/bootstrap.css"
@@ -67,9 +68,15 @@
     "128": "images/ca128.png"
   },
   "web_accessible_resources": [
-    "content-scripts/instagram/inject.css",
-    "content-scripts/twitter/inject.css",
-    "dep/jsonform/deps/opt/bootstrap.css"
+    {
+      "resources": [
+        "sandbox/survey.html",
+        "content-scripts/instagram/inject.css",
+        "content-scripts/twitter/inject.css",
+        "dep/jsonform/deps/opt/bootstrap.css"
+      ],
+      "matches": ["<all_urls>"]
+    }
   ],
-  "manifest_version": 2
+  "manifest_version": 3
 }

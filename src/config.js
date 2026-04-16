@@ -5,9 +5,9 @@
 //         "instagram-user": false
 //     } ,
 var config = {
-    "exportFormat": "csv",
+    "exportFormat": "jsonl",
     "apiEndpoint": "",  // http://127.0.0.1:5000/response
-    "activeSurveys": ["twitter-user"], // "twitter-tweet", "instagram-user"
+    "activeSurveys": ["twitter-tweet", "twitter-user"], // "twitter-tweet", "instagram-user"
     "surveys": {
         // "instagram-user":{
         //     "socialMediaPlatform": "instagram",
@@ -49,33 +49,22 @@ var config = {
         //     }
         //   }
         // },
-        "twitter-tweet":{
+        "twitter-tweet": {
             "socialMediaPlatform": "twitter",
             "injectElement": {},  // not using this for tweets, its kind of complicated to find the tweets and no point in making it configurable, "name": "article", "type": "role", "index": 0
             "studyID": "kokone",
-            "surveyFormSchema" : {
+            "surveyFormSchema": {
                 "schema": {
-                    "english": {
+                    "hatespeech": {
                         "type": "string",
-                        "title": "Is this tweet writted in English?",
-                        "enum": [ "yes", "no"],
-                        "required": true
-                    },
-                    "conversation": {
-                        "type": "string",
-                        "title": "Is this a part of conversation?",
-                        "enum": [ "yes", "no"],
+                        "title": "Does this text contain HateSpeech?",
+                        "enum": ["Yes", "No"],
                         "required": true
                     }
                 },
                 "form": [
                     {
-                        "key": "english",
-                        "type": "radiobuttons",
-                        "activeClass": "btn-success"
-                    },
-                    {
-                        "key": "conversation",
+                        "key": "hatespeech",
                         "type": "radiobuttons",
                         "activeClass": "btn-success"
                     },
@@ -87,54 +76,54 @@ var config = {
                 ]
             }
         },
-        "twitter-user":{  // - in the name will cause issues when accessing this element.
+        "twitter-user": {  // - in the name will cause issues when accessing this element.
             "socialMediaPlatform": "twitter",
             "injectElement": {
-              "name": "global-nav-inner", 
-              "type": "class", 
-              "index": 0
+                "name": "global-nav-inner",
+                "type": "class",
+                "index": 0
             },
             "studyID": "maruko",
             "screenNameList": [],
-            "surveyFormSchema" : {
-              "schema": {
-                "bot": {
-                  "type": "string",
-                  "title": "Do you believe this user to be a bot?",
-                  "enum": [ "Yes", "No"],
-                  "required": true
+            "surveyFormSchema": {
+                "schema": {
+                    "bot": {
+                        "type": "string",
+                        "title": "Do you believe this user to be a bot?",
+                        "enum": ["Yes", "No"],
+                        "required": true
+                    },
+                    "confidence": {
+                        "type": "integer",
+                        "title": "How confident with your response to bot question?",
+                        "description": "0 for least and 5 for the most confident",
+                        "default": 3,
+                        "minimum": 0,
+                        "maximum": 5,
+                        "exclusiveMinimum": true,
+                        "required": true
+                    }
                 },
-                "confidence": {
-                  "type": "integer",
-                  "title": "How confident with your response to bot question?",
-                  "description": "0 for least and 5 for the most confident",
-                  "default": 3,
-                  "minimum": 0,
-                  "maximum": 5,
-                  "exclusiveMinimum": true,
-                  "required": true
-                }
-              },
-              "form": [
-                {
-                  "key": "bot",
-                  "type": "radiobuttons",
-                  "activeClass": "btn-success"
-                },
-                {
-                  "key": "confidence",
-                  "type": "range",
-                  "activeClass": "btn-success"
-                },
-                {
-                  "type": "submit",
-                  "title": "Submit",
-                  "htmlClass": "surveySubmitBtn"
-                }
-              ]
+                "form": [
+                    {
+                        "key": "bot",
+                        "type": "radiobuttons",
+                        "activeClass": "btn-success"
+                    },
+                    {
+                        "key": "confidence",
+                        "type": "range",
+                        "activeClass": "btn-success"
+                    },
+                    {
+                        "type": "submit",
+                        "title": "Submit",
+                        "htmlClass": "surveySubmitBtn"
+                    }
+                ]
             }
         },
-        "instagram-user":{  // - in the name will cause issues when accessing this element.
+        "instagram-user": {  // - in the name will cause issues when accessing this element.
             "socialMediaPlatform": "instagram",
             "injectElement": {
                 "name": "global-nav-inner",
@@ -143,18 +132,18 @@ var config = {
             },
             "studyID": "maruko",
             "screenNameList": [],
-            "surveyFormSchema" : {
+            "surveyFormSchema": {
                 "schema": {
                     "bot": {
                         "type": "string",
                         "title": "Do you believe this user to be a bot?",
-                        "enum": [ "Yes", "No"],
+                        "enum": ["Yes", "No"],
                         "required": true
                     },
                     "celebrity": {
                         "type": "string",
                         "title": "Is this a celebrity user?",
-                        "enum": [ "Yes", "No"],
+                        "enum": ["Yes", "No"],
                         "required": true
                     }
                 },

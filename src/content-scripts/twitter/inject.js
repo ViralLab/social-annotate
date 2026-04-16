@@ -2,7 +2,7 @@
 // Context class is defined in shared.js
 // @TODO make this array a struct to avoid magic indices.
 const availableContextsTwitter = [new Context('twitter-user', injectTwitterUserSurvey, checkUserURL),
-    new Context('twitter-tweet', enableTweetObserver, null)];
+new Context('twitter-tweet', enableTweetObserver, null)];
 
 
 // https://developer.mozilla.org/en-US/docs/Web/API/MutationObserver
@@ -10,9 +10,9 @@ const availableContextsTwitter = [new Context('twitter-user', injectTwitterUserS
 const reactRoot = document.getElementById('react-root');
 
 // Options for the observer (which mutations to observe)
-const obsConfig = { attributes: true, childList: false, subtree: true, attributeFilter: ['role'], attributeOldValue: true};
+const obsConfig = { attributes: true, childList: false, subtree: true, attributeFilter: ['role'], attributeOldValue: true };
 // @TODO All this observer stuff needs to be twitter specific, so that instagram etc. can have theirs as well.
-const observerCallback = function(mutationsList, observer) {
+const observerCallback = function (mutationsList, observer) {
     let primaryColID = 'primaryColumn';
     let attName = 'data-testid';
     for (let mutation of mutationsList) {
@@ -27,8 +27,16 @@ const observerCallback = function(mutationsList, observer) {
                 if (insertElement.getElementsByClassName('survey-container-tweet').length === 0) {
                     let tweetDetails = extractTweetDetails(insertElement);
 
-                    injectTwitterTweetSurvey(insertElement, tweetDetails.tweetID);
-                    availableContextsTwitter[1].renderSurvey(tweetDetails.tweetOwner, tweetDetails.tweetID);  // @TODO magic index, todo at definition.
+                    if (tweetDetails) {
+                        injectTwitterTweetSurvey(insertElement, tweetDetails.tweetID);
+                        availableContextsTwitter[1].renderSurvey(
+                            tweetDetails.tweetOwner, 
+                            tweetDetails.tweetID, 
+                            { 
+                                tweetContent: tweetDetails.tweetContent
+                            }
+                        );
+                    }
                 }
             }
         }
@@ -57,15 +65,10 @@ function injectTwitterUserSurvey(injectElement, userID) {
     surveyContainer.setAttribute("id", "surveyFormContainer");
     const shadowRoot = surveyContainer.attachShadow({ mode: 'open' });
 
+    let cssUrl = chrome.runtime.getURL("content-scripts/twitter/inject.css");
     shadowRoot.innerHTML = `\
-   <link rel="stylesheet" type="text/css" href="${chrome.extension.getURL("dep/jsonform/deps/opt/bootstrap.css")}"></link>\
-   <link rel="stylesheet" type="text/css" href="${chrome.extension.getURL("content-scripts/twitter/inject.css")}"></link>\
+   <iframe class="surveyIframe" src="${chrome.runtime.getURL("sandbox/survey.html")}" data-css="${cssUrl}" style="border:none; width:100%; height:100%; background:transparent;"></iframe>\
 `;
-
-    let survey = document.createElement('form');
-    survey.setAttribute("id", "surveyForm"); // TODO: This ID should be unique when importing multiple forms into page
-    // surveyContainer.appendChild(survey);
-    shadowRoot.appendChild(survey);
 
     // Inject the form to the appropriate element in the page.
     let barElementName = injectElement.name;
@@ -98,10 +101,23 @@ function enableTweetObserver(injectElement) {
 
 function extractTweetDetails(articleNode) {
     // there is only one time element, at least for now...
-    let tweetLink = articleNode.querySelector("time").parentNode.href;
+    let timeElement = articleNode.querySelector("time");
+    if(!timeElement || !timeElement.parentNode || !timeElement.parentNode.href) {
+        return null; // Ignore ads, sponsored posts, or unrendered skeleton nodes
+    }
+    
+    let tweetLink = timeElement.parentNode.href;
     tweetLink = tweetLink.split('/');
 
-    return {tweetOwner: tweetLink[3], tweetID: tweetLink[tweetLink.length - 1]} //last element is the id
+    // Extract textual content
+    let tweetTextNode = articleNode.querySelector('[data-testid="tweetText"]');
+    let tweetText = tweetTextNode ? tweetTextNode.innerText : "";
+
+    return { 
+        tweetOwner: tweetLink[3], 
+        tweetID: tweetLink[tweetLink.length - 1],
+        tweetContent: tweetText
+    }
 }
 
 // var tweetCount = 0;
@@ -128,17 +144,10 @@ function injectTwitterTweetSurvey(injectNode, tweetID) {
     surveyContainer.setAttribute("id", containerName);
     const shadowRoot = surveyContainer.attachShadow({ mode: 'open' });
 
+    let cssUrl = chrome.runtime.getURL("content-scripts/twitter/inject.css");
     shadowRoot.innerHTML = `\
-   <link rel="stylesheet" type="text/css" href="${chrome.extension.getURL("dep/jsonform/deps/opt/bootstrap.css")}"></link>\
-   <link rel="stylesheet" type="text/css" href="${chrome.extension.getURL("content-scripts/twitter/inject.css")}"></link>\
+   <iframe class="surveyIframe" src="${chrome.runtime.getURL("sandbox/survey.html")}" data-css="${cssUrl}" style="border:none; width:100%; height:100%; background:transparent;"></iframe>\
 `;
-
-    let survey = document.createElement('form');
-    let surveyName = "surveyForm-" + tweetID;
-    survey.setAttribute("id", surveyName); // TODO: This ID should be unique when importing multiple forms into page
-    // surveyContainer.appendChild(survey);
-    survey.classList.add("surveyFormTweet");
-    shadowRoot.appendChild(survey);
 
 
     //
@@ -184,7 +193,7 @@ chrome.storage.local.get(['config', 'isEnabled', 'activeTargetList', 'clientID']
         let contextFlag = result.config.activeSurveys.includes(currentContext.name);
         let auxFlag = currentContext.auxiliaryCheck();
         if (result.isEnabled === true && contextFlag === true && auxFlag === true) {
-        // if (true) {
+            // if (true) {
             // there can be more than one survey active at one time, so iterate over a list
             // of currentContext if necessary instead of direct assignment.
             // var activeSurvey = result.config.activeSurvey;

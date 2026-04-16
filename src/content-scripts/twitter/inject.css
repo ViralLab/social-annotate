@@ -3,12 +3,12 @@
  **/
 
 div.survey-container-user{	width:100%;
-	height: 30px;
+	height: 150px;
 	display: flex;
 	/*flex-direction: column;*/
 	flex-wrap: wrap-reverse;
 	overflow: auto;
-	background-color: #333;
+	background-color: transparent;
 	position: fixed;
 	/*top: 0;*/
 	bottom: 0;
@@ -19,8 +19,8 @@ div.survey-container-user{	width:100%;
 div.survey-container-tweet{
 	/*width:100%;*/
 	/*display:inline-block;*/
-	/*height: 30px;*/
-	background-color: #333;
+	height: 150px;
+	background-color: transparent;
 	/*overflow:auto;*/
 	/*position: fixed;*/
 	top: 0;

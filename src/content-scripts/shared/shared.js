@@ -12,13 +12,13 @@ function getCurrentScreenName(platform) {
         */
         var currentURL = window.location.href;
         var temp = currentURL.split('.com/');
-        temp = temp[temp.length-1];
+        temp = temp[temp.length - 1];
         screenName = temp.split('/')[0].split('?')[0];
     } else {
         screenName = 'Mahmut';
         //throw "Not implemented yet"
     }
-    
+
     return screenName;
 }
 
@@ -79,68 +79,92 @@ class Context {
         this.name = contextName;
         this.injectSurvey = injectFunction;
         // this.renderSurvey = renderFunction;  // render function is set after construction
-        if(auxCheckFunction !== null) {
+        if (auxCheckFunction !== null) {
             this.auxiliaryCheck = auxCheckFunction;
-        }else{
-            this.auxiliaryCheck = function() { return true;}
+        } else {
+            this.auxiliaryCheck = function () { return true; }
         }
         this.formTemplate = null;
         this.submitAction = null;
     }
 
-    // @TODO Use tweet ID instead of separate formID.
-    renderSurvey(userID, postID=null) {
-        // @TODO attach these metadata fields in a separate setter.
-        // Attach the onSubmit event handler to the schema
-        this.formTemplate.onSubmit = this.submitAction;
+    renderSurvey(userID, postID = null, extras = {}) {
+        if (!window.__surveyContexts) window.__surveyContexts = {};
+        let callId = this.name + (postID ? '-' + postID : '');
+        window.__surveyContexts[callId] = { context: this, userID: userID, postID: postID, extras: extras };
+
+        // Clone the form template so that concurrent iframe loads don't accidentally overwrite each other's hidden defaults due to javascript references
+        let templateCopy = JSON.parse(JSON.stringify(this.formTemplate));
+
         // attach the metadata fields to the template
         for (let key in metadataSchemes) {
             if (metadataSchemes.hasOwnProperty(key)) {
-                this.formTemplate.schema[key] = metadataSchemes[key];
+                templateCopy.schema[key] = metadataSchemes[key];
             }
         }
-        for (let item of metadataForms) {
-            this.formTemplate.form.splice(this.formTemplate.form.length-1, 0, item);
+        let hasHidden = templateCopy.form.some(item => item.key === 'initTimestamp');
+        if (!hasHidden) {
+            for (let item of metadataForms) {
+                templateCopy.form.splice(templateCopy.form.length - 1, 0, item);
+            }
         }
         // fill in the attached metadata fields.
-        this.formTemplate.schema["initTimestamp"].default = Math.floor(Date.now() / 1000);
-        this.formTemplate.schema["userID"].default = userID;
+        templateCopy.schema["initTimestamp"].default = Math.floor(Date.now() / 1000);
+        templateCopy.schema["userID"].default = userID;
 
-        //let formName = '#surveyForm';
         let formName = 'surveyFormContainer';
         if (postID != null) {
-            this.formTemplate.schema["postID"].default = postID;
+            templateCopy.schema["postID"].default = postID;
             formName = formName + '-' + postID.toString()
         }
-        let shadowRoot = document.getElementById(formName).shadowRoot;
-        //$(formName).jsonForm(this.formTemplate);
-        $(shadowRoot.children[shadowRoot.children.length - 1]).jsonForm(this.formTemplate); // @TODO This is a horrible temp. hack
 
-        // @TODO This part is a bit piecemeal, some CSS work can make it so that a single all encompassing div is
-        //      inserted once for all cases, but that's for future.
-        let divName = "surveyForm";
-        if (this.name === "twitter-tweet"){
-            divName += '-' + postID.toString();
+        let shadowRoot = document.getElementById(formName).shadowRoot;
+        let iframe = shadowRoot.querySelector('.surveyIframe');
+
+        // Setup global listener if we haven't already
+        if (!window.__surveyListenerAdded) {
+            window.addEventListener('message', function (event) {
+                if (event.data && event.data.type === 'submit') {
+                    let ctxData = window.__surveyContexts[event.data.callId];
+                    if (ctxData && ctxData.context && ctxData.context.submitAction) {
+                        // Guarantee absolute data integrity by piping the exact IDs from creation context directly into payload
+                        event.data.values.userID = ctxData.userID;
+                        if (ctxData.postID !== null) {
+                            event.data.values.postID = ctxData.postID;
+                        }
+                        if (ctxData.extras) {
+                            for (let k in ctxData.extras) {
+                                event.data.values[k] = ctxData.extras[k];
+                            }
+                        }
+                        ctxData.context.submitAction(event.data.errors, event.data.values);
+                    }
+                }
+            });
+            window.__surveyListenerAdded = true;
         }
 
-        // let surveyContainer = document.getElementById(divName);
-        // let injectContainer = surveyContainer.children[0];
-        let injectContainer = shadowRoot.children[shadowRoot.children.length - 1];
-        // if (this.name === "twitter-user"){
-        injectContainer = injectContainer.children[0];  // guaranteed to be there, though it doesn't look good.
-        // }
+        iframe.onload = () => {
+            iframe.contentWindow.postMessage({
+                type: 'render',
+                cssUrl: iframe.getAttribute('data-css'),
+                formTemplate: templateCopy,
+                callId: callId,
+                surveyType: this.name
+            }, '*');
+        };
 
-        let nc = notificationContainer.cloneNode(true);  // from shared.js
-        injectContainer.insertAdjacentElement('beforebegin', nc);
+        // Insert notification container before iframe
+        let nc = notificationContainer.cloneNode(true);
+        iframe.insertAdjacentElement('beforebegin', nc);
 
         let surveyType = this.name;
         // Check if this one is already annotated.
-        chrome.storage.local.get(['annotatedElements'], function(result) {
-            // This one is only called for tweets, though a more general implementation would be nice in the future.
+        chrome.storage.local.get(['annotatedElements'], function (result) {
             let checkID = (postID === null ? userID : postID);
-            let entryIndex = result.annotatedElements[surveyType].indexOf(checkID);  // for tweets, this keeps userIDs not tweetIDs, UPDATE THAT!.
-            if (entryIndex !== -1) {  // if an entry already exists
-                let os = overwriteSpan.cloneNode(true);  // from shared.js
+            let entryIndex = result.annotatedElements[surveyType].indexOf(checkID);
+            if (entryIndex !== -1) {
+                let os = overwriteSpan.cloneNode(true);
                 nc.replaceChild(os, nc.firstChild);
             }
         });
@@ -160,11 +184,11 @@ function storeResults(surveyResults, socialMediaPlatform) {
     surveyResults.postTimestamp = Math.floor(Date.now() / 1000);
     // surveyResults.initTimestamp = document.getElementById('surveyForm').getAttribute('surveyInitTimestamp');
 
-    _gaq.push(['_trackEvent', 'SurveySubmitted', 'clicked']); // Track number of survey submitted by Google Analytics.
+    // _gaq.push(['_trackEvent', 'SurveySubmitted', 'clicked']); // Track number of survey submitted by Google Analytics.
 
     let apiSuccess = true;
-    chrome.storage.local.get(['config'], function(result){
-        if(result.config.apiEndpoint !== ''){
+    chrome.storage.local.get(['config'], function (result) {
+        if (result.config.apiEndpoint !== '') {
             apiSuccess = false;
             let headers = new Headers();
             headers.append('Accept', 'application/json');
@@ -172,20 +196,20 @@ function storeResults(surveyResults, socialMediaPlatform) {
             headers.append('Content-Type', 'application/json');
 
             fetch(result.config.apiEndpoint, {
-              mode: 'no-cors',
-              method: "POST",
-              body: JSON.stringify(surveyResults),
-              headers: headers
+                mode: 'no-cors',
+                method: "POST",
+                body: JSON.stringify(surveyResults),
+                headers: headers
             }).then(res => {
-              console.log("Request complete! response:", res);
-              // @TODO might not necessarily be success here, handle response types.
-              apiSuccess = true;
+                console.log("Request complete! response:", res);
+                // @TODO might not necessarily be success here, handle response types.
+                apiSuccess = true;
             });
         }
     });
 
     // get annotated count and increment that too. Also annotatedUserIDs.
-    chrome.storage.local.get(['resultsArrays', 'annotatedElements', 'activeTargetList', 'isGuided', 'clientID'], function(result) {
+    chrome.storage.local.get(['resultsArrays', 'annotatedElements', 'activeTargetList', 'isGuided', 'clientID'], function (result) {
         // console.log('Number of recorded results: ' + result.resultsArray.length);
 
         surveyResults.clientID = result.clientID;
@@ -193,10 +217,12 @@ function storeResults(surveyResults, socialMediaPlatform) {
         resultsArrays = result.resultsArrays;
         annotatedElements = result.annotatedElements;
         activeTargetList = result.activeTargetList;
-        
+
         // @TODO: store this in the config when adding more platforms.
         if (socialMediaPlatform == 'twitter') {
-            platformURL = "https://twitter.com/";
+            platformURL = window.location.hostname.includes("x.com") ? "https://x.com/" : "https://twitter.com/";
+        } else if (socialMediaPlatform == 'instagram') {
+            platformURL = "https://instagram.com/";
         }
 
         let surveyType = surveyResults.surveyType;
@@ -231,7 +257,7 @@ function storeResults(surveyResults, socialMediaPlatform) {
             'resultsArrays': resultsArrays,
             'annotatedElements': annotatedElements,
         };
-        
+
         var bringNextUser = false;
         // if guided mode is enabled in the popup UI
         if (result.isGuided === true && surveyType === 'twitter-user') {  // @TODO support guided mode for tweets too.
@@ -239,45 +265,43 @@ function storeResults(surveyResults, socialMediaPlatform) {
 
             // dropIndex = activeTargetList.indexOf(surveyResults.userID);
             // issue#3: making the comparison non case sensitive to handle cases
-                        // where twitter corrects the userid.
+            // where twitter corrects the userid.
             dropIndex = activeTargetList.findIndex(item => surveyResults.userID.toLowerCase() === item.toLowerCase());
             if (dropIndex > -1) {  // -1 when no match
-                activeTargetList.splice(dropIndex,1);  // remove 1 element, starting from dropIndex
+                activeTargetList.splice(dropIndex, 1);  // remove 1 element, starting from dropIndex
             }
-            
+
             // If guided mode is active and there are users in the list, determine next in line. 
-            
+
             var nextUser = '';
-            
+
             if (activeTargetList.length > 0) {
                 bringNextUser = true;
                 nextUser = activeTargetList[0]; // pop from the list when successfully submitted, not beforehand.
             }
-            
+
             lists2update.activeTargetList = activeTargetList;
-            
+
         }
-        chrome.storage.local.set(lists2update, function() {
+        chrome.storage.local.set(lists2update, function () {
             // TODO Update this part for tweets as well, first figure which type is submitted, then construct url
             //  accordingly
-            if (bringNextUser === true){
+            if (bringNextUser === true) {
                 // can't use tabs api within content script.
                 window.location.href = platformURL + nextUser;
             }
 
-            if (apiSuccess){  // @TODO: endpoint error handling isn't done properly, all parts part related to API needs
-                                // full on exception handling.
+            if (apiSuccess) {  // @TODO: endpoint error handling isn't done properly, all parts part related to API needs
+                // full on exception handling.
                 let divName = "surveyFormContainer";
-                if (surveyResults.surveyType === "twitter-tweet"){
+                if (surveyResults.surveyType === "twitter-tweet") {
                     divName += '-' + surveyResults.postID.toString();
                 }
 
                 let ss = successSpan.cloneNode(true);  // @TODO: Have this blink so works for back2back submissions. can remove the span in submit click to achieve that maybe.
 
                 let surveyContainer = document.getElementById(divName).shadowRoot;
-                // @TODO: this part is also a bit piecemeal, work on a universally injectable single div.
-                let nc = null;
-                nc = surveyContainer.children[surveyContainer.children.length - 1].children[0]; // @TODO I need to clean all this up.
+                let nc = surveyContainer.querySelector('.notification-container');
 
                 // if (surveyResults.surveyType === "twitter-tweet") {
                 //     // notification container is guaranteed to exist here as the only sibling of surveyCont, grab it and

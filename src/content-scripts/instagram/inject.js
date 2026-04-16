@@ -62,15 +62,10 @@ function injectInstagramUserSurvey(injectElement, userID) {
     surveyContainer.setAttribute("id", "surveyFormContainer");
     const shadowRoot = surveyContainer.attachShadow({ mode: 'open' });
 
+    let cssUrl = chrome.runtime.getURL("content-scripts/instagram/inject.css");
     shadowRoot.innerHTML = `\
-   <link rel="stylesheet" type="text/css" href="${chrome.extension.getURL("dep/jsonform/deps/opt/bootstrap.css")}"></link>\
-   <link rel="stylesheet" type="text/css" href="${chrome.extension.getURL("content-scripts/instagram/inject.css")}"></link>\
+   <iframe class="surveyIframe" src="${chrome.runtime.getURL("sandbox/survey.html")}" data-css="${cssUrl}" style="border:none; width:100%; height:100%; background:transparent;"></iframe>\
 `;
-
-    let survey = document.createElement('form');
-    survey.setAttribute("id", "surveyForm"); // TODO: This ID should be unique when importing multiple forms into page
-    // surveyContainer.appendChild(survey);
-    shadowRoot.appendChild(survey);
 
     // Inject the form to the appropriate element in the page.
     let barElementName = injectElement.name;

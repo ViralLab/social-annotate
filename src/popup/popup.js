@@ -128,16 +128,16 @@ toggleGuidedCheckbox.addEventListener('click', function(e) {
 // @TODO First line is getting messed up as undefined, figure that out.
 function exportStoredResults (resultArrays) {
     // Save as file
-    let csvResults = '';
+    let filedata = '';
     for (let surveyType in resultArrays) {
         if (resultArrays.hasOwnProperty(surveyType)) {
-            csvResults = objectList2csv(resultArrays[surveyType]);
+            filedata = objectList2jsonl(resultArrays[surveyType]);
         }
 
-        let fileName = 'annotations-' + surveyType + '.csv';
+        let fileName = 'annotations-' + surveyType + '.jsonl';
         fileName = fileName.replace(/-/g ,'_');
 
-        let url = 'data:text/plain;charset=utf-8,' + encodeURIComponent(csvResults);
+        let url = 'data:text/plain;charset=utf-8,' + encodeURIComponent(filedata);
         chrome.downloads.download({
             url: url,
             filename: fileName
@@ -145,37 +145,11 @@ function exportStoredResults (resultArrays) {
     }
 }
 
-function objectList2csv(items) {
-    var csv = '';
-    
-    // Loop the array of objects
+function objectList2jsonl(items) {
+    let jsonl = '';
     for(let row = 0; row < items.length; row++){
-        let keysAmount = Object.keys(items[row]).length
-        let keysCounter = 0
-
-        // If this is the first row, generate the headings
-        if(row === 0){
-
-           // Loop each property of the object
-           for(let key in items[row]){
-
-                               // This is to not add a comma at the last cell
-                               // The '\r\n' adds a new line
-               csv += key + (keysCounter+1 < keysAmount ? ',' : '\r\n' )
-               keysCounter++
-               
-           }
-           // So that it handles first row of DATA properly after adding headings
-           keysCounter = 0
-        }
-        for(let key in items[row]){
-           csv += items[row][key] + (keysCounter+1 < keysAmount ? ',' : '\r\n' )
-           keysCounter++
-        }
-
-
-        keysCounter = 0
+        jsonl += JSON.stringify(items[row]) + '\n';
     }
-    return csv
+    return jsonl;
 }
 

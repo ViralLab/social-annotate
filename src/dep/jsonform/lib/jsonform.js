@@ -808,9 +808,21 @@ jsonform.elementTypes = {
       if (elt.activeClass) {
         activeClass += ' ' + elt.activeClass;
       }
-      $(node.el).find('label').on('click', function () {
-        $(this).parent().find('label').removeClass(activeClass);
-        $(this).addClass(activeClass);
+      $(node.el).find('label').on('mousedown', function () {
+        var wasActive = $(this).hasClass('active');
+        $(this).data('wasActive', wasActive);
+      });
+      $(node.el).find('label').on('click', function (e) {
+        if ($(this).data('wasActive')) {
+          var self = this;
+          setTimeout(function() {
+            $(self).removeClass(activeClass);
+            $(self).find('input[type="radio"]').prop('checked', false).trigger('change');
+          }, 10);
+        } else {
+          $(this).parent().find('label').removeClass(activeClass);
+          $(this).addClass(activeClass);
+        }
       });
     }
   },

@@ -69,7 +69,7 @@ function injectInstagramUserSurvey(injectElement, userID) {
 
     // Inject the form to the appropriate element in the page.
     let barElementName = injectElement.name;
-    let fixedBar = {};
+    let fixedBar = null;
     if (injectElement.type === "class") {
         //fixedBar = document.getElementsByClassName(barElementName)[injectElement.index];
         fixedBar = document.getElementById('react-root');  //@TODO this is a workaround, need to find a proper place to inject this.
@@ -77,9 +77,16 @@ function injectInstagramUserSurvey(injectElement, userID) {
         fixedBar = document.getElementById(barElementName);
     }
 
-    // let nc = notificationContainer.cloneNode();  // from shared.js
-    // fixedBar.insertAdjacentElement('beforebegin', nc);  // I don't know why there is a warning here...
-    fixedBar.insertAdjacentElement('beforebegin', surveyContainer);
+    if (fixedBar) {
+        fixedBar.insertAdjacentElement('beforebegin', surveyContainer);
+    } else {
+        // Fallback for modern Instagram DOM where react-root might not exist
+        if (document.body) {
+            document.body.insertAdjacentElement('afterbegin', surveyContainer);
+        } else {
+            document.documentElement.appendChild(surveyContainer);
+        }
+    }
 
     // chrome.storage.local.get(['annotatedElements'], function(result) {
     //     // This one is only called for users, though a more general implementation would be nice in the future.
@@ -155,57 +162,63 @@ function checkUserURL() {
 }
 // alert("before_STORAGE_GET");
 // get the current config from storage
-chrome.storage.local.get(['config', 'isEnabled', 'activeTargetList', 'clientID'], function (result) {
-    // check if context is enabled
-    // alert("STORAGE_GET");
-    // @TODO implement this check in a way that will eliminate typo issues.
-    const currentPlatform = 'instagram';  // manifest ensures this file is only called for twitter.
-    for (let index = 0; index < availableContextsInstagram.length; ++index) {
-        let currentContext = availableContextsInstagram[index];
-        if (!currentContext.name.includes(currentPlatform)) {
-            continue;
-        }
-        let contextFlag = result.config.activeSurveys.includes(currentContext.name);
-        let auxFlag = currentContext.auxiliaryCheck();
-        // let contextFlag = true; // for debug purposes
-        // let auxFlag = true; // for debug purposes
-        if (result.isEnabled === true && contextFlag === true && auxFlag === true) {
-            // if (true) {
-            // there can be more than one survey active at one time, so iterate over a list
-            // of currentContext if necessary instead of direct assignment.
-            // var activeSurvey = result.config.activeSurvey;
-
-            let activeSurvey = currentContext.name;
-            let config = result.config['surveys'][activeSurvey];
-
-            // Attach the onSubmit event handler to the schema
-
-            let studyID = config.studyID;
-            let clientID = config.clientID;
-
-            function submitAction(errors, values) {
-                if (!errors) {
-                    let bringNextUser = false;
-                    let platform = currentPlatform;
-                    let nextUser = '';
-                    values.surveyType = currentContext.name;
-                    values.studyID = studyID;
-                    values.clientID = clientID;
-                    storeResults(values, platform);  // store values and updateUserID field
+function initializeSurveys() {
+    // get the current config from storage
+    chrome.storage.local.get(['config', 'isEnabled', 'activeTargetList', 'clientID'], function (result) {
+        // check if context is enabled
+        // alert("STORAGE_GET");
+        // @TODO implement this check in a way that will eliminate typo issues.
+        const currentPlatform = 'instagram';  // manifest ensures this file is only called for twitter.
+        for (let index = 0; index < availableContextsInstagram.length; ++index) {
+            let currentContext = availableContextsInstagram[index];
+            if (!currentContext.name.includes(currentPlatform)) {
+                continue;
+            }
+            let contextFlag = result.config.activeSurveys.includes(currentContext.name);
+            let auxFlag = currentContext.auxiliaryCheck();
+            // let contextFlag = true; // for debug purposes
+            // let auxFlag = true; // for debug purposes
+            if (result.isEnabled === true && contextFlag === true && auxFlag === true) {
+                // if (true) {
+                // there can be more than one survey active at one time, so iterate over a list
+                // of currentContext if necessary instead of direct assignment.
+                // var activeSurvey = result.config.activeSurvey;
+    
+                let activeSurvey = currentContext.name;
+                let config = result.config['surveys'][activeSurvey];
+    
+                // Attach the onSubmit event handler to the schema
+    
+                let studyID = config.studyID;
+                let clientID = config.clientID;
+    
+                function submitAction(errors, values) {
+                    if (!errors) {
+                        let bringNextUser = false;
+                        let platform = currentPlatform;
+                        let nextUser = '';
+                        values.surveyType = currentContext.name;
+                        values.studyID = studyID;
+                        values.clientID = clientID;
+                        storeResults(values, platform);  // store values and updateUserID field
+                    }
+                }
+    
+                currentContext.formTemplate = config.surveyFormSchema;
+                currentContext.submitAction = submitAction;
+    
+                currentContext.injectSurvey(config.injectElement);  // @TODO: pass survey ID here
+                // twitter-tweet renders inside the observer callback, observer is enabled with injectSurvey on the line
+                // above, so it is guaranteed to never call render before it was defined and set.
+                if (currentContext.name === 'instagram-user') {  // @TODO: localize to instagram.
+                    let surveyID = crawlUserName();
+                    // alert(surveyID);
+                    currentContext.renderSurvey(surveyID);
                 }
             }
-
-            currentContext.formTemplate = config.surveyFormSchema;
-            currentContext.submitAction = submitAction;
-
-            currentContext.injectSurvey(config.injectElement);  // @TODO: pass survey ID here
-            // twitter-tweet renders inside the observer callback, observer is enabled with injectSurvey on the line
-            // above, so it is guaranteed to never call render before it was defined and set.
-            if (currentContext.name === 'instagram-user') {  // @TODO: localize to instagram.
-                let surveyID = crawlUserName();
-                // alert(surveyID);
-                currentContext.renderSurvey(surveyID);
-            }
         }
-    }
-});
+    });
+}
+
+// Fire the survey initializer on script load
+initializeSurveys();

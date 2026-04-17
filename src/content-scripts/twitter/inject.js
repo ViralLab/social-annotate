@@ -20,9 +20,9 @@ function processArticleNode(articleNode) {
         if (tweetDetails) {
             injectTwitterTweetSurvey(insertElement, tweetDetails.tweetID);
             availableContextsTwitter[1].renderSurvey(
-                tweetDetails.tweetOwner, 
-                tweetDetails.tweetID, 
-                { 
+                tweetDetails.tweetOwner,
+                tweetDetails.tweetID,
+                {
                     tweetContent: () => extractTweetTextContent(insertElement),
                     mediaUrls: () => extractTweetMedia(insertElement)
                 }
@@ -31,15 +31,8 @@ function processArticleNode(articleNode) {
     }
 }
 
-let lastKnownUrl = window.location.href;
-
 // @TODO All this observer stuff needs to be twitter specific, so that instagram etc. can have theirs as well.
 const observerCallback = function (mutationsList, observer) {
-    if (window.location.href !== lastKnownUrl) {
-        lastKnownUrl = window.location.href;
-        initializeSurveys(); // Re-trigger injection logic if URL physically changed via Single Page Application routing
-    }
-
     for (let mutation of mutationsList) {
         if (mutation.type === 'childList') {
             mutation.addedNodes.forEach(node => {
@@ -77,11 +70,6 @@ function crawlUserName() {
 
 
 function injectTwitterUserSurvey(injectElement, userID) {
-    let existingContainer = document.getElementById("surveyFormContainer");
-    if (existingContainer) {
-        existingContainer.remove();
-    }
-
     let surveyContainer = document.createElement('div');
     surveyContainer.className = "survey-container-user";
     surveyContainer.setAttribute("id", "surveyFormContainer");
@@ -150,7 +138,7 @@ function extractTweetMedia(articleNode) {
 
 function extractTweetTextContent(articleNode) {
     let tweetTextParts = [];
-    
+
     // Grab all tweet text blocks natively
     let textNodes = articleNode.querySelectorAll('[data-testid="tweetText"]');
     textNodes.forEach(node => {
@@ -165,22 +153,22 @@ function extractTweetTextContent(articleNode) {
             tweetTextParts.push(linkNode.href);
         }
     });
-    
+
     return tweetTextParts.join('\n\n');
 }
 
 function extractTweetDetails(articleNode) {
     // there is only one time element, at least for now...
     let timeElement = articleNode.querySelector("time");
-    if(!timeElement || !timeElement.parentNode || !timeElement.parentNode.href) {
+    if (!timeElement || !timeElement.parentNode || !timeElement.parentNode.href) {
         return null; // Ignore ads, sponsored posts, or unrendered skeleton nodes
     }
-    
+
     let tweetLink = timeElement.parentNode.href;
     tweetLink = tweetLink.split('/');
 
-    return { 
-        tweetOwner: tweetLink[3], 
+    return {
+        tweetOwner: tweetLink[3],
         tweetID: tweetLink[tweetLink.length - 1]
     };
 }
@@ -245,15 +233,16 @@ function checkUserURL() {
 }
 
 function initializeSurveys() {
+    // get the current config from storage
     chrome.storage.local.get(['config', 'isEnabled', 'activeTargetList', 'clientID'], function (result) {
         const currentPlatform = 'twitter';
         for (let index = 0; index < availableContextsTwitter.length; ++index) {
             let currentContext = availableContextsTwitter[index];
             if (!currentContext.name.includes(currentPlatform)) continue;
-            
+
             let contextFlag = result.config.activeSurveys.includes(currentContext.name);
             let auxFlag = currentContext.auxiliaryCheck();
-            
+
             if (result.isEnabled === true && contextFlag === true && auxFlag === true) {
                 let activeSurvey = currentContext.name;
                 let config = result.config['surveys'][activeSurvey];

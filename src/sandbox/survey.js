@@ -22,6 +22,7 @@ window.addEventListener('message', function (event) {
       if (!errors) {
         var btn = $(formEl[0].tagName ? formEl : '#surveyForm, .surveyFormTweet').find('.surveySubmitBtn');
         btn.removeClass('ready-to-submit').addClass('submitted');
+        btn.val('Done!').text('Done!');
       }
     };
 
@@ -33,6 +34,9 @@ window.addEventListener('message', function (event) {
 
     // Render jsonform
     formEl.empty().jsonForm(data.formTemplate);
+
+    // Initial button state:
+    formEl.find('.surveySubmitBtn').val('Annotate').text('Annotate');
 
     // Listen for changes to form inputs to highlight the submit button dynamically
     formEl.on('change', 'input, select, textarea', function() {
@@ -51,10 +55,13 @@ window.addEventListener('message', function (event) {
             }
         });
 
+        var submitBtn = formEl.find('.surveySubmitBtn');
         if (hasValue) {
-            formEl.find('.surveySubmitBtn').addClass('ready-to-submit');
+            submitBtn.addClass('ready-to-submit');
+            submitBtn.val('Submit').text('Submit');
         } else {
-            formEl.find('.surveySubmitBtn').removeClass('ready-to-submit');
+            submitBtn.removeClass('ready-to-submit');
+            submitBtn.val('Annotate').text('Annotate');
         }
     });
 

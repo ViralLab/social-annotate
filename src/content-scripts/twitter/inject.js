@@ -24,7 +24,8 @@ function processArticleNode(articleNode) {
                 tweetDetails.tweetID,
                 {
                     tweetContent: () => extractTweetTextContent(insertElement),
-                    mediaUrls: () => extractTweetMedia(insertElement)
+                    mediaUrls: () => extractTweetMedia(insertElement),
+                    tweetMetrics: () => extractTweetMetrics(insertElement)
                 }
             );
         }
@@ -155,6 +156,66 @@ function extractTweetTextContent(articleNode) {
     });
 
     return tweetTextParts.join('\n\n');
+}
+
+function extractTweetMetrics(articleNode) {
+    let metrics = {
+        replies: 0,
+        retweets: 0,
+        likes: 0,
+        views: 0,
+        bookmarks: 0
+    };
+
+    if (!articleNode) return metrics;
+
+    const parseShortNumber = (str) => {
+        if (!str) return 0;
+        str = str.trim().replace(/,/g, '');
+        if (str.match(/K/i)) return parseFloat(str) * 1000;
+        if (str.match(/M/i)) return parseFloat(str) * 1000000;
+        return parseInt(str, 10) || 0;
+    };
+
+    const extractFromAria = (testId) => {
+        let el = articleNode.querySelector(`[data-testid="${testId}"]`) || articleNode.querySelector(`[data-testid="un${testId}"]`);
+        if (el) {
+            let aria = el.getAttribute('aria-label');
+            if (aria) {
+                let match = aria.match(/^([\d,\.]+[kmKM]?)\s+/i);
+                if (match) return parseShortNumber(match[1]);
+            }
+            return parseShortNumber(el.innerText);
+        }
+        return 0;
+    };
+
+    metrics.replies = extractFromAria('reply');
+    metrics.retweets = extractFromAria('retweet');
+    metrics.likes = extractFromAria('like');
+    metrics.bookmarks = extractFromAria('bookmark');
+
+    // Attempt to grab views
+    let viewEls = Array.from(articleNode.querySelectorAll('[aria-label]'));
+    let viewEl = viewEls.find(el => {
+        let label = el.getAttribute('aria-label') || '';
+        if (/(?:^|\s)([\d,\.]+[kmKM]?)\s*views?(?:$|\s|\.)/i.test(label)) return true;
+        // Or if it is the analytics button
+        if (label.toLowerCase().includes('view post analytics') && el.innerText.trim().match(/^[\d,\.]+[kmKM]?$/)) return true;
+        return false;
+    });
+
+    if (viewEl) {
+        let aria = viewEl.getAttribute('aria-label') || '';
+        let match = aria.match(/(?:^|\s)([\d,\.]+[kmKM]?)\s*views?(?:$|\s|\.)/i);
+        if (match) {
+            metrics.views = parseShortNumber(match[1]);
+        } else {
+            metrics.views = parseShortNumber(viewEl.innerText);
+        }
+    }
+
+    return metrics;
 }
 
 function extractTweetDetails(articleNode) {

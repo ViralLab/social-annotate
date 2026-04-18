@@ -53,6 +53,7 @@ var config = {
             "socialMediaPlatform": "twitter",
             "injectElement": {},  // not using this for tweets, its kind of complicated to find the tweets and no point in making it configurable, "name": "article", "type": "role", "index": 0
             "studyID": "kokone",
+            "screenNameList": [],
             "surveyFormSchema": {
                 "schema": {
                     "hatespeech": {

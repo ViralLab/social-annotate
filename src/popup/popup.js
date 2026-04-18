@@ -40,7 +40,14 @@ chrome.storage.local.get('config', function(data) {
             // update the active survey in the stored config variable.
             chrome.storage.local.get('config', function (data) {
                 data.config.activeSurveys = [chosenSurvey];
-                chrome.storage.local.set({'config':data.config}, function() {
+                
+                let newTargetList = data.config.surveys[chosenSurvey] && data.config.surveys[chosenSurvey].screenNameList 
+                                    ? [...data.config.surveys[chosenSurvey].screenNameList] : [];
+
+                chrome.storage.local.set({
+                    'config': data.config,
+                    'activeTargetList': newTargetList
+                }, function() {
                     updateAnnotationCount();  
                     refresh_page();
                 });

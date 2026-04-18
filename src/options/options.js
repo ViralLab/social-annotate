@@ -73,7 +73,8 @@ function loadPage(){
         }
 
         if(survey.hasOwnProperty('screenNameList')){
-          document.getElementById(key + '_annotation-list').value = survey.screenNameList;
+          let listArr = Array.isArray(survey.screenNameList) ? survey.screenNameList : [];
+          document.getElementById(key + '_annotation-list').value = listArr.join(',\n');
         }
 
         if(survey.hasOwnProperty('surveyFormSchema')){
@@ -97,7 +98,8 @@ function saveOptionsPage(){
       }
 
       if(survey.hasOwnProperty('screenNameList')){
-        configData.surveys[key].screenNameList = document.getElementById(key + '_annotation-list').value;
+        let valStr = document.getElementById(key + '_annotation-list').value;
+        configData.surveys[key].screenNameList = valStr.split(',').map(s => s.trim()).filter(s => s);
       }
 
       if(survey.hasOwnProperty('surveyFormSchema')){
@@ -105,8 +107,15 @@ function saveOptionsPage(){
       }
     }
 
-    chrome.storage.local.set({'config':configData}, function() {
+    let activeSurvey = configData.activeSurveys && configData.activeSurveys.length > 0 ? configData.activeSurveys[0] : null;
+    let newTargetList = (activeSurvey && configData.surveys[activeSurvey] && configData.surveys[activeSurvey].screenNameList) ? [...configData.surveys[activeSurvey].screenNameList] : [];
+
+    chrome.storage.local.set({
+        'config': configData,
+        'activeTargetList': newTargetList
+    }, function() {
       console.log('Config data updated');
+      alert('Configuration saved successfully!');
     });
 
   });

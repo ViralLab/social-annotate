@@ -279,13 +279,10 @@ function storeResults(surveyResults, socialMediaPlatform) {
 
         var bringNextUser = false;
         // if guided mode is enabled in the popup UI
-        if (result.isGuided === true && surveyType === 'twitter-user') {  // @TODO support guided mode for tweets too.
-            // drop the saved user ID from the list, if it exists in the list.
-
-            // dropIndex = activeTargetList.indexOf(surveyResults.userID);
-            // issue#3: making the comparison non case sensitive to handle cases
-            // where twitter corrects the userid.
-            dropIndex = activeTargetList.findIndex(item => surveyResults.userID.toLowerCase() === item.toLowerCase());
+        if (result.isGuided === true && (surveyType === 'twitter-user' || surveyType === 'twitter-tweet' || surveyType === 'instagram-user')) {
+            // drop the saved ID from the list, if it exists in the list.
+            // insertKey holds either userID or postID
+            dropIndex = activeTargetList.findIndex(item => insertKey.toLowerCase() === item.toLowerCase());
             if (dropIndex > -1) {  // -1 when no match
                 activeTargetList.splice(dropIndex, 1);  // remove 1 element, starting from dropIndex
             }
@@ -303,11 +300,12 @@ function storeResults(surveyResults, socialMediaPlatform) {
 
         }
         chrome.storage.local.set(lists2update, function () {
-            // TODO Update this part for tweets as well, first figure which type is submitted, then construct url
-            //  accordingly
             if (bringNextUser === true) {
-                // can't use tabs api within content script.
-                window.location.href = platformURL + nextUser;
+                if (surveyType === 'twitter-tweet') {
+                    window.location.href = platformURL + 'i/web/status/' + nextUser;
+                } else {
+                    window.location.href = platformURL + nextUser;
+                }
             }
 
             if (apiSuccess) {  // @TODO: endpoint error handling isn't done properly, all parts part related to API needs

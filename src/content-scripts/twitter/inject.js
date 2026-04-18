@@ -295,7 +295,24 @@ function checkUserURL() {
 
 function initializeSurveys() {
     // get the current config from storage
-    chrome.storage.local.get(['config', 'isEnabled', 'activeTargetList', 'clientID'], function (result) {
+    chrome.storage.local.get(['config', 'isEnabled', 'activeTargetList', 'clientID', 'isGuided'], function (result) {
+        
+        // Auto-Start Guided Mode: If we land on the bare platform URL, and have targets waiting, start the first one immediately!
+        let isBasePlatform = window.location.pathname === '/' || window.location.pathname.startsWith('/home');
+        if (result.isEnabled && result.isGuided && result.activeTargetList && result.activeTargetList.length > 0 && isBasePlatform) {
+             let firstTarget = result.activeTargetList[0];
+             let platformURL = window.location.hostname.includes("x.com") ? "https://x.com/" : "https://twitter.com/";
+             let activeSurvey = result.config.activeSurveys && result.config.activeSurveys.length > 0 ? result.config.activeSurveys[0] : null;
+             
+             if (activeSurvey === 'twitter-tweet') {
+                  window.location.href = platformURL + 'i/web/status/' + firstTarget;
+                  return;
+             } else if (activeSurvey === 'twitter-user') {
+                  window.location.href = platformURL + firstTarget;
+                  return;
+             }
+        }
+
         const currentPlatform = 'twitter';
         for (let index = 0; index < availableContextsTwitter.length; ++index) {
             let currentContext = availableContextsTwitter[index];

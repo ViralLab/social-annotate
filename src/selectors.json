@@ -1,0 +1,37 @@
+{
+  "twitter": {
+    "reactRoot": "#react-root",
+    "tweetContainer": "article[data-testid=\"tweet\"]",
+    "tweetText": "[data-testid=\"tweetText\"]",
+    "tweetPhoto": "[data-testid=\"tweetPhoto\"] img",
+    "videoPlayer": "[data-testid=\"videoPlayer\"] video",
+    "cardWrapper": "[data-testid=\"card.wrapper\"]",
+    "metricsReply": "reply",
+    "metricsRetweet": "retweet",
+    "metricsLike": "like",
+    "metricsBookmark": "bookmark",
+    "metricsViewsPattern": "views?",
+    "tweetTimestamp": "time",
+    "userDisplayName": "[data-testid=\"User-Name\"]",
+    "userHandle": "[data-testid=\"User-Name\"] a[href][tabindex=\"-1\"] span",
+    "userAvatar": "[data-testid=\"Tweet-User-Avatar\"] img[src*=\"profile_images\"]",
+    "userBio": "[data-testid=\"UserDescription\"]",
+    "userVerified": "[data-testid=\"icon-verified\"]",
+    "userFollowers": "a[href$=\"/verified_followers\"], a[href$=\"/followers\"]",
+    "userFollowing": "a[href$=\"/following\"]",
+    "userLocation": "[data-testid=\"UserLocation\"]",
+    "userJoinDate": "[data-testid=\"UserJoinDate\"]",
+    "userUrl": "[data-testid=\"UserUrl\"]",
+    "observerFilter": {
+      "attributes": true,
+      "childList": true,
+      "subtree": true,
+      "attributeFilter": [
+        "role"
+      ]
+    }
+  },
+  "instagram": {
+    "reactRoot": "#react-root"
+  }
+}

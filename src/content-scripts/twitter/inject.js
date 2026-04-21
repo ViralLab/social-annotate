@@ -3,13 +3,13 @@
 const availableContextsTwitter = [new Context('twitter-user', injectTwitterUserSurvey, checkUserURL),
 new Context('twitter-tweet', enableTweetObserver, null)];
 
+// Selectors loaded from storage (populated by initializeSurveys)
+let SEL = {};
 
-// https://developer.mozilla.org/en-US/docs/Web/API/MutationObserver
-// Select the node that will be observed for mutations
-const reactRoot = document.getElementById('react-root');
-
-// Options for the observer (which mutations to observe)
-const obsConfig = { attributes: true, childList: true, subtree: true, attributeFilter: ['role'] };
+// MutationObserver globals — initialized after selectors are loaded
+let reactRoot = null;
+let obsConfig = {};
+let observer = null;
 
 function processArticleNode(articleNode) {
     let insertElement = articleNode.parentNode;
@@ -31,38 +31,148 @@ function processArticleNode(articleNode) {
     }
 }
 
-// @TODO All this observer stuff needs to be platform-specific so instagram etc. can have their own.
-const observerCallback = function (mutationsList, observer) {
-    for (let mutation of mutationsList) {
-        if (mutation.type === 'childList') {
-            mutation.addedNodes.forEach(node => {
-                if (node.nodeType === 1) { // ELEMENT_NODE
-                    if (node.getAttribute('role') === 'article') {
-                        processArticleNode(node);
-                    } else {
-                        let articles = node.querySelectorAll('article[role="article"]');
-                        articles.forEach(processArticleNode);
+function createObserver() {
+    const observerCallback = function (mutationsList, obs) {
+        for (let mutation of mutationsList) {
+            if (mutation.type === 'childList') {
+                mutation.addedNodes.forEach(node => {
+                    if (node.nodeType === 1) { // ELEMENT_NODE
+                        if (node.getAttribute('role') === 'article') {
+                            processArticleNode(node);
+                        } else {
+                            let articles = node.querySelectorAll(SEL.tweetContainer || 'article[role="article"]');
+                            articles.forEach(processArticleNode);
+                        }
                     }
+                });
+            } else if (mutation.type === 'attributes') {
+                if (mutation.target.getAttribute('role') === "article") {
+                    processArticleNode(mutation.target);
                 }
-            });
-        } else if (mutation.type === 'attributes') {
-            if (mutation.target.getAttribute('role') === "article") {
-                processArticleNode(mutation.target);
             }
         }
-    }
-};
-
-// Create an observer instance linked to the callback function
-const observer = new MutationObserver(observerCallback);
+    };
+    return new MutationObserver(observerCallback);
+}
 
 
 function crawlUserName() {
     let currentURL = window.location.href;
+    // Handle file:// URLs for local testing
+    if (window.location.protocol === 'file:') {
+        // Try to extract from page DOM instead
+        let handle = document.querySelector(SEL.userHandle || '[data-testid="UserName"] a[href] span');
+        if (handle) {
+            let text = handle.textContent.trim().replace(/^@/, '');
+            if (text) return text;
+        }
+        return 'local-test-user';
+    }
     let temp = currentURL.split('.com/');
     temp = temp[temp.length - 1];
     temp = temp.split('/')[0].split('?')[0];
     return temp;
+}
+
+function extractUserProfile() {
+    let profile = {};
+
+    // Display name
+    try {
+        let nameEl = document.querySelector(SEL.userDisplayName || '[data-testid="UserName"]');
+        if (nameEl) {
+            // The first text-containing span is the display name
+            let spans = nameEl.querySelectorAll('span');
+            for (let s of spans) {
+                let text = s.textContent.trim();
+                if (text && !text.startsWith('@')) {
+                    profile.displayName = text;
+                    break;
+                }
+            }
+        }
+    } catch (e) { /* skip */ }
+
+    // Handle / @username
+    try {
+        let handleEl = document.querySelector(SEL.userHandle || '[data-testid="UserName"] a[href] span');
+        if (handleEl) {
+            profile.handle = handleEl.textContent.trim();
+        }
+    } catch (e) { /* skip */ }
+
+    // Profile picture URL
+    try {
+        let avatarEl = document.querySelector(SEL.userAvatar || '[data-testid="UserAvatar"] img[src*="profile_images"]');
+        if (avatarEl) {
+            profile.avatarUrl = avatarEl.src;
+        }
+    } catch (e) { /* skip */ }
+
+    // Bio / description
+    try {
+        let bioEl = document.querySelector(SEL.userBio || '[data-testid="UserDescription"]');
+        if (bioEl) {
+            profile.bio = bioEl.textContent.trim();
+        }
+    } catch (e) { /* skip */ }
+
+    // Verified badge
+    try {
+        let verifiedEl = document.querySelector(SEL.userVerified || '[data-testid="icon-verified"]');
+        profile.isVerified = !!verifiedEl;
+    } catch (e) {
+        profile.isVerified = false;
+    }
+
+    // Followers count
+    try {
+        let followersEl = document.querySelector(SEL.userFollowers || 'a[href$="/verified_followers"], a[href$="/followers"]');
+        if (followersEl) {
+            let text = followersEl.textContent.trim();
+            profile.followersText = text;
+            let numMatch = text.match(/([\d,.]+[KMB]?)/);
+            if (numMatch) profile.followersCount = numMatch[1];
+        }
+    } catch (e) { /* skip */ }
+
+    // Following count
+    try {
+        let followingEl = document.querySelector(SEL.userFollowing || 'a[href$="/following"]');
+        if (followingEl) {
+            let text = followingEl.textContent.trim();
+            profile.followingText = text;
+            let numMatch = text.match(/([\d,.]+[KMB]?)/);
+            if (numMatch) profile.followingCount = numMatch[1];
+        }
+    } catch (e) { /* skip */ }
+
+    // Location
+    try {
+        let locEl = document.querySelector(SEL.userLocation || '[data-testid="UserLocation"]');
+        if (locEl) {
+            profile.location = locEl.textContent.trim();
+        }
+    } catch (e) { /* skip */ }
+
+    // Join date
+    try {
+        let joinEl = document.querySelector(SEL.userJoinDate || '[data-testid="UserJoinDate"]');
+        if (joinEl) {
+            profile.joinDate = joinEl.textContent.trim();
+        }
+    } catch (e) { /* skip */ }
+
+    // Website URL
+    try {
+        let urlEl = document.querySelector(SEL.userUrl || '[data-testid="UserUrl"]');
+        if (urlEl) {
+            let link = urlEl.querySelector('a');
+            profile.websiteUrl = link ? link.href : urlEl.textContent.trim();
+        }
+    } catch (e) { /* skip */ }
+
+    return profile;
 }
 
 
@@ -78,13 +188,17 @@ function injectTwitterUserSurvey(injectElement, userID) {
 `;
 
     // Inject the survey before the react root.
-    let fixedBar = document.getElementById('react-root');
-    fixedBar.insertAdjacentElement('beforebegin', surveyContainer);
+    let fixedBar = document.querySelector(SEL.reactRoot || '#react-root');
+    if (fixedBar) {
+        fixedBar.insertAdjacentElement('beforebegin', surveyContainer);
+    }
 }
 
 function enableTweetObserver(injectElement) {
-    document.querySelectorAll('article[role="article"]').forEach(processArticleNode);
-    observer.observe(reactRoot, obsConfig)
+    document.querySelectorAll(SEL.tweetContainer || 'article[role="article"]').forEach(processArticleNode);
+    if (reactRoot && observer) {
+        observer.observe(reactRoot, obsConfig);
+    }
 }
 
 function extractTweetMedia(articleNode) {
@@ -92,13 +206,13 @@ function extractTweetMedia(articleNode) {
     let mediaUrls = [];
 
     // Extract standard high-res image sources
-    let photos = articleNode.querySelectorAll('[data-testid="tweetPhoto"] img');
+    let photos = articleNode.querySelectorAll(SEL.tweetPhoto || '[data-testid="tweetPhoto"] img');
     photos.forEach(img => {
         if (img.src) mediaUrls.push(img.src);
     });
 
     // Extract videos (attempt to grab raw MP4 source first, fallback to thumbnail if stream is encrypted blob)
-    let videos = articleNode.querySelectorAll('[data-testid="videoPlayer"] video');
+    let videos = articleNode.querySelectorAll(SEL.videoPlayer || '[data-testid="videoPlayer"] video');
     videos.forEach(video => {
         let mp4Source = video.querySelector('source');
         if (mp4Source && mp4Source.src && !mp4Source.src.startsWith('blob:')) {
@@ -117,13 +231,13 @@ function extractTweetTextContent(articleNode) {
     let tweetTextParts = [];
 
     // Grab all tweet text blocks natively
-    let textNodes = articleNode.querySelectorAll('[data-testid="tweetText"]');
+    let textNodes = articleNode.querySelectorAll(SEL.tweetText || '[data-testid="tweetText"]');
     textNodes.forEach(node => {
         if (node.innerText) tweetTextParts.push(node.innerText.trim());
     });
 
     // Grab URLs from link previews instead of the bulky card text
-    let cardNodes = articleNode.querySelectorAll('[data-testid="card.wrapper"]');
+    let cardNodes = articleNode.querySelectorAll(SEL.cardWrapper || '[data-testid="card.wrapper"]');
     cardNodes.forEach(node => {
         let linkNode = node.querySelector('a');
         if (linkNode && linkNode.href) {
@@ -166,23 +280,26 @@ function extractTweetMetrics(articleNode) {
         return 0;
     };
 
-    metrics.replies = extractFromAria('reply');
-    metrics.retweets = extractFromAria('retweet');
-    metrics.likes = extractFromAria('like');
-    metrics.bookmarks = extractFromAria('bookmark');
+    metrics.replies = extractFromAria(SEL.metricsReply || 'reply');
+    metrics.retweets = extractFromAria(SEL.metricsRetweet || 'retweet');
+    metrics.likes = extractFromAria(SEL.metricsLike || 'like');
+    metrics.bookmarks = extractFromAria(SEL.metricsBookmark || 'bookmark');
 
     // Attempt to grab views from the analytics label
+    let viewsWord = SEL.metricsViewsPattern || 'views?';
+    let viewsRegex = new RegExp('(?:^|\\s)([\\d,\\.]+[kmKM]?)\\s*' + viewsWord + '(?:$|\\s|\\.)', 'i');
+
     let viewEls = Array.from(articleNode.querySelectorAll('[aria-label]'));
     let viewEl = viewEls.find(el => {
         let label = el.getAttribute('aria-label') || '';
-        if (/(?:^|\s)([\d,\.]+[kmKM]?)\s*views?(?:$|\s|\.)/i.test(label)) return true;
+        if (viewsRegex.test(label)) return true;
         if (label.toLowerCase().includes('view post analytics') && el.innerText.trim().match(/^[\d,\.]+[kmKM]?$/)) return true;
         return false;
     });
 
     if (viewEl) {
         let aria = viewEl.getAttribute('aria-label') || '';
-        let match = aria.match(/(?:^|\s)([\d,\.]+[kmKM]?)\s*views?(?:$|\s|\.)/i);
+        let match = aria.match(viewsRegex);
         if (match) {
             metrics.views = parseShortNumber(match[1]);
         } else {
@@ -194,8 +311,7 @@ function extractTweetMetrics(articleNode) {
 }
 
 function extractTweetDetails(articleNode) {
-    // There is only one <time> element per tweet article.
-    let timeElement = articleNode.querySelector("time");
+    let timeElement = articleNode.querySelector(SEL.tweetTimestamp || "time");
     if (!timeElement || !timeElement.parentNode || !timeElement.parentNode.href) {
         return null; // Ignore ads, sponsored posts, or unrendered skeleton nodes.
     }
@@ -225,6 +341,8 @@ function injectTwitterTweetSurvey(injectNode, tweetID) {
 }
 
 function checkUserURL() {
+    // On local file:// URLs (saved HTML testing), always allow injection
+    if (window.location.protocol === 'file:') return true;
     // Content script won't be loaded if not on Twitter, so we only need to exclude
     // the home/root page. Settings are excluded via manifest.
     let uname = crawlUserName();
@@ -232,11 +350,20 @@ function checkUserURL() {
 }
 
 function initializeSurveys() {
-    chrome.storage.local.get(['config', 'isEnabled', 'activeTargetList', 'clientID', 'isGuided'], function (result) {
+    chrome.storage.local.get(['config', 'isEnabled', 'activeTargetList', 'clientID', 'isGuided', 'selectors'], function (result) {
 
-        // Auto-Start Guided Mode: if we land on the bare platform URL and have targets waiting, navigate to the first one.
+        // Load selectors into the module-level variable
+        SEL = (result.selectors && result.selectors.twitter) ? result.selectors.twitter : {};
+
+        // Initialize observer infrastructure now that selectors are available
+        reactRoot = document.querySelector(SEL.reactRoot || '#react-root');
+        obsConfig = SEL.observerFilter || { attributes: true, childList: true, subtree: true, attributeFilter: ['role'] };
+        observer = createObserver();
+
+        // Auto-Start Guided Mode: skip on local files (testing mode)
+        let isLocalFile = window.location.protocol === 'file:';
         let isBasePlatform = window.location.pathname === '/' || window.location.pathname.startsWith('/home');
-        if (result.isEnabled && result.isGuided && result.activeTargetList && result.activeTargetList.length > 0 && isBasePlatform) {
+        if (!isLocalFile && result.isEnabled && result.isGuided && result.activeTargetList && result.activeTargetList.length > 0 && isBasePlatform) {
             let firstTarget = result.activeTargetList[0];
             let platformURL = window.location.hostname.includes("x.com") ? "https://x.com/" : "https://twitter.com/";
             let activeSurvey = result.config.activeSurveys && result.config.activeSurveys.length > 0 ? result.config.activeSurveys[0] : null;
@@ -278,7 +405,9 @@ function initializeSurveys() {
 
                 if (currentContext.name !== 'twitter-tweet') {
                     let surveyID = crawlUserName();
-                    currentContext.renderSurvey(surveyID);
+                    currentContext.renderSurvey(surveyID, null, {
+                        userProfile: () => extractUserProfile()
+                    });
                 }
             }
         }

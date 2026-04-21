@@ -1,8 +1,8 @@
 // Context class is defined in shared.js
 const availableContextsInstagram = [new Context('instagram-user', injectInstagramUserSurvey, checkUserURL)];
 
-// https://developer.mozilla.org/en-US/docs/Web/API/MutationObserver
-const reactRoot = document.getElementById('react-root');
+// Selectors loaded from storage (populated by initializeSurveys)
+let SEL_IG = {};
 
 
 function crawlUserName() {
@@ -29,8 +29,7 @@ function injectInstagramUserSurvey(injectElement, userID) {
     let barElementName = injectElement.name;
     let fixedBar = null;
     if (injectElement.type === "class") {
-        // @TODO: find a more specific insertion point than react-root.
-        fixedBar = document.getElementById('react-root');
+        fixedBar = document.querySelector(SEL_IG.reactRoot || '#react-root');
     } else if (injectElement.type === "id") {
         fixedBar = document.getElementById(barElementName);
     }
@@ -55,7 +54,11 @@ function checkUserURL() {
 }
 
 function initializeSurveys() {
-    chrome.storage.local.get(['config', 'isEnabled', 'activeTargetList', 'clientID'], function (result) {
+    chrome.storage.local.get(['config', 'isEnabled', 'activeTargetList', 'clientID', 'selectors'], function (result) {
+
+        // Load selectors into the module-level variable
+        SEL_IG = (result.selectors && result.selectors.instagram) ? result.selectors.instagram : {};
+
         const currentPlatform = 'instagram';
         for (let index = 0; index < availableContextsInstagram.length; ++index) {
             let currentContext = availableContextsInstagram[index];

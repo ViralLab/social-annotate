@@ -28,9 +28,23 @@ chrome.runtime.onInstalled.addListener(function () {
         "isGuided": false,
         "activeTargetList": [...config.surveys["twitter-user"].screenNameList]  // clone the array, keep the initial list for future reference.
     };
-    chrome.storage.local.set(initialStorage, function () {
-        console.log('Storage arrays initialized.');
-    });
+
+    // Load default selectors from selectors.json and store them.
+    fetch(chrome.runtime.getURL('selectors.json'))
+        .then(response => response.json())
+        .then(selectors => {
+            initialStorage.selectors = selectors;
+            chrome.storage.local.set(initialStorage, function () {
+                console.log('Storage arrays and selectors initialized.');
+            });
+        })
+        .catch(err => {
+            console.error('Failed to load selectors.json, using empty defaults:', err);
+            initialStorage.selectors = { twitter: {}, instagram: {} };
+            chrome.storage.local.set(initialStorage, function () {
+                console.log('Storage arrays initialized (without selectors).');
+            });
+        });
 });
 
 

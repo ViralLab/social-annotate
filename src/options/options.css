@@ -287,3 +287,184 @@ html, body {
 .contact-list li { margin-bottom: 8px; }
 .about-link { color: var(--accent); text-decoration: none; }
 .about-link:hover { text-decoration: underline; }
+
+/* ── Mode Toggle ────────────────────────────────────────── */
+.mode-toggle-row {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px;
+}
+.mode-toggle {
+  display: flex; gap: 2px;
+  background: rgba(255,255,255,0.04); border: 1px solid var(--card-border);
+  border-radius: var(--r-sm); padding: 3px; overflow: hidden;
+}
+.mode-toggle-btn {
+  background: none; border: none; color: var(--text-muted);
+  font-family: var(--font); font-size: 12px; font-weight: 500;
+  padding: 5px 14px; border-radius: 4px; cursor: pointer;
+  transition: all var(--ease);
+}
+.mode-toggle-btn:hover { color: var(--text-secondary); }
+.mode-toggle-btn.active { background: var(--accent); color: #fff; }
+
+/* ── Builder Toolbar ────────────────────────────────────── */
+.builder-toolbar {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 14px;
+}
+.btn-add-field {
+  background: rgba(255,255,255,0.06); border: 1px solid var(--card-border);
+  color: var(--text-primary); font-family: var(--font); font-size: 12px;
+  font-weight: 500; padding: 7px 14px; border-radius: var(--r-sm);
+  cursor: pointer; transition: all var(--ease);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.btn-add-field:hover { background: rgba(255,255,255,0.1); border-color: var(--accent); }
+.add-field-select {
+  background: var(--input-bg); border: 1px solid var(--input-border);
+  color: var(--text-primary); font-family: var(--font); font-size: 12px;
+  padding: 7px 10px; border-radius: var(--r-sm); outline: none; cursor: pointer;
+}
+.add-field-select option { background: #1a1d26; color: var(--text-primary); }
+
+/* ── Builder Field Cards ────────────────────────────────── */
+.builder-fields { min-height: 40px; }
+
+.builder-field {
+  background: rgba(255,255,255,0.03); border: 1px solid var(--card-border);
+  border-radius: var(--r-md); margin-bottom: 10px;
+  transition: border-color var(--ease), box-shadow var(--ease), opacity var(--ease);
+}
+.builder-field:hover { border-color: rgba(255,255,255,0.15); }
+.builder-field.dragging { opacity: 0.4; border-color: var(--accent); }
+.builder-field.drag-over { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
+
+.builder-field-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; cursor: grab;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.builder-field-header:active { cursor: grabbing; }
+
+.drag-handle {
+  color: var(--text-muted); font-size: 14px; cursor: grab;
+  user-select: none; flex-shrink: 0; line-height: 1;
+}
+.builder-field-key {
+  background: none; border: 1px solid transparent; color: var(--text-primary);
+  font-family: var(--mono); font-size: 12px; font-weight: 600;
+  padding: 3px 6px; border-radius: 4px; width: 120px;
+  transition: border-color var(--ease);
+}
+.builder-field-key:hover { border-color: var(--input-border); }
+.builder-field-key:focus {
+  outline: none; border-color: var(--input-focus);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+.builder-type-badge {
+  font-size: 10px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.5px; padding: 2px 8px; border-radius: 10px;
+  background: rgba(79,142,247,0.12); color: var(--accent);
+  flex-shrink: 0;
+}
+.builder-required-toggle {
+  margin-left: auto; display: flex; align-items: center; gap: 5px;
+  font-size: 11px; color: var(--text-muted); cursor: pointer; flex-shrink: 0;
+}
+.builder-required-toggle input[type="checkbox"] {
+  accent-color: var(--accent); cursor: pointer;
+}
+.btn-delete-field {
+  background: none; border: none; color: var(--text-muted);
+  font-size: 14px; cursor: pointer; padding: 2px 6px; border-radius: 4px;
+  transition: all var(--ease); flex-shrink: 0;
+}
+.btn-delete-field:hover { color: var(--error); background: rgba(244,33,46,0.1); }
+
+.builder-field-body { padding: 12px 14px; }
+
+.builder-inline-label {
+  font-size: 11px; font-weight: 500; color: var(--text-muted);
+  margin-bottom: 5px; display: block;
+}
+.builder-inline-input {
+  width: 100%; background: var(--input-bg); border: 1px solid var(--input-border);
+  border-radius: var(--r-sm); color: var(--text-primary);
+  font-family: var(--font); font-size: 13px; padding: 7px 10px;
+  outline: none; transition: border-color var(--ease);
+}
+.builder-inline-input:focus {
+  border-color: var(--input-focus); box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+/* ── Radio Option Pills ─────────────────────────────────── */
+.option-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.option-pill {
+  display: flex; align-items: center; gap: 4px;
+  background: rgba(255,255,255,0.06); border: 1px solid var(--card-border);
+  border-radius: 20px; padding: 4px 6px 4px 10px; font-size: 12px;
+}
+.option-pill-text {
+  background: none; border: none; color: var(--text-primary);
+  font-family: var(--font); font-size: 12px; width: 60px;
+  outline: none; text-align: center;
+}
+.option-pill-text:focus { color: var(--accent); }
+.btn-remove-option {
+  background: none; border: none; color: var(--text-muted); font-size: 11px;
+  cursor: pointer; padding: 0 3px; border-radius: 50%;
+  transition: color var(--ease);
+}
+.btn-remove-option:hover { color: var(--error); }
+.btn-add-option {
+  background: none; border: 1px dashed var(--card-border);
+  color: var(--text-muted); border-radius: 20px; padding: 4px 12px;
+  font-size: 12px; cursor: pointer; font-family: var(--font);
+  transition: all var(--ease);
+}
+.btn-add-option:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── Range Inputs Row ───────────────────────────────────── */
+.range-inputs-row {
+  display: flex; gap: 10px; margin-top: 8px;
+}
+.range-input-group { flex: 1; }
+.range-input-group label {
+  font-size: 10px; color: var(--text-muted); text-transform: uppercase;
+  letter-spacing: 0.5px; display: block; margin-bottom: 3px;
+}
+.range-input-group input[type="number"] {
+  width: 100%; background: var(--input-bg); border: 1px solid var(--input-border);
+  border-radius: var(--r-sm); color: var(--text-primary);
+  font-family: var(--mono); font-size: 12px; padding: 5px 8px; outline: none;
+}
+.range-input-group input[type="number"]:focus {
+  border-color: var(--input-focus); box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+/* ── Builder empty state ────────────────────────────────── */
+.builder-empty {
+  text-align: center; padding: 30px; color: var(--text-muted);
+  font-size: 13px; border: 1px dashed var(--card-border);
+  border-radius: var(--r-md);
+}
+
+/* ── Annotation Upload Row ──────────────────────────────── */
+.annotation-upload-row {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+}
+.btn-upload-list {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(255,255,255,0.06); border: 1px solid var(--card-border);
+  color: var(--text-primary); font-family: var(--font); font-size: 12px;
+  font-weight: 500; padding: 6px 12px; border-radius: var(--r-sm);
+  cursor: pointer; transition: all var(--ease);
+}
+.btn-upload-list:hover { background: rgba(255,255,255,0.1); border-color: var(--accent); }
+.btn-clear-list {
+  background: none; border: 1px solid var(--card-border);
+  color: var(--text-muted); font-family: var(--font); font-size: 12px;
+  padding: 6px 10px; border-radius: var(--r-sm); cursor: pointer;
+  transition: all var(--ease);
+}
+.btn-clear-list:hover { color: var(--error); border-color: rgba(244,33,46,0.3); }

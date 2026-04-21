@@ -1,6 +1,5 @@
 
 // Context class is defined in shared.js
-// @TODO make this array a struct to avoid magic indices.
 const availableContextsTwitter = [new Context('twitter-user', injectTwitterUserSurvey, checkUserURL),
 new Context('twitter-tweet', enableTweetObserver, null)];
 
@@ -32,7 +31,7 @@ function processArticleNode(articleNode) {
     }
 }
 
-// @TODO All this observer stuff needs to be twitter specific, so that instagram etc. can have theirs as well.
+// @TODO All this observer stuff needs to be platform-specific so instagram etc. can have their own.
 const observerCallback = function (mutationsList, observer) {
     for (let mutation of mutationsList) {
         if (mutation.type === 'childList') {
@@ -57,9 +56,6 @@ const observerCallback = function (mutationsList, observer) {
 // Create an observer instance linked to the callback function
 const observer = new MutationObserver(observerCallback);
 
-// Start observing the target node for configured mutations
-// observer.observe(reactRoot, config);
-
 
 function crawlUserName() {
     let currentURL = window.location.href;
@@ -81,29 +77,9 @@ function injectTwitterUserSurvey(injectElement, userID) {
    <iframe class="surveyIframe" src="${chrome.runtime.getURL("sandbox/survey.html")}" data-css="${cssUrl}" style="border:none; width:100%; height:100%; background:transparent;"></iframe>\
 `;
 
-    // Inject the form to the appropriate element in the page.
-    let barElementName = injectElement.name;
-    let fixedBar = {};
-    if (injectElement.type === "class") {
-        //fixedBar = document.getElementsByClassName(barElementName)[injectElement.index];
-        fixedBar = document.getElementById('react-root');
-    } else if (injectElement.type === "id") {
-        fixedBar = document.getElementById(barElementName);
-    }
-
-    // let nc = notificationContainer.cloneNode();  // from shared.js
-    // fixedBar.insertAdjacentElement('beforebegin', nc);  // I don't know why there is a warning here...
+    // Inject the survey before the react root.
+    let fixedBar = document.getElementById('react-root');
     fixedBar.insertAdjacentElement('beforebegin', surveyContainer);
-
-    // chrome.storage.local.get(['annotatedElements'], function(result) {
-    //     // This one is only called for users, though a more general implementation would be nice in the future.
-    //     let surveyType = 'twitter-user';
-    //     let entryIndex = result.annotatedElements[surveyType].indexOf(userID);
-    //     if (entryIndex !== -1) {  // if an entry already exists
-    //         let os = overwriteSpan.cloneNode();  // from shared.js
-    //         nc.replaceChild(os, notificationContainer.firstChild);
-    //     }
-    // });
 }
 
 function enableTweetObserver(injectElement) {
@@ -121,7 +97,7 @@ function extractTweetMedia(articleNode) {
         if (img.src) mediaUrls.push(img.src);
     });
 
-    // Extract videos (Attempt to grab raw MP4 source first, fallback to thumbnail if stream is encrypted blob)
+    // Extract videos (attempt to grab raw MP4 source first, fallback to thumbnail if stream is encrypted blob)
     let videos = articleNode.querySelectorAll('[data-testid="videoPlayer"] video');
     videos.forEach(video => {
         let mp4Source = video.querySelector('source');
@@ -195,12 +171,11 @@ function extractTweetMetrics(articleNode) {
     metrics.likes = extractFromAria('like');
     metrics.bookmarks = extractFromAria('bookmark');
 
-    // Attempt to grab views
+    // Attempt to grab views from the analytics label
     let viewEls = Array.from(articleNode.querySelectorAll('[aria-label]'));
     let viewEl = viewEls.find(el => {
         let label = el.getAttribute('aria-label') || '';
         if (/(?:^|\s)([\d,\.]+[kmKM]?)\s*views?(?:$|\s|\.)/i.test(label)) return true;
-        // Or if it is the analytics button
         if (label.toLowerCase().includes('view post analytics') && el.innerText.trim().match(/^[\d,\.]+[kmKM]?$/)) return true;
         return false;
     });
@@ -219,10 +194,10 @@ function extractTweetMetrics(articleNode) {
 }
 
 function extractTweetDetails(articleNode) {
-    // there is only one time element, at least for now...
+    // There is only one <time> element per tweet article.
     let timeElement = articleNode.querySelector("time");
     if (!timeElement || !timeElement.parentNode || !timeElement.parentNode.href) {
-        return null; // Ignore ads, sponsored posts, or unrendered skeleton nodes
+        return null; // Ignore ads, sponsored posts, or unrendered skeleton nodes.
     }
 
     let tweetLink = timeElement.parentNode.href;
@@ -234,24 +209,7 @@ function extractTweetDetails(articleNode) {
     };
 }
 
-// var tweetCount = 0;
-// @TODO check if an entry already exists for this tweetID, and show a warning if so. This is going to be inefficient
-//      with our current implementation ( O(kn) k=number of tweets, n=number of entries) but neither k nor n should ever
-//      get very large, we should still rewamp this in the future. ----!!! Storage API call limit may also be an issue
-//      if so that rewamping will have to happen now !!!----
-// This is how to check if exists...
-// let insertIndex = annotatedElements[surveyType].indexOf(insertKey);
-// if (insertIndex === -1) {
-//     // keeping a separate list of IDs for quick access, doesn't take much space.
-//     // resultsArray.push(surveyResults);
-//     // annotatedUserIDs.push(surveyResults.userID);
-//     // this index appends to the end of the list.
-//     insertIndex = resultsArrays[surveyType].length;
-// }
-
 function injectTwitterTweetSurvey(injectNode, tweetID) {
-    // @ TODO This shall be done by mutation observer so it supports new tweets too
-    // alert('attempting to inject tweets');
     let surveyContainer = document.createElement('div');
     surveyContainer.className = "survey-container-tweet";
     let containerName = "surveyFormContainer-" + tweetID;
@@ -263,54 +221,33 @@ function injectTwitterTweetSurvey(injectNode, tweetID) {
    <iframe class="surveyIframe" src="${chrome.runtime.getURL("sandbox/survey.html")}" data-css="${cssUrl}" style="border:none; width:100%; height:100%; background:transparent;"></iframe>\
 `;
 
-
-    //
-    // let survey = document.createElement('form');
-    // survey.setAttribute("id", "surveyForm-" + tweetID);
-    // // survey.setAttribute("surveyInitTimestamp", Math.floor(Date.now() / 1000));
-    // survey.classList.add("surveyFormTweet");
-    // surveyContainer.appendChild(survey);
     injectNode.insertAdjacentElement('afterbegin', surveyContainer);
-    // return tweetCount++;  // well its a global variable but this is the fastest way for now.
 }
 
 function checkUserURL() {
-    // content script won't be loaded if its not actually twitter, so all I need to check
-    //  is if its the main page or not. Anything thats not the main page is a user page
-    //  @TODO exclude settings page from the manifest blob match.
+    // Content script won't be loaded if not on Twitter, so we only need to exclude
+    // the home/root page. Settings are excluded via manifest.
     let uname = crawlUserName();
-    return !(uname === '' || uname === 'home')
-    /*
-
-    let currentURL = window.location.href;
-    let isUserURL = true;
-
-    if (currentURL == "https://twitter.com/" || currentURL == "https://twitter.com/home") {
-        isUserURL = false;
-    }
-
-    return isUserURL;
-    */
+    return !(uname === '' || uname === 'home');
 }
 
 function initializeSurveys() {
-    // get the current config from storage
     chrome.storage.local.get(['config', 'isEnabled', 'activeTargetList', 'clientID', 'isGuided'], function (result) {
-        
-        // Auto-Start Guided Mode: If we land on the bare platform URL, and have targets waiting, start the first one immediately!
+
+        // Auto-Start Guided Mode: if we land on the bare platform URL and have targets waiting, navigate to the first one.
         let isBasePlatform = window.location.pathname === '/' || window.location.pathname.startsWith('/home');
         if (result.isEnabled && result.isGuided && result.activeTargetList && result.activeTargetList.length > 0 && isBasePlatform) {
-             let firstTarget = result.activeTargetList[0];
-             let platformURL = window.location.hostname.includes("x.com") ? "https://x.com/" : "https://twitter.com/";
-             let activeSurvey = result.config.activeSurveys && result.config.activeSurveys.length > 0 ? result.config.activeSurveys[0] : null;
-             
-             if (activeSurvey === 'twitter-tweet') {
-                  window.location.href = platformURL + 'i/web/status/' + firstTarget;
-                  return;
-             } else if (activeSurvey === 'twitter-user') {
-                  window.location.href = platformURL + firstTarget;
-                  return;
-             }
+            let firstTarget = result.activeTargetList[0];
+            let platformURL = window.location.hostname.includes("x.com") ? "https://x.com/" : "https://twitter.com/";
+            let activeSurvey = result.config.activeSurveys && result.config.activeSurveys.length > 0 ? result.config.activeSurveys[0] : null;
+
+            if (activeSurvey === 'twitter-tweet') {
+                window.location.href = platformURL + 'i/web/status/' + firstTarget;
+                return;
+            } else if (activeSurvey === 'twitter-user') {
+                window.location.href = platformURL + firstTarget;
+                return;
+            }
         }
 
         const currentPlatform = 'twitter';
@@ -326,13 +263,11 @@ function initializeSurveys() {
                 let config = result.config['surveys'][activeSurvey];
 
                 let studyID = config.studyID;
-                let clientID = config.clientID;
 
                 function submitAction(errors, values) {
                     if (!errors) {
                         values.surveyType = currentContext.name;
                         values.studyID = studyID;
-                        values.clientID = clientID;
                         storeResults(values, currentPlatform);
                     }
                 }

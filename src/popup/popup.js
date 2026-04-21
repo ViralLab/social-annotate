@@ -18,7 +18,6 @@ function refresh_page(){
 function updateAnnotationCount () {
     var annotationCountSpan = document.getElementById('annotationCount');
     chrome.storage.local.get(['config', 'annotatedElements'], function(data) {
-        // let annotationCount = data.annotatedUserIDs.length;
         // @TODO for now supporting only one active survey at one time, most of the codebase supports multiple just needs
         //      testing and UI updates.
         let activeSurvey = data.config.activeSurveys[0];
@@ -27,28 +26,27 @@ function updateAnnotationCount () {
 }
 
 // Display the number of annotated users in the storage.
-var survey = '';
 var surveyDropdown = document.getElementById('dropdown-menu');
 chrome.storage.local.get('config', function(data) {
     for (var key in data.config.surveys){
         var option = document.createElement('li');
         option.data = key;
-            // event for clicking on a survey name on the dropdown, selecting that survey
+        // Event for clicking on a survey name in the dropdown, selecting that survey.
         option.addEventListener("click", function(){
             let chosenSurvey = this.data;
             document.getElementById('survey-id').innerHTML = chosenSurvey;
-            // update the active survey in the stored config variable.
+            // Update the active survey in the stored config variable.
             chrome.storage.local.get('config', function (data) {
                 data.config.activeSurveys = [chosenSurvey];
-                
-                let newTargetList = data.config.surveys[chosenSurvey] && data.config.surveys[chosenSurvey].screenNameList 
+
+                let newTargetList = data.config.surveys[chosenSurvey] && data.config.surveys[chosenSurvey].screenNameList
                                     ? [...data.config.surveys[chosenSurvey].screenNameList] : [];
 
                 chrome.storage.local.set({
                     'config': data.config,
                     'activeTargetList': newTargetList
                 }, function() {
-                    updateAnnotationCount();  
+                    updateAnnotationCount();
                     refresh_page();
                 });
             });
@@ -57,17 +55,13 @@ chrome.storage.local.get('config', function(data) {
         option.innerHTML = "<a href='#'>" + key + "</a>";
         surveyDropdown.appendChild(option);
     }
-    // Set the default as the latest one
+    // Set the default as the current active survey.
     // @TODO for now supporting only one active survey at one time, most of the codebase supports multiple just needs
     //      testing and UI updates.
-    survey = data.config.activeSurveys[0];
-    document.getElementById('survey-id').innerHTML = survey;
-    // @TODO bring together all these update interface functions
+    let activeSurvey = data.config.activeSurveys[0];
+    document.getElementById('survey-id').innerHTML = activeSurvey;
     updateAnnotationCount();
-
 });
-
-
 
 
 document.querySelector('#exportLink').addEventListener('click', function(e) {
@@ -85,19 +79,8 @@ var toggleGuidedCheckbox = document.querySelector('#toggleGuidedMode');
 
 function updateInterface (disableLink) {
     chrome.storage.local.get(['isEnabled','isGuided'], function(data) {
-        let linkText = '';
-        if (data.isEnabled === true) {
-            linkText = "Disable";
-        } else {
-            linkText = "Enable";
-        }
-        disableLink.innerHTML = linkText;
-        
-        if (data.isGuided === true) {
-            toggleGuidedCheckbox.checked = true;
-        } else {
-            toggleGuidedCheckbox.checked = false;
-        }
+        disableLink.innerHTML = data.isEnabled === true ? "Disable" : "Enable";
+        toggleGuidedCheckbox.checked = data.isGuided === true;
     });
 }
 
@@ -107,46 +90,33 @@ updateInterface(disableLink);
 
 
 disableLink.addEventListener('click', function(e) {
-    // use the link/button as a toggle, toggle between disable and enable.
-    // get the current status, flip it and store it again.
+    // Toggle enable/disable: get current state, flip it, store it.
     chrome.storage.local.get('isEnabled', function(data) {
         let tempValue = !data.isEnabled;
         chrome.storage.local.set({"isEnabled": tempValue}, function() {
             updateInterface(disableLink)
         });
     });
-    // Update the interface (for now just the toggle link)
     refresh_page();
 });
 
 
 toggleGuidedCheckbox.addEventListener('click', function(e) {
-    
-    var isChecked = false;
-    if (toggleGuidedCheckbox.checked == true){
-        isChecked = true;
-    }
-
-    chrome.storage.local.set({"isGuided": isChecked}, function() {} );
+    chrome.storage.local.set({"isGuided": toggleGuidedCheckbox.checked}, function() {});
 });
 
-// @TODO First line is getting messed up as undefined, figure that out.
 function exportStoredResults (resultArrays) {
-    // Save as file
-    let filedata = '';
     for (let surveyType in resultArrays) {
         if (resultArrays.hasOwnProperty(surveyType)) {
-            filedata = objectList2jsonl(resultArrays[surveyType]);
+            let filedata = objectList2jsonl(resultArrays[surveyType]);
+            let fileName = 'annotations-' + surveyType + '.jsonl';
+            fileName = fileName.replace(/-/g ,'_');
+            let url = 'data:text/plain;charset=utf-8,' + encodeURIComponent(filedata);
+            chrome.downloads.download({
+                url: url,
+                filename: fileName
+            });
         }
-
-        let fileName = 'annotations-' + surveyType + '.jsonl';
-        fileName = fileName.replace(/-/g ,'_');
-
-        let url = 'data:text/plain;charset=utf-8,' + encodeURIComponent(filedata);
-        chrome.downloads.download({
-            url: url,
-            filename: fileName
-        });
     }
 }
 
@@ -157,4 +127,3 @@ function objectList2jsonl(items) {
     }
     return jsonl;
 }
-

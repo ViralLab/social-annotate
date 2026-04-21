@@ -17,6 +17,7 @@ $(function () {
 
     loadPage();
 });
+
 // @TODO handle clientID in the forms (make it editable)
 function loadPage(){
   chrome.storage.local.get(['config', 'isEnabled', 'clientID'], function(result) {
@@ -26,8 +27,8 @@ function loadPage(){
       var accordionHTML = '';
       for(var key in result.config.surveys){
           var survey = result.config.surveys[key];
-          
-          html = `<div class="panel panel-default">
+
+          let html = `<div class="panel panel-default">
                     <div class="panel-heading" role="tab" id="heading_` + key + `">
                       <h4 class="panel-title">
                         <img src="../images/` + survey.socialMediaPlatform + `.png" style="height:32px;">
@@ -47,7 +48,7 @@ function loadPage(){
                         </div>
 
                         <h3><small>
-                          Form template in JSON format. Validate <a href="https://jsonform.github.io/jsonform/playground/index.html" target="_blank">here</a> 
+                          Form template in JSON format. Validate <a href="https://jsonform.github.io/jsonform/playground/index.html" target="_blank">here</a>
                           before pasting here. <span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" data-placement="top" title="Make sure JSON is formatted correctly"></span>
                         </small></h3>
                         <textarea id='` + key + `_form-template' class="form-control" rows="10"></textarea>
@@ -119,7 +120,7 @@ function saveOptionsPage(){
     });
 
   });
-};
+}
 
 function exportOptions(){
   chrome.storage.local.get(['config'], function(result) {
@@ -130,7 +131,7 @@ function exportOptions(){
         filename: 'config.json'
     });
   });
-};
+}
 
 function importOptions(){
   var input = document.getElementById('import-button');
@@ -141,9 +142,8 @@ function importOptions(){
       console.log('Config data', configData);
     });
   }
-  //loadPage();
   location.reload();
-};
+}
 
 function handleFileSelect(evt)
 {

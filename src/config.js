@@ -1,57 +1,11 @@
-// submitAction will probably be necessary to be tacked on in inject.js
-// {
-//         "twitter-user": true,
-//         "twitter-tweet": false,
-//         "instagram-user": false
-//     } ,
 var config = {
     "exportFormat": "jsonl",
-    "apiEndpoint": "",  // http://127.0.0.1:5000/response
+    "apiEndpoint": "",  // e.g. http://127.0.0.1:5000/response
     "activeSurveys": ["twitter-tweet"], // default to only twitter-tweet to prevent dual rendering
     "surveys": {
-        // "instagram-user":{
-        //     "socialMediaPlatform": "instagram",
-        //     "studyID": "alpha",
-        //     "injectElement": {"name": "", "type": "class", "index": 0},
-        //     "surveyFormSchema" : {
-        //       "surveyFormSchema" : {
-        //       "schema": {
-        //         "influencer": {
-        //           "type": "string",
-        //           "title": "Do you believe this user to be a influencer?",
-        //           "enum": [ "influencer", "NOT influencer"],
-        //           "required": true
-        //         },
-        //         "authentic": {
-        //           "type": "string",
-        //           "title": "Is this user authentic?",
-        //           "enum": [ "authentic", "NOT authentic"],
-        //           "required": true
-        //         }
-        //       },
-        //       "form": [
-        //         {
-        //           "key": "influencer",
-        //           "type": "radiobuttons",
-        //           "activeClass": "btn-success"
-        //         },
-        //         {
-        //           "key": "authentic",
-        //           "type": "radiobuttons",
-        //           "activeClass": "btn-success"
-        //         },
-        //         {
-        //           "type": "submit",
-        //           "title": "Submit",
-        //           "htmlClass": "surveySubmitBtn"
-        //         }
-        //       ]
-        //     }
-        //   }
-        // },
         "twitter-tweet": {
             "socialMediaPlatform": "twitter",
-            "injectElement": {},  // not using this for tweets, its kind of complicated to find the tweets and no point in making it configurable, "name": "article", "type": "role", "index": 0
+            "injectElement": {},  // tweets are detected dynamically via MutationObserver, not a fixed element
             "studyID": "kokone",
             "screenNameList": [],
             "surveyFormSchema": {
@@ -76,7 +30,7 @@ var config = {
                 ]
             }
         },
-        "twitter-user": {  // - in the name will cause issues when accessing this element.
+        "twitter-user": {
             "socialMediaPlatform": "twitter",
             "injectElement": {
                 "name": "global-nav-inner",
@@ -120,7 +74,7 @@ var config = {
                 ]
             }
         },
-        "instagram-user": {  // - in the name will cause issues when accessing this element.
+        "instagram-user": {
             "socialMediaPlatform": "instagram",
             "injectElement": {
                 "name": "global-nav-inner",
@@ -165,4 +119,3 @@ var config = {
         }
     }
 };
-// config.onSubmit = submitAction;

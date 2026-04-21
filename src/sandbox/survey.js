@@ -26,7 +26,9 @@ window.addEventListener('message', function (event) {
       }
     };
 
-    // Adjust styles for tweets
+    // For tweet surveys, strip the #surveyForm id and use the .surveyFormTweet class instead
+    // so that multiple tweet forms can coexist on the page without id collisions.
+    // Note: formEl still holds the jQuery reference to the element even after the id is removed.
     var formEl = $('#surveyForm');
     if (data.surveyType === 'twitter-tweet') {
       formEl.removeAttr('id').addClass('surveyFormTweet');

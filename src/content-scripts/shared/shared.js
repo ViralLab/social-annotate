@@ -1,25 +1,16 @@
 // @TODO Check if this ID already exists in storage, and just update if it does (avoid duplicates).
 // @TODO Might have an allow duplicates checkbox in the config, if there is a use case for it.
-// Race conditions should not occur because events are called sequentially. 
+// Race conditions should not occur because events are called sequentially.
 function getCurrentScreenName(platform) {
     if (platform === "twitter") {
-        /*
-        headerCardClass = 'ProfileHeaderCard-screenname';
-        screenNameClass = 'u-linkComplex-target';
-        headerCard = document.getElementsByClassName(headerCardClass);
-        screenNameContainer = headerCard[0].getElementsByClassName(screenNameClass);    
-        screenName = screenNameContainer[0].innerText;
-        */
-        var currentURL = window.location.href;
-        var temp = currentURL.split('.com/');
+        let currentURL = window.location.href;
+        let temp = currentURL.split('.com/');
         temp = temp[temp.length - 1];
-        screenName = temp.split('/')[0].split('?')[0];
+        let screenName = temp.split('/')[0].split('?')[0];
+        return screenName;
     } else {
-        screenName = 'Mahmut';
-        //throw "Not implemented yet"
+        return 'Mahmut';
     }
-
-    return screenName;
 }
 
 const metadataSchemes = {
@@ -66,7 +57,7 @@ notificationContainer.style.padding = "10px 0";
 notificationContainer.style.width = "100%";
 notificationContainer.style.fontFamily = "-apple-system, BlinkMacSystemFont, sans-serif";
 
-var defaultSpan = document.createElement("SPAN");
+let defaultSpan = document.createElement("SPAN");
 defaultSpan.style.display = "none";  // Default placeholder is invisible
 notificationContainer.appendChild(defaultSpan);
 
@@ -90,7 +81,6 @@ class Context {
     constructor(contextName, injectFunction, auxCheckFunction) {
         this.name = contextName;
         this.injectSurvey = injectFunction;
-        // this.renderSurvey = renderFunction;  // render function is set after construction
         if (auxCheckFunction !== null) {
             this.auxiliaryCheck = auxCheckFunction;
         } else {
@@ -105,10 +95,10 @@ class Context {
         let callId = this.name + (postID ? '-' + postID : '');
         window.__surveyContexts[callId] = { context: this, userID: userID, postID: postID, extras: extras };
 
-        // Clone the form template so that concurrent iframe loads don't accidentally overwrite each other's hidden defaults due to javascript references
+        // Clone the form template so concurrent iframe loads don't accidentally share references to hidden defaults.
         let templateCopy = JSON.parse(JSON.stringify(this.formTemplate));
 
-        // attach the metadata fields to the template
+        // Attach metadata fields to the template schema.
         for (let key in metadataSchemes) {
             if (metadataSchemes.hasOwnProperty(key)) {
                 templateCopy.schema[key] = metadataSchemes[key];
@@ -120,7 +110,7 @@ class Context {
                 templateCopy.form.splice(templateCopy.form.length - 1, 0, item);
             }
         }
-        // fill in the attached metadata fields.
+        // Fill in the metadata field defaults.
         templateCopy.schema["initTimestamp"].default = Math.floor(Date.now() / 1000);
         templateCopy.schema["userID"].default = userID;
 
@@ -133,13 +123,13 @@ class Context {
         let shadowRoot = document.getElementById(formName).shadowRoot;
         let iframe = shadowRoot.querySelector('.surveyIframe');
 
-        // Setup global listener if we haven't already
+        // Set up global submit listener once; all survey contexts route through it.
         if (!window.__surveyListenerAdded) {
             window.addEventListener('message', function (event) {
                 if (event.data && event.data.type === 'submit') {
                     let ctxData = window.__surveyContexts[event.data.callId];
                     if (ctxData && ctxData.context && ctxData.context.submitAction) {
-                        // Guarantee absolute data integrity by piping the exact IDs from creation context directly into payload
+                        // Guarantee absolute data integrity by piping the exact IDs from creation context directly into payload.
                         event.data.values.userID = ctxData.userID;
                         if (ctxData.postID !== null) {
                             event.data.values.postID = ctxData.postID;
@@ -170,12 +160,12 @@ class Context {
             }, '*');
         };
 
-        // Insert notification container before iframe
+        // Insert notification container before iframe.
         let nc = notificationContainer.cloneNode(true);
         iframe.insertAdjacentElement('beforebegin', nc);
 
         let surveyType = this.name;
-        // Check if this one is already annotated.
+        // Check if this element has already been annotated, and warn if so.
         chrome.storage.local.get(['annotatedElements'], function (result) {
             let checkID = (postID === null ? userID : postID);
             let entryIndex = result.annotatedElements[surveyType].indexOf(checkID);
@@ -198,12 +188,7 @@ failureSpan.style.fontWeight = "bold";
 failureSpan.style.padding = "5px 15px";
 
 function storeResults(surveyResults, socialMediaPlatform) {
-    //surveyResults.userID = getCurrentScreenName(socialMediaPlatform);
-    // surveyResults.userID = document.getElementById('surveyForm').getAttribute('surveyId');
     surveyResults.postTimestamp = Math.floor(Date.now() / 1000);
-    // surveyResults.initTimestamp = document.getElementById('surveyForm').getAttribute('surveyInitTimestamp');
-
-    // _gaq.push(['_trackEvent', 'SurveySubmitted', 'clicked']); // Track number of survey submitted by Google Analytics.
 
     let apiSuccess = true;
     chrome.storage.local.get(['config'], function (result) {
@@ -221,21 +206,19 @@ function storeResults(surveyResults, socialMediaPlatform) {
                 headers: headers
             }).then(res => {
                 console.log("Request complete! response:", res);
-                // @TODO might not necessarily be success here, handle response types.
+                // @TODO: handle non-success response status codes explicitly.
                 apiSuccess = true;
             });
         }
     });
 
-    // get annotated count and increment that too. Also annotatedUserIDs.
     chrome.storage.local.get(['resultsArrays', 'annotatedElements', 'activeTargetList', 'isGuided', 'clientID'], function (result) {
-        // console.log('Number of recorded results: ' + result.resultsArray.length);
-
         surveyResults.clientID = result.clientID;
 
-        resultsArrays = result.resultsArrays;
-        annotatedElements = result.annotatedElements;
-        activeTargetList = result.activeTargetList;
+        let resultsArrays = result.resultsArrays;
+        let annotatedElements = result.annotatedElements;
+        let activeTargetList = result.activeTargetList;
+        let platformURL;
 
         // @TODO: store this in the config when adding more platforms.
         if (socialMediaPlatform == 'twitter') {
@@ -246,59 +229,46 @@ function storeResults(surveyResults, socialMediaPlatform) {
 
         let surveyType = surveyResults.surveyType;
 
-        // @TODO update for tweet storage.
-        // check if this user is already in storage, and if so, where.
         let insertKey = null;
         if (surveyType === 'twitter-user') {
             insertKey = surveyResults.userID;
-        }
-        else if (surveyType === 'twitter-tweet') {
+        } else if (surveyType === 'twitter-tweet') {
             insertKey = surveyResults.postID;
-        }
-        else if (surveyType === 'instagram-user') {
+        } else if (surveyType === 'instagram-user') {
             insertKey = surveyResults.userID;
         }
 
         let insertIndex = annotatedElements[surveyType].indexOf(insertKey);
         if (insertIndex === -1) {
-            // keeping a separate list of IDs for quick access, doesn't take much space.
-            // resultsArray.push(surveyResults);
-            // annotatedUserIDs.push(surveyResults.userID);
-            // this index appends to the end of the list.
+            // New entry: append to end.
             insertIndex = resultsArrays[surveyType].length;
         }
 
         resultsArrays[surveyType][insertIndex] = surveyResults;
         annotatedElements[surveyType][insertIndex] = insertKey;
-        // alert(insertKey);
-        // alert(insertIndex);
+
         let lists2update = {
             'resultsArrays': resultsArrays,
             'annotatedElements': annotatedElements,
         };
 
-        var bringNextUser = false;
-        // if guided mode is enabled in the popup UI
+        let bringNextUser = false;
+        let nextUser = '';
+        // If guided mode is enabled, advance to the next target after a successful annotation.
         if (result.isGuided === true && (surveyType === 'twitter-user' || surveyType === 'twitter-tweet' || surveyType === 'instagram-user')) {
-            // drop the saved ID from the list, if it exists in the list.
-            // insertKey holds either userID or postID
-            dropIndex = activeTargetList.findIndex(item => insertKey.toLowerCase() === item.toLowerCase());
-            if (dropIndex > -1) {  // -1 when no match
-                activeTargetList.splice(dropIndex, 1);  // remove 1 element, starting from dropIndex
+            let dropIndex = activeTargetList.findIndex(item => insertKey.toLowerCase() === item.toLowerCase());
+            if (dropIndex > -1) {
+                activeTargetList.splice(dropIndex, 1);
             }
-
-            // If guided mode is active and there are users in the list, determine next in line. 
-
-            var nextUser = '';
 
             if (activeTargetList.length > 0) {
                 bringNextUser = true;
-                nextUser = activeTargetList[0]; // pop from the list when successfully submitted, not beforehand.
+                nextUser = activeTargetList[0];
             }
 
             lists2update.activeTargetList = activeTargetList;
-
         }
+
         chrome.storage.local.set(lists2update, function () {
             if (bringNextUser === true) {
                 if (surveyType === 'twitter-tweet') {
@@ -308,35 +278,24 @@ function storeResults(surveyResults, socialMediaPlatform) {
                 }
             }
 
-            if (apiSuccess) {  // @TODO: endpoint error handling isn't done properly, all parts part related to API needs
-                // full on exception handling.
+            if (apiSuccess) {
+                // @TODO: endpoint error handling isn't done properly; all API-related paths need full exception handling.
                 let divName = "surveyFormContainer";
                 if (surveyResults.surveyType === "twitter-tweet") {
                     divName += '-' + surveyResults.postID.toString();
                 }
 
-                let ss = successSpan.cloneNode(true);  // @TODO: Have this blink so works for back2back submissions. can remove the span in submit click to achieve that maybe.
+                let ss = successSpan.cloneNode(true);  // @TODO: Have this blink for back-to-back submissions.
 
                 let surveyContainer = document.getElementById(divName).shadowRoot;
                 let nc = surveyContainer.querySelector('.notification-container');
 
-                // if (surveyResults.surveyType === "twitter-tweet") {
-                //     // notification container is guaranteed to exist here as the only sibling of surveyCont, grab it and
-                //     // just clone a span into it.
-                //     nc = surveyContainer.getElementsByClassName("notification-container")[0];
-                // }
-                // else if (surveyResults.surveyType === "twitter-user") {
-                //     // guaranteed to have one of these
-                //     nc = surveyContainer.getElementsByClassName("notification-container")[0];
-                // }
                 if (nc !== null) {
                     nc.replaceChild(ss, nc.firstChild);
-                    // @TODO Doesn't look good but works when someone hits submit back-to-back. Can use better UI overall.
                     $(ss).fadeOut(0);
                     $(ss).fadeIn(200);
                 }
             }
-
         });
     });
 }

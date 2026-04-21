@@ -1,107 +1,98 @@
-
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
+  <meta charset="UTF-8">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="options.css">
+  <script src="../dep/jquery.min.js"></script>
+  <script src="../dep/analytics.js"></script>
+  <title>Social Annotate · Options</title>
+</head>
+<body>
 
-    <link rel="stylesheet" type="text/css"  href="options.css">
-
-    <link rel="stylesheet" type="text/css"  href="../dep/bootstrap.min.css">
-    <link rel="stylesheet" type="text/css"  href="../dep/jsonform/deps/opt/bootstrap.css">
-    <script src="../dep/jquery.min.js"></script>
-    <script src="../dep/bootstrap.min.js"></script>
-    <script src="../dep/analytics.js"></script>
-
-    <title>Content Annotator / Options</title>
-
-  </head>
-
-  <body>
-
-    <ul class="nav nav-tabs" role="tablist">
-      <li><a href="#" class="navbar-brand"><img src="../images/ca32.png"></a></li>
-      <li role="presentation" class="active"><a href="#options" aria-controls="options" role="tab" data-toggle="tab">Options</a></li>
-      <li role="presentation"><a href="#about" aria-controls="about" role="tab" data-toggle="tab">About</a></li>
-    </ul>
-
-    <div class="tab-content">
-      <div role="tabpanel" class="tab-pane active" id="options">
-        <div class="container" id="main-form">
-          <div class="row">
-            <div class="input-group">
-              <span class="input-group-addon" id="lbl-api-description">
-                API Endpoint
-                <span class="glyphicon glyphicon-info-sign" data-toggle="tooltip" data-placement="top" title="URL for an API endpoint for automatic PUT request"></span>
-              </span>
-              <input type="text" class="form-control" id="api-endpoint" aria-describedby="lbl-api-description">
-            </div>
-          </div>
-
-          <div class="row">
-
-            <h3>Survey information</h3>
-
-            <div id="survey-container"></div>
-          </div>
-
-          <div class="row">
-
-            <h3>Configuration Import / Export</h3>
-
-            <div class="col-sm-4">
-              <button type="button" class="btn btn-primary" id="save-button">Save</button>
-              <button type="button" class="btn btn-primary" id="export-button">Export Config</button>
-            </div>
-            <div class="col-sm-8">
-              <div class="input-group input-file">
-                <input id="upload-file" type="file" class="form-control" placeholder='Choose a file...' />
-                <span class="input-group-btn">
-                  <button class="btn btn-default btn-choose" type="button" id="import-button" import-data="">Import Config</button>
-                </span>
-              </div>  
-            </div>
-          </div>
-        </div>
+  <header class="app-header">
+    <div class="header-left">
+      <img src="../images/ca32.png" class="header-logo" alt="Social Annotate">
+      <div>
+        <div class="header-title">Social Annotate</div>
+        <div class="header-subtitle">Extension Options</div>
       </div>
+    </div>
+    <nav class="tab-nav">
+      <button class="tab-btn active" data-tab="options">⚙ Options</button>
+      <button class="tab-btn" data-tab="about">ℹ About</button>
+    </nav>
+  </header>
 
-      <div role="tabpanel" class="tab-pane" id="about">
-        <div class="container" id="main-form">
-          <div class="row">
-            <h2>Why we created this tool?</h2>
-            <p>
-              Human annotated data is a crucial component in the analysis of online systems. Most research efforts go through cumbersome data collection phases where they either build complicated annotation pipelines for online data or annotate offline data shared on spreadsheets or surveys. These approaches introduce significant overhead to any study requiring data collection and causes researchers to divert significant effort away from analysis and modelling to data collection, especially when they have limited programming experience.
-            </p>
-            <p>
-              We aim to develop a tool that can easily adapt to different tasks and extend to most online platforms. This tool allows collection of data directly on the online platform as a user sees and interacts with it as they normally would by injecting surveys into webpages on the browser, and annotations can easily be exported as files or sent to API endpoints. We hope to promote and expedite annotation of online datasets and reduce the data collection overhead so that researchers can focus on research by developing this tool.
-            </p>
+  <!-- Options Tab -->
+  <main class="tab-content active" id="tab-options">
+    <div class="page-container">
 
-            <h2>How to modify options?</h2>
-            <p>To modify survey, please make changes in the Options page. Each different survey is listed under "Survey information" section. Form objects created for each annotation follows a format indicated by <i>jsonform</i> package. Once you update your form object, please make sure to validate the format using the link on Options page.</p>
-
-            <h2>How to add new social media platform?</h2>
-            <p>For detailed instructions please refer to our paper. We also encourage sharing your "recipes" with the project by creating pull requests. We would like to organize those recipes under "<b>recipes</b>" folder.</p>
-
-            <h2>How to cite this tool?</h2>
-            <p>Please refer to our article below.</p>
-            <div class="alert alert-success" role="alert">
-              Uluturk, Ismail and Varol, Onur. "Social-Annotate: Browser Eextension to Annotate and Collect Social Media Data." Journal of Open Source Software X.XX (2020): XXXX. 
-              <br/>
-              <a href="" target="_blank">Journal</a> | <a href="" target="_blank">PDF</a>
-            </div>
-
-            <h2>Contact</h2>
-            <p>You can reach out to us using the contact informations below</p>
-            <ul>
-              <li><b>Ismail Uluturk</b> <a href="https://uluturki.github.io/" target="_blank">Website</a> | <a href="https://twitter.com/strictlynofun" target="_blank">Twitter</a></li>
-              <li><b>Onur Varol</b> <a href="http://www.onurvarol.com/" target="_blank">Website</a> | <a href="https://twitter.com/onurvarol" target="_blank">Twitter</a></li>
-            </ul>
-
-          </div>
+      <section class="section">
+        <div class="section-title">API Configuration</div>
+        <div class="field-group">
+          <label class="field-label" for="api-endpoint">
+            API Endpoint
+            <span class="field-hint">URL for automatic POST requests on submission</span>
+          </label>
+          <input type="text" class="field-input" id="api-endpoint" placeholder="e.g. http://127.0.0.1:5000/response">
         </div>
-      </div>
+      </section>
+
+      <section class="section">
+        <div class="section-title">Surveys</div>
+        <div id="survey-container"></div>
+      </section>
 
     </div>
+  </main>
 
+  <!-- About Tab -->
+  <main class="tab-content" id="tab-about">
+    <div class="page-container">
+      <section class="section">
+        <div class="section-title">About This Tool</div>
+        <p class="about-text">Human annotated data is a crucial component in the analysis of online systems. Most research efforts go through cumbersome data collection phases where they either build complicated annotation pipelines for online data or annotate offline data shared on spreadsheets. We aim to develop a tool that can easily adapt to different tasks and extend to most online platforms.</p>
+        <p class="about-text">This tool allows collection of data directly on the online platform by injecting surveys into webpages on the browser. Annotations can be exported as files or sent to API endpoints.</p>
+
+        <div class="section-title" style="margin-top:28px;">How to Modify Options</div>
+        <p class="about-text">Each survey is listed under "Surveys" in the Options tab. Form objects follow the <em>jsonform</em> schema format — use the "Preview Survey" button to see your changes rendered live before saving.</p>
+
+        <div class="section-title" style="margin-top:28px;">How to Cite</div>
+        <div class="citation-card">
+          Uluturk, Ismail and Varol, Onur. "Social-Annotate: Browser Extension to Annotate and Collect Social Media Data." Journal of Open Source Software X.XX (2020): XXXX.
+          <br><br>
+          <a href="" target="_blank" class="citation-link">Journal</a>
+          <span class="citation-sep">|</span>
+          <a href="" target="_blank" class="citation-link">PDF</a>
+        </div>
+
+        <div class="section-title" style="margin-top:28px;">Contact</div>
+        <ul class="contact-list">
+          <li><strong>Ismail Uluturk</strong> — <a href="https://uluturki.github.io/" target="_blank" class="about-link">Website</a> | <a href="https://twitter.com/strictlynofun" target="_blank" class="about-link">Twitter</a></li>
+          <li><strong>Onur Varol</strong> — <a href="http://www.onurvarol.com/" target="_blank" class="about-link">Website</a> | <a href="https://twitter.com/onurvarol" target="_blank" class="about-link">Twitter</a></li>
+        </ul>
+      </section>
+    </div>
+  </main>
+
+  <!-- Sticky Action Bar -->
+  <footer class="action-bar">
+    <div class="action-bar-inner">
+      <div class="action-bar-left">
+        <button type="button" class="btn btn-primary" id="save-button">💾 Save Changes</button>
+        <button type="button" class="btn btn-secondary" id="export-button">↗ Export Config</button>
+      </div>
+      <div class="action-bar-right">
+        <input id="upload-file" type="file" class="file-input" accept=".json">
+        <label for="upload-file" class="btn btn-ghost">📂 Choose File</label>
+        <button class="btn btn-secondary" id="import-button" import-data="">Import Config</button>
+      </div>
+    </div>
+  </footer>
 
   <script src="options.js"></script>
-  </body>
+</body>
 </html>

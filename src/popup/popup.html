@@ -2,55 +2,103 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <link rel="stylesheet" type="text/css"  href="../dep/bootstrap.min.css">
-  <link rel="stylesheet" type="text/css"  href="../dep/jsonform/deps/opt/bootstrap.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" type="text/css" href="popup.css">
-  <script src="../dep/jquery.min.js"></script>
-  <script src="../dep/bootstrap.min.js"></script>
   <script src="../dep/analytics.js"></script>
 </head>
 
 <body>
-<nav class="navbar">
-  <div class="container-fluid">
-    <div class="navbar-header">
-      <a href="#" class="navbar-brand"><img src="../images/ca32.png"></a>
-      <ul class="nav navbar-nav">
-        <li class="dropdown"><a class="dropdown-toggle" data-toggle="dropdown" href="#">Survey<span class="caret"></span></a>
-          <ul class="dropdown-menu" id="dropdown-menu">
-            <!-- JS code fills options automatically-->
-          </ul>
-        </li>
-        <li><a id="go-to-options">Options <span class="glyphicon glyphicon-cog"></span></a></li>
-        <li><a class="link-button" id="exportLink" href="#/">Export <span class="glyphicon glyphicon-download-alt"></span></a></li>
-      </ul>
+
+  <!-- Header -->
+  <header class="popup-header">
+    <img src="../images/ca32.png" class="header-logo" alt="Social Annotate">
+    <span class="header-title">Social Annotate</span>
+    <div class="header-actions">
+      <button class="icon-btn" id="go-to-options" title="Options">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6.5 1.5l-.3 1.2a5 5 0 0 0-1.1.6L3.9 2.8 2.8 3.9l.5 1.2a5 5 0 0 0-.6 1.1L1.5 6.5v1.6l1.2.3c.1.4.3.8.6 1.1l-.5 1.2 1.1 1.1 1.2-.5c.3.3.7.5 1.1.6l.3 1.2h1.6l.3-1.2c.4-.1.8-.3 1.1-.6l1.2.5 1.1-1.1-.5-1.2c.3-.3.5-.7.6-1.1l1.2-.3V6.5l-1.2-.3a5 5 0 0 0-.6-1.1l.5-1.2-1.1-1.1-1.2.5a5 5 0 0 0-1.1-.6L8.1 1.5H6.5zM7.3 5a2.3 2.3 0 1 1 0 4.6 2.3 2.3 0 0 1 0-4.6z" fill="currentColor"/></svg>
+      </button>
     </div>
-  </div>
-</nav>
-  
-<div class="container-fluid" id="popup-form">
-    <div class="row">
-      <h3><span id="survey-id"></span></h3>
+  </header>
+
+  <!-- Survey selector -->
+  <section class="survey-selector">
+    <label class="selector-label">Active Survey</label>
+    <div class="custom-dropdown" id="survey-dropdown">
+      <button class="dropdown-trigger" id="dropdown-trigger">
+        <span id="survey-id">—</span>
+        <svg class="dropdown-caret" width="10" height="6" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+      </button>
+      <ul class="dropdown-list" id="dropdown-menu"></ul>
+    </div>
+  </section>
+
+  <!-- Stats -->
+  <section class="stats-section">
+    <div class="stat-row">
+      <span class="stat-label">Annotations</span>
+      <span class="stat-value" id="annotationCount">0</span>
     </div>
 
-    <div class="row">
-      <div class="col">
-        <p>Annotation count: <span id="annotationCount">-1</span></p>
+    <!-- Guided mode progress (hidden when not in guided mode or no list) -->
+    <div class="guided-panel" id="guided-panel" style="display:none;">
+      <div class="progress-row">
+        <span class="stat-label">Progress</span>
+        <span class="progress-text"><span id="guided-done">0</span> / <span id="guided-total">0</span></span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="guided-bar" style="width:0%"></div>
+      </div>
+      <div class="guided-current">
+        <span class="current-label">Current</span>
+        <span class="current-value" id="guided-current-name">—</span>
+      </div>
+      <div class="nav-row">
+        <button class="nav-btn" id="nav-prev" title="Previous">
+          <svg width="14" height="14" viewBox="0 0 14 14"><path d="M9 3L5 7l4 4" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Prev
+        </button>
+        <span class="nav-position" id="nav-position">—</span>
+        <button class="nav-btn" id="nav-next" title="Next">
+          Next
+          <svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
       </div>
     </div>
+  </section>
 
-    <div class="row">
-      <div class="col">
-        <div class="button-container">
-          <button type="button" id="disableLink" class="btn btn-primary">Disable Extension</button>
-          <label class="glass-pill">
-              <input type="checkbox" id="toggleGuidedMode"> Guided Mode
-          </label>
-        </div>
-      </div>  
+  <!-- Controls -->
+  <section class="controls-section">
+    <div class="toggle-row">
+      <div class="toggle-info">
+        <span class="toggle-label">Extension</span>
+        <span class="toggle-status" id="status-text">Enabled</span>
+      </div>
+      <label class="toggle-switch">
+        <input type="checkbox" id="toggleEnabled" checked>
+        <span class="toggle-slider"></span>
+      </label>
     </div>
+    <div class="toggle-row">
+      <div class="toggle-info">
+        <span class="toggle-label">Guided Mode</span>
+        <span class="toggle-hint">Navigate annotation list automatically</span>
+      </div>
+      <label class="toggle-switch">
+        <input type="checkbox" id="toggleGuidedMode">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+  </section>
 
-</div>
+  <!-- Footer -->
+  <footer class="popup-footer">
+    <button class="footer-btn" id="exportLink">
+      <svg width="14" height="14" viewBox="0 0 14 14"><path d="M7 1v9M3 6l4 4 4-4M2 12h10" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Export
+    </button>
+  </footer>
 
 <script src="popup.js"></script>
 </body>

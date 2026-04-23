@@ -1,7 +1,7 @@
 {
   "twitter": {
     "reactRoot": "#react-root",
-    "tweetContainer": "article[data-testid=\"tweet\"]",
+    "tweetContainer": "article[role=\"article\"]",
     "tweetText": "[data-testid=\"tweetText\"]",
     "tweetPhoto": "[data-testid=\"tweetPhoto\"] img",
     "videoPlayer": "[data-testid=\"videoPlayer\"] video",

@@ -677,7 +677,18 @@ function exportOptions() {
 
 function importOptions() {
     let input = document.getElementById('import-button');
-    let configData = JSON.parse(input.getAttribute('import-data'));
+    let raw = input.getAttribute('import-data');
+    if (!raw || !raw.trim()) {
+        alert('Please choose a config file first.');
+        return;
+    }
+    let configData;
+    try {
+        configData = JSON.parse(raw);
+    } catch (e) {
+        alert('Invalid config file: ' + e.message);
+        return;
+    }
     if (configData.hasOwnProperty('surveys')) {
         chrome.storage.local.set({ 'config': configData }, function () {
             console.log('Config data updated', configData);
@@ -688,6 +699,7 @@ function importOptions() {
 
 function handleFileSelect(evt) {
     let files = evt.target.files;
+    if (!files || files.length === 0) return;
     if (files.length > 1) {
         alert('Select only one file!');
     } else {
@@ -706,3 +718,81 @@ function escapeAttr(str) {
     if (!str) return '';
     return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
+
+
+// ═══════════════════════════════════════════════════════════
+//  FACTORY RESET
+// ═══════════════════════════════════════════════════════════
+
+(function initFactoryReset() {
+    let modal = document.getElementById('reset-modal');
+    let openBtn = document.getElementById('factory-reset-button');
+    let cancelBtn = document.getElementById('reset-cancel');
+    let confirmBtn = document.getElementById('reset-confirm');
+
+    if (!modal || !openBtn) return;
+
+    openBtn.addEventListener('click', function () {
+        modal.classList.add('visible');
+    });
+
+    cancelBtn.addEventListener('click', function () {
+        modal.classList.remove('visible');
+    });
+
+    // Close on backdrop click
+    modal.addEventListener('click', function (e) {
+        if (e.target === modal) modal.classList.remove('visible');
+    });
+
+    // Close on Escape key
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && modal.classList.contains('visible')) {
+            modal.classList.remove('visible');
+        }
+    });
+
+    confirmBtn.addEventListener('click', function () {
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = '⏳ Resetting…';
+
+        // Generate a fresh client ID (same algorithm as background.js)
+        let clientID = '_' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 5);
+
+        let initialStorage = {
+            "resultsArrays": {
+                "twitter-user": [],
+                "twitter-tweet": [],
+                "instagram-user": []
+            },
+            "annotatedElements": {
+                "twitter-user": [],
+                "twitter-tweet": [],
+                "instagram-user": []
+            },
+            "clientID": clientID,
+            "config": config,  // default config from config.js
+            "isEnabled": true,
+            "isGuided": false,
+            "activeTargetList": [...config.surveys["twitter-user"].screenNameList]
+        };
+
+        // Load default selectors, then clear & re-initialize storage
+        fetch(chrome.runtime.getURL('selectors.json'))
+            .then(response => response.json())
+            .then(selectors => {
+                initialStorage.selectors = selectors;
+            })
+            .catch(() => {
+                initialStorage.selectors = { twitter: {}, instagram: {} };
+            })
+            .finally(() => {
+                chrome.storage.local.clear(function () {
+                    chrome.storage.local.set(initialStorage, function () {
+                        console.log('Factory reset complete.');
+                        location.reload();
+                    });
+                });
+            });
+    });
+})();

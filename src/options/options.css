@@ -468,3 +468,67 @@ html, body {
   transition: all var(--ease);
 }
 .btn-clear-list:hover { color: var(--error); border-color: rgba(244,33,46,0.3); }
+
+/* ── Danger Buttons ─────────────────────────────────────── */
+.btn-danger {
+  background: linear-gradient(135deg, #f4212e, #d41420);
+  color: #fff; border: none;
+}
+.btn-danger:hover { opacity: 0.9; transform: translateY(-1px); }
+.btn-danger-outline {
+  background: none; color: var(--error);
+  border: 1px solid rgba(244,33,46,0.35);
+}
+.btn-danger-outline:hover {
+  background: rgba(244,33,46,0.08);
+  border-color: rgba(244,33,46,0.6);
+}
+
+/* ── Action Bar Separator ───────────────────────────────── */
+.action-separator {
+  width: 1px; height: 26px; background: var(--card-border);
+  margin: 0 4px; flex-shrink: 0;
+}
+
+/* ── Factory Reset Modal ────────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 999;
+  background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  display: none; align-items: center; justify-content: center;
+  animation: modalFadeIn 0.2s ease;
+}
+.modal-overlay.visible { display: flex; }
+
+@keyframes modalFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.modal-card {
+  background: #1a1d26;
+  border: 1px solid var(--card-border);
+  border-radius: var(--r-lg);
+  padding: 36px 40px;
+  max-width: 440px; width: 90%;
+  text-align: center;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+  animation: modalSlideUp 0.25s ease;
+}
+@keyframes modalSlideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.modal-icon { font-size: 36px; margin-bottom: 12px; }
+.modal-title {
+  font-size: 18px; font-weight: 700; margin-bottom: 14px;
+  color: var(--text-primary);
+}
+.modal-text {
+  font-size: 13px; color: var(--text-secondary);
+  line-height: 1.65; margin-bottom: 10px;
+}
+.modal-text-warn {
+  color: var(--error); font-weight: 600; font-size: 12px;
+  margin-bottom: 22px;
+}
+.modal-actions { display: flex; gap: 10px; justify-content: center; }
+.modal-actions .btn { min-width: 120px; justify-content: center; }

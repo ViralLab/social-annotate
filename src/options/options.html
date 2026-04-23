@@ -79,6 +79,20 @@
     </div>
   </main>
 
+  <!-- Factory Reset Confirmation Modal -->
+  <div class="modal-overlay" id="reset-modal">
+    <div class="modal-card">
+      <div class="modal-icon">⚠️</div>
+      <div class="modal-title">Factory Reset</div>
+      <p class="modal-text">This will erase <strong>all</strong> your settings, survey configurations, collected annotations, and stored data. The extension will be restored to its original default state.</p>
+      <p class="modal-text modal-text-warn">This action cannot be undone.</p>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="reset-cancel">Cancel</button>
+        <button class="btn btn-danger" id="reset-confirm">🗑 Reset Everything</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Sticky Action Bar -->
   <footer class="action-bar">
     <div class="action-bar-inner">
@@ -87,6 +101,8 @@
         <button type="button" class="btn btn-secondary" id="export-button">↗ Export Config</button>
       </div>
       <div class="action-bar-right">
+        <button type="button" class="btn btn-danger-outline" id="factory-reset-button">🔄 Factory Reset</button>
+        <span class="action-separator"></span>
         <input id="upload-file" type="file" class="file-input" accept=".json">
         <label for="upload-file" class="btn btn-ghost">📂 Choose File</label>
         <button class="btn btn-secondary" id="import-button" import-data="">Import Config</button>
@@ -94,6 +110,7 @@
     </div>
   </footer>
 
+  <script src="../config.js"></script>
   <script src="options.js"></script>
 </body>
 </html>

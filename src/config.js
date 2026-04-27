@@ -7,6 +7,7 @@ var config = {
             "socialMediaPlatform": "twitter",
             "injectElement": {},  // tweets are detected dynamically via MutationObserver, not a fixed element
             "studyID": "kokone",
+            "mediaDownloadFolder": "",
             "screenNameList": [],
             "surveyFormSchema": {
                 "schema": {
@@ -38,6 +39,7 @@ var config = {
                 "index": 0
             },
             "studyID": "maruko",
+            "mediaDownloadFolder": "",
             "screenNameList": [],
             "surveyFormSchema": {
                 "schema": {
@@ -82,6 +84,7 @@ var config = {
                 "index": 0
             },
             "studyID": "maruko",
+            "mediaDownloadFolder": "",
             "screenNameList": [],
             "surveyFormSchema": {
                 "schema": {
@@ -121,6 +124,7 @@ var config = {
             "socialMediaPlatform": "bluesky",
             "injectElement": {},
             "studyID": "kokone",
+            "mediaDownloadFolder": "",
             "screenNameList": [],
             "surveyFormSchema": {
                 "schema": {
@@ -152,6 +156,7 @@ var config = {
                 "index": 0
             },
             "studyID": "maruko",
+            "mediaDownloadFolder": "",
             "screenNameList": [],
             "surveyFormSchema": {
                 "schema": {

@@ -11,13 +11,53 @@ let reactRoot = null;
 let obsConfig = {};
 let observer = null;
 
+window.twitterApiMediaMap = {};
+document.addEventListener('mh:media-response', function(e) {
+    if (e.detail) {
+        Object.assign(window.twitterApiMediaMap, e.detail);
+    }
+});
+
+window.addEventListener('mh:download-request', function(e) {
+    let detail = e.detail;
+    if (!detail || !detail.postID) return;
+    
+    let tweetID = detail.postID;
+    let tweetOwner = detail.userID;
+    let surveyType = detail.surveyType || 'twitter-tweet';
+    
+    let containerName = 'surveyFormContainer-' + tweetID;
+    let surveyContainer = document.getElementById(containerName);
+    let injectNode = surveyContainer ? surveyContainer.parentNode : null;
+    
+    let urlsToDownload = [];
+    if (window.twitterApiMediaMap && window.twitterApiMediaMap[tweetID]) {
+        urlsToDownload = window.twitterApiMediaMap[tweetID];
+    } else {
+        if (injectNode) {
+            urlsToDownload = extractTweetMedia(injectNode);
+        }
+    }
+    
+    if (urlsToDownload && urlsToDownload.length > 0) {
+        urlsToDownload = urlsToDownload.filter(u => !u.startsWith('blob:') && !u.startsWith('[Video Thumbnail]'));
+        if (urlsToDownload.length > 0) {
+            chrome.runtime.sendMessage({ action: 'downloadMedia', urls: urlsToDownload, userId: tweetOwner || 'user', postId: tweetID, surveyType: surveyType });
+        } else {
+            alert("No original media URLs found. Wait for the API to load or check the post.");
+        }
+    } else {
+        alert("No media found on this post.");
+    }
+});
+
 function processArticleNode(articleNode) {
     let insertElement = articleNode.parentNode;
     if (insertElement && insertElement.getElementsByClassName('survey-container-tweet').length === 0) {
         let tweetDetails = extractTweetDetails(insertElement);
 
         if (tweetDetails) {
-            injectTwitterTweetSurvey(insertElement, tweetDetails.tweetID);
+            injectTwitterTweetSurvey(insertElement, tweetDetails.tweetID, tweetDetails.tweetOwner);
             availableContextsTwitter[1].renderSurvey(
                 tweetDetails.tweetOwner,
                 tweetDetails.tweetID,
@@ -205,6 +245,11 @@ function extractTweetMedia(articleNode) {
     if (!articleNode) return "";
     let mediaUrls = [];
 
+    let details = extractTweetDetails(articleNode);
+    if (details && details.tweetID && window.twitterApiMediaMap && window.twitterApiMediaMap[details.tweetID]) {
+        return window.twitterApiMediaMap[details.tweetID];
+    }
+
     // Extract standard high-res image sources
     let photos = articleNode.querySelectorAll(SEL.tweetPhoto || '[data-testid="tweetPhoto"] img');
     photos.forEach(img => {
@@ -325,7 +370,7 @@ function extractTweetDetails(articleNode) {
     };
 }
 
-function injectTwitterTweetSurvey(injectNode, tweetID) {
+function injectTwitterTweetSurvey(injectNode, tweetID, tweetOwner) {
     let surveyContainer = document.createElement('div');
     surveyContainer.className = "survey-container-tweet";
     let containerName = "surveyFormContainer-" + tweetID;
@@ -333,6 +378,7 @@ function injectTwitterTweetSurvey(injectNode, tweetID) {
     const shadowRoot = surveyContainer.attachShadow({ mode: 'open' });
 
     let cssUrl = chrome.runtime.getURL("content-scripts/twitter/inject.css");
+    
     shadowRoot.innerHTML = `\
    <iframe class="surveyIframe" src="${chrome.runtime.getURL("sandbox/survey.html")}" data-css="${cssUrl}" style="border:none; width:100%; height:100%; background:transparent;"></iframe>\
 `;

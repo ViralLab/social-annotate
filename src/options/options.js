@@ -60,6 +60,10 @@ function loadPage() {
             if (survey.hasOwnProperty('injectElement')) {
                 document.getElementById(key + '_insert-location').value = survey.injectElement.name || '';
             }
+            if (survey.hasOwnProperty('mediaDownloadFolder') || true) {
+                let folderEl = document.getElementById(key + '_media-download-folder');
+                if (folderEl) folderEl.value = survey.mediaDownloadFolder || '';
+            }
             if (survey.hasOwnProperty('screenNameList')) {
                 let listArr = Array.isArray(survey.screenNameList) ? survey.screenNameList : [];
                 document.getElementById(key + '_annotation-list').value = listArr.join(',\n');
@@ -193,6 +197,13 @@ function buildSurveyCard(key, survey) {
         <div class="field-group">
           <label class="field-label" for="${key}_insert-location">Insert Location</label>
           <input type="text" class="field-input" id="${key}_insert-location" placeholder="HTML element name">
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="${key}_media-download-folder">
+            Media Download Folder
+            <span class="field-hint">e.g. 'twitter_media/' (optional subfolder)</span>
+          </label>
+          <input type="text" class="field-input" id="${key}_media-download-folder" placeholder="Default Downloads folder">
         </div>
 
         <!-- Mode toggle -->
@@ -643,6 +654,10 @@ function saveOptionsPage() {
             let survey = configData.surveys[key];
             if (survey.hasOwnProperty('injectElement')) {
                 configData.surveys[key].injectElement.name = document.getElementById(key + '_insert-location').value;
+            }
+            let folderEl = document.getElementById(key + '_media-download-folder');
+            if (folderEl) {
+                configData.surveys[key].mediaDownloadFolder = folderEl.value.trim();
             }
             if (survey.hasOwnProperty('screenNameList')) {
                 let valStr = document.getElementById(key + '_annotation-list').value;

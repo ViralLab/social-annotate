@@ -26,6 +26,14 @@
   },
   "content_scripts": [
     {
+      "matches": ["*://twitter.com/*", "*://x.com/*"],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "js": [
+        "content-scripts/twitter/inject-api.js"
+      ]
+    },
+    {
       "matches": ["*://twitter.com/*", "*://x.com/*", "file:///*"],
       "run_at": "document_end",
       "exclude_matches": ["*://twitter.com/settings/*", "*://x.com/settings/*"],

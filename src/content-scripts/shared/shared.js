@@ -149,6 +149,12 @@ class Context {
                         }
                         ctxData.context.submitAction(event.data.errors, event.data.values);
                     }
+                } else if (event.data && event.data.type === 'downloadMedia') {
+                    let ctxData = window.__surveyContexts[event.data.callId];
+                    if (ctxData) {
+                        let evt = new CustomEvent('mh:download-request', { detail: { callId: event.data.callId, postID: ctxData.postID, userID: ctxData.userID, surveyType: ctxData.context.name } });
+                        window.dispatchEvent(evt);
+                    }
                 }
             });
             window.__surveyListenerAdded = true;
@@ -160,7 +166,8 @@ class Context {
                 cssUrl: iframe.getAttribute('data-css'),
                 formTemplate: templateCopy,
                 callId: callId,
-                surveyType: this.name
+                surveyType: this.name,
+                enableDownload: (this.name === 'twitter-tweet')
             }, '*');
         };
 

@@ -57,3 +57,50 @@ chrome.runtime.onInstalled.addListener(function () {
 chrome.webNavigation.onHistoryStateUpdated.addListener(function (details) {
     // @TODO: send a message to the content script to re-run survey initialization on navigation.
 });
+
+// Listen for download requests from content scripts
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === 'downloadMedia') {
+        const urls = message.urls;
+        const userId = message.userId || 'unknown';
+        const postId = message.postId || 'unknown';
+        const surveyType = message.surveyType || 'twitter-tweet';
+        
+        chrome.storage.local.get(['config'], function(result) {
+            let folderPrefix = "";
+            if (surveyType && result.config && result.config.surveys && result.config.surveys[surveyType] && result.config.surveys[surveyType].mediaDownloadFolder) {
+                folderPrefix = result.config.surveys[surveyType].mediaDownloadFolder.trim();
+                // Replace backslashes with forward slashes for cross-platform compatibility
+                folderPrefix = folderPrefix.replace(/\\/g, '/');
+                if (folderPrefix && !folderPrefix.endsWith('/')) {
+                    folderPrefix += '/';
+                }
+            }
+
+            urls.forEach((url, index) => {
+                let format = 'jpg';
+                let cleanUrl = url.split('?')[0];
+                
+                try {
+                    let urlObj = new URL(url);
+                    if (urlObj.searchParams.has('format')) {
+                        format = urlObj.searchParams.get('format');
+                    } else {
+                        let ext = cleanUrl.split('.').pop();
+                        if (['jpg', 'jpeg', 'png', 'gif', 'mp4'].includes(ext.toLowerCase())) {
+                            format = ext;
+                        }
+                    }
+                } catch(e) {}
+                
+                const filename = `${folderPrefix}${userId}_${postId}_${index + 1}.${format}`;
+                chrome.downloads.download({
+                    url: url,
+                    filename: filename
+                });
+            });
+            sendResponse({status: "started"});
+        });
+    }
+    return true;
+});

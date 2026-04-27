@@ -38,7 +38,42 @@ window.addEventListener('message', function (event) {
     formEl.empty().jsonForm(data.formTemplate);
 
     // Initial button state:
-    formEl.find('.surveySubmitBtn').val('Annotate').text('Annotate');
+    var submitBtn = formEl.find('.surveySubmitBtn');
+    submitBtn.val('Annotate').text('Annotate');
+
+    if (data.enableDownload) {
+        var downloadBtnHtml = `<button class="download-media-btn" style="background: linear-gradient(135deg, #1d9bf0, #1a8cd8); color: white; border: none; border-radius: 16px; font-weight: 700; font-size: 16px; padding: 0 32px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 14px rgba(29, 155, 240, 0.35); transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); flex: 1; margin: 0;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          Download Media
+        </button>`;
+        
+        var $downloadBtn = $(downloadBtnHtml);
+        
+        $downloadBtn.on('mouseenter', function() {
+            $(this).css({ transform: 'translateY(-2px)', background: 'linear-gradient(135deg, #4cb0f9, #1d9bf0)', boxShadow: '0 8px 20px rgba(29, 155, 240, 0.5)' });
+        }).on('mouseleave', function() {
+            $(this).css({ transform: 'none', background: 'linear-gradient(135deg, #1d9bf0, #1a8cd8)', boxShadow: '0 4px 14px rgba(29, 155, 240, 0.35)' });
+        }).on('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            window.parent.postMessage({ type: 'downloadMedia', callId: data.callId }, '*');
+        });
+
+        // Ensure the submit button container is a flex container to hold both buttons properly
+        var parentWrapper = submitBtn.parent();
+        if (parentWrapper.length && !parentWrapper.hasClass('action-buttons-wrapper')) {
+            var wrapper = $('<div class="action-buttons-wrapper" style="display: flex; flex-direction: column; gap: 12px; align-self: stretch; flex: 0 0 auto; width: 200px;"></div>');
+            submitBtn.wrap(wrapper);
+        }
+        
+        // Force the submit button to also flex evenly
+        submitBtn.attr('style', submitBtn.attr('style') + '; flex: 1 !important; margin: 0 !important;');
+        submitBtn.parent().prepend($downloadBtn);
+    }
 
     // Listen for changes to form inputs to highlight the submit button dynamically
     formEl.on('change', 'input, select, textarea', function() {

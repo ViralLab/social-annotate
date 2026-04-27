@@ -3,7 +3,7 @@
   "version": "1.0",
   "description": "Content annotator application developed by Ismail Uluturk and Onur Varol",
   "permissions": ["activeTab", "declarativeContent", "storage", "downloads", "tabs", "webNavigation"],
-  "host_permissions": ["*://twitter.com/*", "*://instagram.com/*", "*://www.instagram.com/*", "*://x.com/*"],
+  "host_permissions": ["*://twitter.com/*", "*://instagram.com/*", "*://www.instagram.com/*", "*://x.com/*", "*://bsky.app/*"],
   "options_page": "options/options.html",
   "background": {
     "service_worker": "background/background.js"
@@ -59,6 +59,23 @@
         "content-scripts/shared/shared.js",
         "content-scripts/instagram/inject.js"
       ]
+    },
+    {
+      "matches": ["*://bsky.app/*"],
+      "run_at": "document_end",
+      "css": [
+        "content-scripts/bluesky/inject.css",
+        "dep/jsonform/deps/opt/bootstrap.css"
+      ],
+      "js": [
+        "dep/analytics.js",
+        "dep/jsonform/deps/jquery.min.js",
+        "dep/jsonform/deps/underscore.js",
+        "dep/jsonform/deps/opt/jsv.js",
+        "dep/jsonform/lib/jsonform.js",
+        "content-scripts/shared/shared.js",
+        "content-scripts/bluesky/inject.js"
+      ]
     }
   ],
   "icons": {
@@ -74,6 +91,7 @@
         "selectors.json",
         "content-scripts/instagram/inject.css",
         "content-scripts/twitter/inject.css",
+        "content-scripts/bluesky/inject.css",
         "dep/jsonform/deps/opt/bootstrap.css"
       ],
       "matches": ["<all_urls>"]

@@ -15,12 +15,16 @@ chrome.runtime.onInstalled.addListener(function () {
         "resultsArrays": {
             "twitter-user": [],
             "twitter-tweet": [],
-            "instagram-user": []
+            "instagram-user": [],
+            "bluesky-post": [],
+            "bluesky-user": []
         },  // @TODO pull these from a supported types list somewhere.
         "annotatedElements": {
             "twitter-user": [],
             "twitter-tweet": [],
-            "instagram-user": []
+            "instagram-user": [],
+            "bluesky-post": [],
+            "bluesky-user": []
         }, // @TODO pull these from a supported types list somewhere.
         "clientID": clientID,
         "config": config,
@@ -40,7 +44,7 @@ chrome.runtime.onInstalled.addListener(function () {
         })
         .catch(err => {
             console.error('Failed to load selectors.json, using empty defaults:', err);
-            initialStorage.selectors = { twitter: {}, instagram: {} };
+            initialStorage.selectors = { twitter: {}, instagram: {}, bluesky: {} };
             chrome.storage.local.set(initialStorage, function () {
                 console.log('Storage arrays initialized (without selectors).');
             });

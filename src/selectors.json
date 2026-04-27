@@ -33,5 +33,27 @@
   },
   "instagram": {
     "reactRoot": "#react-root"
+  },
+  "bluesky": {
+    "appRoot": "#root",
+    "postContainer": "[data-testid*=\"feedItem\"], [data-testid*=\"postThreadItem\"]",
+    "postText": "[data-testid=\"postText\"]",
+    "postImage": "img[src*=\"cdn.bsky.app\"]",
+    "videoPlayer": "video",
+    "metricsReply": "[data-testid=\"replyBtn\"]",
+    "metricsRepost": "[data-testid=\"repostBtn\"]",
+    "metricsLike": "[data-testid=\"likeBtn\"], [data-testid=\"unlikeBtn\"]",
+    "postTimestamp": "a[href*=\"/post/\"]",
+    "userDisplayName": "[data-testid=\"profileHeaderDisplayName\"]",
+    "userHandle": "[data-testid=\"profileHeaderHandle\"]",
+    "userAvatar": "[data-testid=\"userAvatarImage\"]",
+    "userBio": "[data-testid=\"profileHeaderDescription\"]",
+    "userFollowers": "[data-testid=\"profileHeaderFollowersButton\"]",
+    "userFollowing": "[data-testid=\"profileHeaderFollowsButton\"]",
+    "observerFilter": {
+      "attributes": false,
+      "childList": true,
+      "subtree": true
+    }
   }
 }

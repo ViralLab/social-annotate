@@ -8,6 +8,10 @@ function getCurrentScreenName(platform) {
         temp = temp[temp.length - 1];
         let screenName = temp.split('/')[0].split('?')[0];
         return screenName;
+    } else if (platform === "bluesky") {
+        let currentURL = window.location.href;
+        let match = currentURL.match(/bsky\.app\/profile\/([^/?#]+)/);
+        return match ? match[1] : '';
     } else {
         return 'Mahmut';
     }
@@ -225,6 +229,8 @@ function storeResults(surveyResults, socialMediaPlatform) {
             platformURL = window.location.hostname.includes("x.com") ? "https://x.com/" : "https://twitter.com/";
         } else if (socialMediaPlatform == 'instagram') {
             platformURL = "https://instagram.com/";
+        } else if (socialMediaPlatform == 'bluesky') {
+            platformURL = "https://bsky.app/";
         }
 
         let surveyType = surveyResults.surveyType;
@@ -236,6 +242,10 @@ function storeResults(surveyResults, socialMediaPlatform) {
             insertKey = surveyResults.postID;
         } else if (surveyType === 'instagram-user') {
             insertKey = surveyResults.userID;
+        } else if (surveyType === 'bluesky-user') {
+            insertKey = surveyResults.userID;
+        } else if (surveyType === 'bluesky-post') {
+            insertKey = surveyResults.postID;
         }
 
         let insertIndex = annotatedElements[surveyType].indexOf(insertKey);
@@ -255,7 +265,7 @@ function storeResults(surveyResults, socialMediaPlatform) {
         let bringNextUser = false;
         let nextUser = '';
         // If guided mode is enabled, advance to the next target after a successful annotation.
-        if (result.isGuided === true && (surveyType === 'twitter-user' || surveyType === 'twitter-tweet' || surveyType === 'instagram-user')) {
+        if (result.isGuided === true && (surveyType === 'twitter-user' || surveyType === 'twitter-tweet' || surveyType === 'instagram-user' || surveyType === 'bluesky-user' || surveyType === 'bluesky-post')) {
             let dropIndex = activeTargetList.findIndex(item => insertKey.toLowerCase() === item.toLowerCase());
             if (dropIndex > -1) {
                 activeTargetList.splice(dropIndex, 1);
@@ -273,6 +283,10 @@ function storeResults(surveyResults, socialMediaPlatform) {
             if (bringNextUser === true) {
                 if (surveyType === 'twitter-tweet') {
                     window.location.href = platformURL + 'i/web/status/' + nextUser;
+                } else if (surveyType === 'bluesky-user') {
+                    window.location.href = platformURL + 'profile/' + nextUser;
+                } else if (surveyType === 'bluesky-post') {
+                    window.location.href = platformURL + 'profile/' + nextUser;
                 } else {
                     window.location.href = platformURL + nextUser;
                 }

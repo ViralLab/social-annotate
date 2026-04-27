@@ -607,7 +607,7 @@ function previewSurvey(key) {
     iframe.src = chrome.runtime.getURL('sandbox/survey.html');
     iframe.style.cssText = 'border:none; width:100%; min-height:280px; background:transparent;';
 
-    let platform = key.startsWith('instagram') ? 'instagram' : 'twitter';
+    let platform = key.startsWith('instagram') ? 'instagram' : (key.startsWith('bluesky') ? 'bluesky' : 'twitter');
     let cssUrl = chrome.runtime.getURL('content-scripts/' + platform + '/inject.css');
 
     iframe.onload = function () {
@@ -763,12 +763,16 @@ function escapeAttr(str) {
             "resultsArrays": {
                 "twitter-user": [],
                 "twitter-tweet": [],
-                "instagram-user": []
+                "instagram-user": [],
+                "bluesky-post": [],
+                "bluesky-user": []
             },
             "annotatedElements": {
                 "twitter-user": [],
                 "twitter-tweet": [],
-                "instagram-user": []
+                "instagram-user": [],
+                "bluesky-post": [],
+                "bluesky-user": []
             },
             "clientID": clientID,
             "config": config,  // default config from config.js
@@ -784,7 +788,7 @@ function escapeAttr(str) {
                 initialStorage.selectors = selectors;
             })
             .catch(() => {
-                initialStorage.selectors = { twitter: {}, instagram: {} };
+                initialStorage.selectors = { twitter: {}, instagram: {}, bluesky: {} };
             })
             .finally(() => {
                 chrome.storage.local.clear(function () {

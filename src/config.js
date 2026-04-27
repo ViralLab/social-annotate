@@ -116,6 +116,77 @@ var config = {
                     }
                 ]
             }
+        },
+        "bluesky-post": {
+            "socialMediaPlatform": "bluesky",
+            "injectElement": {},
+            "studyID": "kokone",
+            "screenNameList": [],
+            "surveyFormSchema": {
+                "schema": {
+                    "hatespeech": {
+                        "type": "string",
+                        "title": "Does this post contain HateSpeech?",
+                        "enum": ["Yes", "No"],
+                        "required": true
+                    }
+                },
+                "form": [
+                    {
+                        "key": "hatespeech",
+                        "type": "radiobuttons"
+                    },
+                    {
+                        "type": "submit",
+                        "title": "Submit",
+                        "htmlClass": "surveySubmitBtn"
+                    }
+                ]
+            }
+        },
+        "bluesky-user": {
+            "socialMediaPlatform": "bluesky",
+            "injectElement": {
+                "name": "root",
+                "type": "id",
+                "index": 0
+            },
+            "studyID": "maruko",
+            "screenNameList": [],
+            "surveyFormSchema": {
+                "schema": {
+                    "bot": {
+                        "type": "string",
+                        "title": "Do you believe this user to be a bot?",
+                        "enum": ["Yes", "No"],
+                        "required": true
+                    },
+                    "confidence": {
+                        "type": "integer",
+                        "title": "How confident with your response to bot question?",
+                        "description": "0 for least and 5 for the most confident",
+                        "default": 3,
+                        "minimum": 0,
+                        "maximum": 5,
+                        "required": true
+                    }
+                },
+                "form": [
+                    {
+                        "key": "bot",
+                        "type": "radiobuttons"
+                    },
+                    {
+                        "key": "confidence",
+                        "type": "range"
+                    },
+                    {
+                        "type": "submit",
+                        "title": "Submit",
+                        "htmlClass": "surveySubmitBtn"
+                    }
+                ]
+            }
         }
     }
 };

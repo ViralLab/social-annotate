@@ -1,0 +1,235 @@
+/**
+ * Bluesky Survey Injection Styles
+ * Matches the glassmorphic design system used across the extension
+ * with Bluesky brand colors (#0085FF).
+ **/
+
+div.survey-container-user {
+	width: 100%;
+	height: auto;
+	min-height: 120px;
+	display: flex;
+	flex-wrap: wrap-reverse;
+	overflow: visible;
+	background-color: transparent;
+	position: fixed;
+	bottom: 0;
+	z-index: 99;
+}
+
+div.survey-container-post {
+	height: 150px;
+	background-color: transparent;
+	top: 0;
+	z-index: 99;
+}
+
+div.notification-container {
+	/*	Show on top as a banner*/
+	display: inline-flex;
+	width: 100%;
+	background-color: #f5f5f5;
+	text-align: right;
+}
+
+.notification-container>span {
+	width: 100%;
+}
+
+/*These are for user survey on top*/
+#surveyForm {
+	display: flex;
+	position: fixed;
+	width: 100%;
+	flex-direction: row;
+	flex-wrap: wrap-reverse;
+	color: #ffffff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+}
+
+#surveyForm>div.notification-container {
+	display: inline-flex;
+	width: 100%;
+	background-color: transparent !important;
+	text-align: right;
+}
+
+.surveyFormPost {
+	display: flex;
+	width: 100%;
+	flex-direction: row;
+	flex-wrap: wrap-reverse;
+	top: 0;
+	left: 0;
+	color: #ffffff; 
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+}
+
+/* Overall Wrapper - Glassmorphism Integration */
+#surveyForm>div:not(.notification-container),
+.surveyFormPost>div {
+	background: transparent !important;
+	display: flex;
+	flex-direction: row;
+	flex-wrap: nowrap;
+	width: 100%;
+	align-items: stretch;
+	gap: 16px;
+	padding: 10px 16px;
+}
+
+.flexbox-rows {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap-reverse;
+	width: 100%;
+}
+
+/* The Question Container */
+div.form-group {
+	background: rgba(21, 32, 43, 0.8) !important;
+	backdrop-filter: blur(12px) !important;
+	-webkit-backdrop-filter: blur(12px) !important;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 16px;
+	margin: 0 !important;
+	padding: 16px 24px !important;
+	flex: 1 1 auto;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+/* Typography for the Question */
+div.form-group label.control-label {
+	font-size: 16px !important;
+	font-weight: 700 !important;
+	margin-bottom: 12px;
+	color: #ffffff !important;
+	background: transparent !important;
+	letter-spacing: 0.2px;
+	display: block;
+}
+
+/* Enhancing Range Input (Slider) */
+input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%;
+    margin: 12px 0;
+    background: transparent;
+}
+input[type="range"]:focus { outline: none; }
+input[type="range"]::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 8px;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+}
+input[type="range"]::-webkit-slider-thumb {
+    height: 20px;
+    width: 20px;
+    border-radius: 50%;
+    background: #0085FF;
+    cursor: pointer;
+    -webkit-appearance: none;
+    margin-top: -6px;
+    box-shadow: 0 2px 8px rgba(0, 133, 255, 0.5);
+    border: 2px solid #ffffff;
+}
+
+/* The Radio Option Buttons Container */
+div.form-group .btn-group {
+	display: flex;
+	gap: 12px;
+}
+
+/* The Native Bootstrap Ratio Buttons Override */
+div.form-group .btn-default {
+	background-color: transparent !important;
+	border: 1px solid rgba(255, 255, 255, 0.25) !important;
+	color: #E7E9EA !important;
+	border-radius: 99px !important;
+	padding: 8px 24px !important;
+	font-weight: 600 !important;
+	transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+	box-shadow: none !important;
+	text-shadow: none !important;
+}
+
+div.form-group .btn-default:hover {
+	background-color: rgba(255, 255, 255, 0.12) !important;
+	border-color: rgba(255, 255, 255, 0.4) !important;
+}
+
+/* Radio active selection state */
+div.form-group .btn-default.active {
+	background-color: #0085FF !important;
+	border-color: #0085FF !important;
+	color: #ffffff !important;
+	box-shadow: 0 4px 12px rgba(0, 133, 255, 0.4) !important;
+	transform: scale(1.05);
+}
+
+/* Stage 1: Default RED — no annotation selected yet */
+.surveySubmitBtn {
+	background: linear-gradient(135deg, #F4212E, #c01822) !important;
+	border: none !important;
+	color: white !important;
+	font-weight: 700 !important;
+	font-size: 16px !important;
+	border-radius: 16px !important;
+	padding: 0 32px !important;
+	margin: 0 !important;
+	cursor: pointer;
+	transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+	box-shadow: 0 4px 14px rgba(244, 33, 46, 0.35) !important;
+	flex: 0 0 auto;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	align-self: stretch;
+}
+
+.surveySubmitBtn:not(.ready-to-submit):not(.submitted):hover {
+	transform: translateY(-2px) !important;
+	box-shadow: 0 8px 20px rgba(244, 33, 46, 0.5) !important;
+	background: linear-gradient(135deg, #ff4d58, #F4212E) !important;
+}
+
+/* Stage 2: BLUE — annotation selected, ready to submit */
+.surveySubmitBtn.ready-to-submit {
+	background: linear-gradient(135deg, #0085FF, #006ad5) !important;
+	border: none !important;
+	color: white !important;
+	box-shadow: 0 4px 16px rgba(0, 133, 255, 0.4) !important;
+	animation: pulseBtn 2s infinite;
+}
+
+.surveySubmitBtn.ready-to-submit:hover {
+	transform: translateY(-2px) !important;
+	box-shadow: 0 8px 24px rgba(0, 133, 255, 0.6) !important;
+	background: linear-gradient(135deg, #339dff, #0085FF) !important;
+}
+
+/* Stage 3: GREEN — successfully submitted */
+.surveySubmitBtn.submitted {
+	background: linear-gradient(135deg, #00BA7C, #009262) !important;
+	border: none !important;
+	color: white !important;
+	box-shadow: 0 4px 16px rgba(0, 186, 124, 0.4) !important;
+	animation: none !important;
+	cursor: default !important;
+}
+
+.surveySubmitBtn.submitted:hover {
+	transform: none !important;
+	box-shadow: 0 4px 16px rgba(0, 186, 124, 0.4) !important;
+}
+
+@keyframes pulseBtn {
+    0% { box-shadow: 0 0 0 0 rgba(0, 133, 255, 0.6); }
+    70% { box-shadow: 0 0 0 12px rgba(0, 133, 255, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(0, 133, 255, 0); }
+}

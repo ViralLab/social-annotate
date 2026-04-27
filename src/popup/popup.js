@@ -141,6 +141,10 @@ function navigateToTarget(target) {
                         baseUrl = 'https://x.com/i/web/status/';
                     } else if (platform === 'instagram') {
                         baseUrl = 'https://www.instagram.com/';
+                    } else if (activeSurvey === 'bluesky-post') {
+                        baseUrl = 'https://bsky.app/profile/';
+                    } else if (activeSurvey === 'bluesky-user') {
+                        baseUrl = 'https://bsky.app/profile/';
                     } else {
                         baseUrl = 'https://x.com/';
                     }

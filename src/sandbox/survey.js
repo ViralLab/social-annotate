@@ -30,7 +30,7 @@ window.addEventListener('message', function (event) {
     // so that multiple tweet forms can coexist on the page without id collisions.
     // Note: formEl still holds the jQuery reference to the element even after the id is removed.
     var formEl = $('#surveyForm');
-    if (data.surveyType === 'twitter-tweet') {
+    if (data.surveyType === 'twitter-tweet' || data.surveyType === 'instagram-post') {
       formEl.removeAttr('id').addClass('surveyFormTweet');
     }
 

@@ -167,7 +167,7 @@ class Context {
                 formTemplate: templateCopy,
                 callId: callId,
                 surveyType: this.name,
-                enableDownload: (this.name === 'twitter-tweet')
+                enableDownload: (this.name === 'twitter-tweet' || this.name === 'instagram-post')
             }, '*');
         };
 
@@ -249,6 +249,8 @@ function storeResults(surveyResults, socialMediaPlatform) {
             insertKey = surveyResults.postID;
         } else if (surveyType === 'instagram-user') {
             insertKey = surveyResults.userID;
+        } else if (surveyType === 'instagram-post') {
+            insertKey = surveyResults.postID;
         } else if (surveyType === 'bluesky-user') {
             insertKey = surveyResults.userID;
         } else if (surveyType === 'bluesky-post') {
@@ -272,7 +274,7 @@ function storeResults(surveyResults, socialMediaPlatform) {
         let bringNextUser = false;
         let nextUser = '';
         // If guided mode is enabled, advance to the next target after a successful annotation.
-        if (result.isGuided === true && (surveyType === 'twitter-user' || surveyType === 'twitter-tweet' || surveyType === 'instagram-user' || surveyType === 'bluesky-user' || surveyType === 'bluesky-post')) {
+        if (result.isGuided === true && (surveyType === 'twitter-user' || surveyType === 'twitter-tweet' || surveyType === 'instagram-user' || surveyType === 'instagram-post' || surveyType === 'bluesky-user' || surveyType === 'bluesky-post')) {
             let dropIndex = activeTargetList.findIndex(item => insertKey.toLowerCase() === item.toLowerCase());
             if (dropIndex > -1) {
                 activeTargetList.splice(dropIndex, 1);
@@ -290,6 +292,8 @@ function storeResults(surveyResults, socialMediaPlatform) {
             if (bringNextUser === true) {
                 if (surveyType === 'twitter-tweet') {
                     window.location.href = platformURL + 'i/web/status/' + nextUser;
+                } else if (surveyType === 'instagram-post') {
+                    window.location.href = platformURL + 'p/' + nextUser;
                 } else if (surveyType === 'bluesky-user') {
                     window.location.href = platformURL + 'profile/' + nextUser;
                 } else if (surveyType === 'bluesky-post') {
@@ -302,7 +306,7 @@ function storeResults(surveyResults, socialMediaPlatform) {
             if (apiSuccess) {
                 // @TODO: endpoint error handling isn't done properly; all API-related paths need full exception handling.
                 let divName = "surveyFormContainer";
-                if (surveyResults.surveyType === "twitter-tweet") {
+                if (surveyResults.surveyType === "twitter-tweet" || surveyResults.surveyType === "instagram-post") {
                     divName += '-' + surveyResults.postID.toString();
                 }
 

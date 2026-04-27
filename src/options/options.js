@@ -779,6 +779,7 @@ function escapeAttr(str) {
                 "twitter-user": [],
                 "twitter-tweet": [],
                 "instagram-user": [],
+                "instagram-post": [],
                 "bluesky-post": [],
                 "bluesky-user": []
             },
@@ -786,6 +787,7 @@ function escapeAttr(str) {
                 "twitter-user": [],
                 "twitter-tweet": [],
                 "instagram-user": [],
+                "instagram-post": [],
                 "bluesky-post": [],
                 "bluesky-user": []
             },

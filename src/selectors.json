@@ -32,7 +32,15 @@
     }
   },
   "instagram": {
-    "reactRoot": "#react-root"
+    "reactRoot": "#react-root",
+    "postContainer": "article",
+    "postLink": "a[href*='/p/'], a[href*='/reel/']",
+    "userLink": "a[href]",
+    "observerFilter": {
+      "attributes": false,
+      "childList": true,
+      "subtree": true
+    }
   },
   "bluesky": {
     "appRoot": "#root",

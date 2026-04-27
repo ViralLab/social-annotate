@@ -16,6 +16,7 @@ chrome.runtime.onInstalled.addListener(function () {
             "twitter-user": [],
             "twitter-tweet": [],
             "instagram-user": [],
+            "instagram-post": [],
             "bluesky-post": [],
             "bluesky-user": []
         },  // @TODO pull these from a supported types list somewhere.
@@ -23,6 +24,7 @@ chrome.runtime.onInstalled.addListener(function () {
             "twitter-user": [],
             "twitter-tweet": [],
             "instagram-user": [],
+            "instagram-post": [],
             "bluesky-post": [],
             "bluesky-user": []
         }, // @TODO pull these from a supported types list somewhere.

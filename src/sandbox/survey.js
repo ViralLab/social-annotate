@@ -30,7 +30,7 @@ window.addEventListener('message', function (event) {
     // so that multiple tweet forms can coexist on the page without id collisions.
     // Note: formEl still holds the jQuery reference to the element even after the id is removed.
     var formEl = $('#surveyForm');
-    if (data.surveyType === 'twitter-tweet' || data.surveyType === 'instagram-post') {
+    if (data.surveyType === 'twitter-tweet' || data.surveyType === 'instagram-post' || data.surveyType === 'bluesky-post') {
       formEl.removeAttr('id').addClass('surveyFormTweet');
     }
 
@@ -42,7 +42,7 @@ window.addEventListener('message', function (event) {
     submitBtn.val('Annotate').text('Annotate');
 
     if (data.enableDownload) {
-        var downloadBtnHtml = `<button class="download-media-btn" style="background: linear-gradient(135deg, #1d9bf0, #1a8cd8); color: white; border: none; border-radius: 16px; font-weight: 700; font-size: 16px; padding: 0 32px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 14px rgba(29, 155, 240, 0.35); transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); flex: 1; margin: 0;">
+        var downloadBtnHtml = `<button class="download-media-btn" style="background: linear-gradient(135deg, #1d9bf0, #1a8cd8); color: white; border: none; border-radius: 16px; font-weight: 700; font-size: 16px; padding: 0 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 14px rgba(29, 155, 240, 0.35); transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); flex: 1; margin: 0;">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
             <polyline points="7 10 12 15 17 10"></polyline>
@@ -66,7 +66,7 @@ window.addEventListener('message', function (event) {
         // Ensure the submit button container is a flex container to hold both buttons properly
         var parentWrapper = submitBtn.parent();
         if (parentWrapper.length && !parentWrapper.hasClass('action-buttons-wrapper')) {
-            var wrapper = $('<div class="action-buttons-wrapper" style="display: flex; flex-direction: column; gap: 12px; align-self: stretch; flex: 0 0 auto; width: 200px;"></div>');
+            var wrapper = $('<div class="action-buttons-wrapper" style="display: flex; flex-direction: column; gap: 12px; align-self: stretch; flex: 0 0 auto; width: 220px;"></div>');
             submitBtn.wrap(wrapper);
         }
         

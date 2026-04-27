@@ -167,7 +167,7 @@ class Context {
                 formTemplate: templateCopy,
                 callId: callId,
                 surveyType: this.name,
-                enableDownload: (this.name === 'twitter-tweet' || this.name === 'instagram-post')
+                enableDownload: (this.name === 'twitter-tweet' || this.name === 'instagram-post' || this.name === 'bluesky-post')
             }, '*');
         };
 

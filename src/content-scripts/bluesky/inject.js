@@ -11,6 +11,35 @@ let bskyRoot = null;
 let obsConfigBS = {};
 let observerBS = null;
 
+window.addEventListener('mh:download-request', function(e) {
+    let detail = e.detail;
+    if (!detail || !detail.postID) return;
+    
+    let postID = detail.postID;
+    let postOwner = detail.userID;
+    let surveyType = detail.surveyType || 'bluesky-post';
+    
+    let containerName = 'surveyFormContainer-' + postID;
+    let surveyContainer = document.getElementById(containerName);
+    let injectNode = surveyContainer ? (surveyContainer.closest(SEL_BS.postContainer || '[data-testid*="feedItem"], [data-testid*="postThreadItem"]') || surveyContainer.parentNode) : null;
+    
+    let urlsToDownload = [];
+    if (injectNode) {
+        urlsToDownload = extractPostMedia(injectNode);
+    }
+    
+    if (urlsToDownload && urlsToDownload.length > 0) {
+        urlsToDownload = urlsToDownload.filter(u => !u.startsWith('blob:') && !u.startsWith('[Video Thumbnail]'));
+        if (urlsToDownload.length > 0) {
+            chrome.runtime.sendMessage({ action: 'downloadMedia', urls: urlsToDownload, userId: postOwner || 'user', postId: postID, surveyType: surveyType });
+        } else {
+            alert("No original media URLs found. Only thumbnails available.");
+        }
+    } else {
+        alert("No media found on this post.");
+    }
+});
+
 function processPostNode(postNode) {
     let insertElement = postNode.parentNode;
     if (insertElement && insertElement.getElementsByClassName('survey-container-post').length === 0) {

@@ -18,10 +18,13 @@ div.survey-container-user {
 }
 
 div.survey-container-post {
-	height: 150px;
+	height: auto;
+	min-height: 150px;
+	position: relative;
+	width: 100%;
 	background-color: transparent;
-	top: 0;
 	z-index: 99;
+	margin-bottom: 12px;
 }
 
 div.notification-container {
@@ -54,7 +57,7 @@ div.notification-container {
 	text-align: right;
 }
 
-.surveyFormPost {
+.surveyFormTweet {
 	display: flex;
 	width: 100%;
 	flex-direction: row;
@@ -67,7 +70,7 @@ div.notification-container {
 
 /* Overall Wrapper - Glassmorphism Integration */
 #surveyForm>div:not(.notification-container),
-.surveyFormPost>div {
+.surveyFormTweet>div {
 	background: transparent !important;
 	display: flex;
 	flex-direction: row;

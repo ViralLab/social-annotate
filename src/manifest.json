@@ -3,7 +3,7 @@
   "version": "1.0",
   "description": "Content annotator application developed by Ismail Uluturk and Onur Varol",
   "permissions": ["activeTab", "declarativeContent", "storage", "downloads", "tabs", "webNavigation"],
-  "host_permissions": ["*://twitter.com/*", "*://instagram.com/*", "*://www.instagram.com/*", "*://x.com/*", "*://bsky.app/*"],
+  "host_permissions": ["*://twitter.com/*", "*://instagram.com/*", "*://www.instagram.com/*", "*://x.com/*", "*://bsky.app/*", "*://bsky.social/*"],
   "options_page": "options/options.html",
   "background": {
     "service_worker": "background/background.js"
@@ -52,6 +52,14 @@
       ]
     },
     {
+      "matches": ["*://instagram.com/*", "*://www.instagram.com/*"],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "js": [
+        "content-scripts/instagram/inject-api.js"
+      ]
+    },
+    {
       "matches": ["*://www.instagram.com/*"],
       "run_at": "document_end",
       "css": [
@@ -66,6 +74,14 @@
         "dep/jsonform/lib/jsonform.js",
         "content-scripts/shared/shared.js",
         "content-scripts/instagram/inject.js"
+      ]
+    },
+    {
+      "matches": ["*://bsky.app/*"],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "js": [
+        "content-scripts/bluesky/inject-api.js"
       ]
     },
     {

@@ -11,6 +11,16 @@ let bskyRoot = null;
 let obsConfigBS = {};
 let observerBS = null;
 
+// Cache of intercepted Bluesky video DIDs+CIDs from the MAIN world interceptor
+// Map: cid -> { did, cid }
+window.bskyInterceptedVideos = {};
+
+document.addEventListener('mh:bsky-video-found', function(e) {
+    if (e.detail && e.detail.cid && e.detail.did) {
+        window.bskyInterceptedVideos[e.detail.cid] = e.detail;
+    }
+});
+
 window.addEventListener('mh:download-request', function(e) {
     let detail = e.detail;
     if (!detail || !detail.postID) return;
@@ -29,11 +39,30 @@ window.addEventListener('mh:download-request', function(e) {
     }
     
     if (urlsToDownload && urlsToDownload.length > 0) {
-        urlsToDownload = urlsToDownload.filter(u => !u.startsWith('blob:') && !u.startsWith('[Video Thumbnail]'));
-        if (urlsToDownload.length > 0) {
-            chrome.runtime.sendMessage({ action: 'downloadMedia', urls: urlsToDownload, userId: postOwner || 'user', postId: postID, surveyType: surveyType });
-        } else {
+        let validUrls = urlsToDownload.filter(u => !u.startsWith('[Blob Stream]') && !u.startsWith('[Video Thumbnail]'));
+        let blobs = urlsToDownload.filter(u => u.startsWith('[Blob Stream]'));
+        let thumbnails = urlsToDownload.filter(u => u.startsWith('[Video Thumbnail]'));
+
+        if (validUrls.length > 0) {
+            chrome.runtime.sendMessage({ action: 'downloadMedia', urls: validUrls, userId: postOwner || 'user', postId: postID, surveyType: surveyType });
+        } else if (blobs.length > 0) {
+            // Find only the video element(s) inside THIS specific post that were tagged by inject-api.js
+            let taggedVideos = injectNode ? injectNode.querySelectorAll('video[data-bsky-cid]') : [];
+            
+            if (taggedVideos.length > 0) {
+                let blobUrls = [];
+                taggedVideos.forEach(v => {
+                    let url = `https://bsky.social/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(v.dataset.bskyDid)}&cid=${encodeURIComponent(v.dataset.bskyCid)}`;
+                    if (!blobUrls.includes(url)) blobUrls.push(url);
+                });
+                chrome.runtime.sendMessage({ action: 'downloadMedia', urls: blobUrls, userId: postOwner || 'user', postId: postID, surveyType: surveyType });
+            } else {
+                alert("Video not yet loaded. Please scroll the video into view and let it start playing, then try again.");
+            }
+        } else if (thumbnails.length > 0) {
             alert("No original media URLs found. Only thumbnails available.");
+        } else {
+            alert("No supported media found.");
         }
     } else {
         alert("No media found on this post.");
@@ -200,11 +229,15 @@ function extractPostMedia(postNode) {
     // Extract videos
     let videos = postNode.querySelectorAll(SEL_BS.videoPlayer || 'video');
     videos.forEach(video => {
+        let src = null;
         let mp4Source = video.querySelector('source');
-        if (mp4Source && mp4Source.src && !mp4Source.src.startsWith('blob:')) {
-            mediaUrls.push(mp4Source.src);
-        } else if (video.src && !video.src.startsWith('blob:')) {
-            mediaUrls.push(video.src);
+        if (mp4Source) src = mp4Source.getAttribute('src') || mp4Source.src;
+        if (!src) src = video.getAttribute('src') || video.src || video.currentSrc;
+        
+        if (src && src.startsWith('blob:')) {
+            mediaUrls.push("[Blob Stream] " + src);
+        } else if (src && !src.startsWith('blob:')) {
+            mediaUrls.push(src);
         } else if (video.poster) {
             mediaUrls.push("[Video Thumbnail] " + video.poster);
         }

@@ -7,6 +7,16 @@ const availableContextsInstagram = [
 // Selectors loaded from storage (populated by initializeSurveys)
 let SEL_IG = {};
 
+window.instagramApiMediaMap = {};
+document.addEventListener('mh:media-response-ig', function(e) {
+    if (e.detail) {
+        Object.keys(e.detail).forEach(k => {
+            if (!window.instagramApiMediaMap[k]) window.instagramApiMediaMap[k] = [];
+            window.instagramApiMediaMap[k].push(...e.detail[k]);
+        });
+    }
+});
+
 window.addEventListener('mh:download-request', function(e) {
     let detail = e.detail;
     if (!detail || !detail.postID) return;
@@ -24,8 +34,30 @@ window.addEventListener('mh:download-request', function(e) {
         urlsToDownload = extractInstagramMedia(injectNode);
     }
     
+    // Supplement with intercepted API URLs to get native .mp4s!
+    if (window.instagramApiMediaMap && window.instagramApiMediaMap[postID]) {
+        let apiVids = window.instagramApiMediaMap[postID];
+        if (apiVids.length > 0) {
+            // Strip out any Blob streams since we successfully found the raw MP4 from the API
+            urlsToDownload = urlsToDownload.filter(u => !u.startsWith('[Blob Stream]'));
+            urlsToDownload.push(...apiVids);
+        }
+    }
+    
+    // Deduplicate array
+    urlsToDownload = [...new Set(urlsToDownload)];
+    
     if (urlsToDownload && urlsToDownload.length > 0) {
-        chrome.runtime.sendMessage({ action: 'downloadMedia', urls: urlsToDownload, userId: postOwner || 'user', postId: postID, surveyType: surveyType });
+        let validUrls = urlsToDownload.filter(u => !u.startsWith('[Blob Stream]'));
+        let blobs = urlsToDownload.filter(u => u.startsWith('[Blob Stream]'));
+        
+        if (validUrls.length > 0) {
+            chrome.runtime.sendMessage({ action: 'downloadMedia', urls: validUrls, userId: postOwner || 'user', postId: postID, surveyType: surveyType });
+        } else if (blobs.length > 0) {
+            alert("This video is an active stream (Blob) and cannot be natively downloaded.");
+        } else {
+            alert("No supported media found.");
+        }
     } else {
         alert("No media found on this post.");
     }
@@ -185,10 +217,25 @@ function extractInstagramText(articleNode) {
 
 function extractInstagramMedia(articleNode) {
     let urls = [];
-    let mediaEls = articleNode.querySelectorAll("img[style*='object-fit'], video");
+    let mediaEls = articleNode.querySelectorAll("img, video");
     mediaEls.forEach(el => {
-        let url = el.getAttribute('src');
-        if (url && !url.startsWith('blob:')) {
+        let url = null;
+        if (el.tagName.toLowerCase() === 'video') {
+            let source = el.querySelector('source');
+            if (source) url = source.getAttribute('src') || source.src;
+            if (!url) url = el.getAttribute('src') || el.src || el.currentSrc;
+            
+            if (url && url.startsWith('blob:')) {
+                urls.push("[Blob Stream] " + url);
+                return;
+            }
+        } else {
+            let alt = (el.getAttribute('alt') || '').toLowerCase();
+            if (alt.includes('profile picture') || alt.includes('logo')) return;
+            url = el.getAttribute('src') || el.src;
+        }
+        
+        if (url && !url.startsWith('blob:') && !url.startsWith('data:')) {
             if (url.startsWith('/')) {
                 url = window.location.origin + url;
             }

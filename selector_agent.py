@@ -17,23 +17,23 @@ Scope:
 
 Usage:
     # Regenerate tweet selectors only (from a timeline page):
-    python selector_agent.py --html timeline.html --platform twitter --scope tweet --provider gemini
+    python selector_agent.py --html timeline.html --platform x --scope tweet --provider gemini
 
     # Regenerate user profile selectors only (from a profile page):
-    python selector_agent.py --html profile.html --platform twitter --scope user --provider gemini
+    python selector_agent.py --html profile.html --platform x --scope user --provider gemini
 
     # Regenerate all selectors (default, from a page with both):
-    python selector_agent.py --html full_page.html --platform twitter --provider gemini
+    python selector_agent.py --html full_page.html --platform x --provider gemini
 
     # Use a different LLM provider:
-    python selector_agent.py --html page.html --platform twitter --provider openai
-    python selector_agent.py --html page.html --platform twitter --provider anthropic
+    python selector_agent.py --html page.html --platform x --provider openai
+    python selector_agent.py --html page.html --platform x --provider anthropic
 
     # Dry run (build prompt without calling LLM):
-    python selector_agent.py --html page.html --platform twitter --dry-run
+    python selector_agent.py --html page.html --platform x --dry-run
 
     # Custom output path and retry count:
-    python selector_agent.py --html page.html --platform twitter --provider gemini --output custom/selectors.json --max-retries 2
+    python selector_agent.py --html page.html --platform x --provider gemini --output custom/selectors.json --max-retries 2
 
 Environment Variables (one required):
     GEMINI_API_KEY   or GOOGLE_API_KEY  — for --provider gemini
@@ -238,7 +238,7 @@ INSTAGRAM_FIELDS = {
 }
 
 PLATFORM_FIELDS = {
-    "twitter": TWITTER_FIELDS,
+    "x": TWITTER_FIELDS,
     "instagram": INSTAGRAM_FIELDS,
 }
 
@@ -563,8 +563,8 @@ def main():
         description="LLM-powered CSS selector generator for Social Annotate extension."
     )
     parser.add_argument("--html", required=True, help="Path to saved HTML file from the target website.")
-    parser.add_argument("--platform", required=True, choices=["twitter", "instagram"],
-                        help="Target platform (twitter or instagram).")
+    parser.add_argument("--platform", required=True, choices=["x", "instagram"],
+                        help="Target platform (x or instagram).")
     parser.add_argument("--provider", default="openai", choices=["openai", "anthropic", "gemini"],
                         help="LLM provider to use (default: openai).")
     parser.add_argument("--model", default=None,
@@ -713,8 +713,8 @@ def main():
     full_config[args.platform] = existing_platform
 
     # Preserve observerFilter from defaults if not present
-    if args.platform == "twitter" and "observerFilter" not in full_config["twitter"]:
-        full_config["twitter"]["observerFilter"] = {
+    if args.platform == "x" and "observerFilter" not in full_config["x"]:
+        full_config["x"]["observerFilter"] = {
             "attributes": True,
             "childList": True,
             "subtree": True,

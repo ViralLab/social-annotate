@@ -5,8 +5,8 @@ Verifies that selectors from selectors.json actually match elements
 in a downloaded HTML page, without needing to load the Chrome extension.
 
 Usage:
-    python selector_validator.py --html test_fixtures/mock_twitter.html --platform twitter
-    python selector_validator.py --html test_fixtures/mock_twitter.html --platform twitter --selectors src/selectors.json
+    python selector_validator.py --html test_fixtures/mock_twitter.html --platform x
+    python selector_validator.py --html test_fixtures/mock_twitter.html --platform x --selectors src/selectors.json
 """
 
 import argparse
@@ -98,7 +98,7 @@ def test_selector(soup: BeautifulSoup, selector: str, field_name: str, field_typ
 
 # Field type mappings (same as in selector_agent.py)
 FIELD_TYPES = {
-    "twitter": {
+    "x": {
         "reactRoot": "id_or_selector",
         "tweetContainer": "selector",
         "tweetText": "selector",
@@ -121,7 +121,7 @@ FIELD_TYPES = {
 def main():
     parser = argparse.ArgumentParser(description="Validate CSS selectors against saved HTML.")
     parser.add_argument("--html", required=True, help="Path to saved HTML file.")
-    parser.add_argument("--platform", required=True, choices=["twitter", "instagram"])
+    parser.add_argument("--platform", required=True, choices=["x", "instagram"])
     parser.add_argument("--selectors", default="src/selectors.json", help="Path to selectors.json.")
 
     args = parser.parse_args()

@@ -1,6 +1,11 @@
 // @TODO Check if this ID already exists in storage, and just update if it does (avoid duplicates).
 // @TODO Might have an allow duplicates checkbox in the config, if there is a use case for it.
 // Race conditions should not occur because events are called sequentially.
+
+// Guard against calls after the extension has been reloaded (context invalidated).
+function isExtensionContextValid() {
+    try { return !!chrome.runtime.id; } catch(e) { return false; }
+}
 function getCurrentScreenName(platform) {
     if (platform === "x" || platform === "twitter") {
         let currentURL = window.location.href;
@@ -181,14 +186,17 @@ class Context {
 
         let surveyType = this.name;
         // Check if this element has already been annotated, and warn if so.
-        chrome.storage.local.get(['annotatedElements'], function (result) {
-            let checkID = (postID === null ? userID : postID);
-            let entryIndex = result.annotatedElements[surveyType].indexOf(checkID);
-            if (entryIndex !== -1) {
-                let os = overwriteSpan.cloneNode(true);
-                nc.replaceChild(os, nc.firstChild);
-            }
-        });
+        try {
+            if (!isExtensionContextValid()) return;
+            chrome.storage.local.get(['annotatedElements'], function (result) {
+                let checkID = (postID === null ? userID : postID);
+                let entryIndex = result.annotatedElements[surveyType].indexOf(checkID);
+                if (entryIndex !== -1) {
+                    let os = overwriteSpan.cloneNode(true);
+                    nc.replaceChild(os, nc.firstChild);
+                }
+            });
+        } catch(e) { console.debug('[SocialAnnotate] Extension context invalidated, skipping annotatedElements check.'); }
     }
 
 }
@@ -203,128 +211,133 @@ failureSpan.style.fontWeight = "bold";
 failureSpan.style.padding = "5px 15px";
 
 function storeResults(surveyResults, socialMediaPlatform) {
+    if (!isExtensionContextValid()) { console.debug('[SocialAnnotate] Extension context invalidated, skipping storeResults.'); return; }
     surveyResults.postTimestamp = Math.floor(Date.now() / 1000);
 
     let apiSuccess = true;
-    chrome.storage.local.get(['config'], function (result) {
-        if (result.config.apiEndpoint !== '') {
-            apiSuccess = false;
-            let headers = new Headers();
-            headers.append('Accept', 'application/json');
-            headers.append('Access-Control-Allow-Origin', '*');
-            headers.append('Content-Type', 'application/json');
+    try {
+        chrome.storage.local.get(['config'], function (result) {
+            if (result.config.apiEndpoint !== '') {
+                apiSuccess = false;
+                let headers = new Headers();
+                headers.append('Accept', 'application/json');
+                headers.append('Access-Control-Allow-Origin', '*');
+                headers.append('Content-Type', 'application/json');
 
-            fetch(result.config.apiEndpoint, {
-                mode: 'no-cors',
-                method: "POST",
-                body: JSON.stringify(surveyResults),
-                headers: headers
-            }).then(res => {
-                console.log("Request complete! response:", res);
-                // @TODO: handle non-success response status codes explicitly.
-                apiSuccess = true;
-            });
-        }
-    });
-
-    chrome.storage.local.get(['resultsArrays', 'annotatedElements', 'activeTargetList', 'isGuided', 'clientID'], function (result) {
-        surveyResults.clientID = result.clientID;
-
-        let resultsArrays = result.resultsArrays;
-        let annotatedElements = result.annotatedElements;
-        let activeTargetList = result.activeTargetList;
-        let platformURL;
-
-        // @TODO: store this in the config when adding more platforms.
-        if (socialMediaPlatform == 'x' || socialMediaPlatform == 'twitter') {
-            platformURL = window.location.hostname.includes("x.com") ? "https://x.com/" : "https://twitter.com/";
-        } else if (socialMediaPlatform == 'instagram') {
-            platformURL = "https://instagram.com/";
-        } else if (socialMediaPlatform == 'bluesky') {
-            platformURL = "https://bsky.app/";
-        }
-
-        let surveyType = surveyResults.surveyType;
-
-        let insertKey = null;
-        if (surveyType === 'x-user') {
-            insertKey = surveyResults.userID;
-        } else if (surveyType === 'x-post') {
-            insertKey = surveyResults.postID;
-        } else if (surveyType === 'instagram-user') {
-            insertKey = surveyResults.userID;
-        } else if (surveyType === 'instagram-post') {
-            insertKey = surveyResults.postID;
-        } else if (surveyType === 'bluesky-user') {
-            insertKey = surveyResults.userID;
-        } else if (surveyType === 'bluesky-post') {
-            insertKey = surveyResults.postID;
-        }
-
-        let insertIndex = annotatedElements[surveyType].indexOf(insertKey);
-        if (insertIndex === -1) {
-            // New entry: append to end.
-            insertIndex = resultsArrays[surveyType].length;
-        }
-
-        resultsArrays[surveyType][insertIndex] = surveyResults;
-        annotatedElements[surveyType][insertIndex] = insertKey;
-
-        let lists2update = {
-            'resultsArrays': resultsArrays,
-            'annotatedElements': annotatedElements,
-        };
-
-        let bringNextUser = false;
-        let nextUser = '';
-        // If guided mode is enabled, advance to the next target after a successful annotation.
-        if (result.isGuided === true && (surveyType === 'x-user' || surveyType === 'x-post' || surveyType === 'instagram-user' || surveyType === 'instagram-post' || surveyType === 'bluesky-user' || surveyType === 'bluesky-post')) {
-            let dropIndex = activeTargetList.findIndex(item => insertKey.toLowerCase() === item.toLowerCase());
-            if (dropIndex > -1) {
-                activeTargetList.splice(dropIndex, 1);
-            }
-
-            if (activeTargetList.length > 0) {
-                bringNextUser = true;
-                nextUser = activeTargetList[0];
-            }
-
-            lists2update.activeTargetList = activeTargetList;
-        }
-
-        chrome.storage.local.set(lists2update, function () {
-            if (bringNextUser === true) {
-                if (surveyType === 'x-post') {
-                    window.location.href = platformURL + 'i/web/status/' + nextUser;
-                } else if (surveyType === 'instagram-post') {
-                    window.location.href = platformURL + 'p/' + nextUser;
-                } else if (surveyType === 'bluesky-user') {
-                    window.location.href = platformURL + 'profile/' + nextUser;
-                } else if (surveyType === 'bluesky-post') {
-                    window.location.href = platformURL + 'profile/' + nextUser;
-                } else {
-                    window.location.href = platformURL + nextUser;
-                }
-            }
-
-            if (apiSuccess) {
-                // @TODO: endpoint error handling isn't done properly; all API-related paths need full exception handling.
-                let divName = "surveyFormContainer";
-                if (surveyResults.surveyType === "x-post" || surveyResults.surveyType === "instagram-post") {
-                    divName += '-' + surveyResults.postID.toString();
-                }
-
-                let ss = successSpan.cloneNode(true);  // @TODO: Have this blink for back-to-back submissions.
-
-                let surveyContainer = document.getElementById(divName).shadowRoot;
-                let nc = surveyContainer.querySelector('.notification-container');
-
-                if (nc !== null) {
-                    nc.replaceChild(ss, nc.firstChild);
-                    $(ss).fadeOut(0);
-                    $(ss).fadeIn(200);
-                }
+                fetch(result.config.apiEndpoint, {
+                    mode: 'no-cors',
+                    method: "POST",
+                    body: JSON.stringify(surveyResults),
+                    headers: headers
+                }).then(res => {
+                    console.log("Request complete! response:", res);
+                    // @TODO: handle non-success response status codes explicitly.
+                    apiSuccess = true;
+                });
             }
         });
-    });
+    } catch(e) { console.debug('[SocialAnnotate] Extension context invalidated during API call.'); }
+
+    try {
+        chrome.storage.local.get(['resultsArrays', 'annotatedElements', 'activeTargetList', 'isGuided', 'clientID'], function (result) {
+            surveyResults.clientID = result.clientID;
+
+            let resultsArrays = result.resultsArrays;
+            let annotatedElements = result.annotatedElements;
+            let activeTargetList = result.activeTargetList;
+            let platformURL;
+
+            // @TODO: store this in the config when adding more platforms.
+            if (socialMediaPlatform == 'x' || socialMediaPlatform == 'twitter') {
+                platformURL = window.location.hostname.includes("x.com") ? "https://x.com/" : "https://twitter.com/";
+            } else if (socialMediaPlatform == 'instagram') {
+                platformURL = "https://instagram.com/";
+            } else if (socialMediaPlatform == 'bluesky') {
+                platformURL = "https://bsky.app/";
+            }
+
+            let surveyType = surveyResults.surveyType;
+
+            let insertKey = null;
+            if (surveyType === 'x-user') {
+                insertKey = surveyResults.userID;
+            } else if (surveyType === 'x-post') {
+                insertKey = surveyResults.postID;
+            } else if (surveyType === 'instagram-user') {
+                insertKey = surveyResults.userID;
+            } else if (surveyType === 'instagram-post') {
+                insertKey = surveyResults.postID;
+            } else if (surveyType === 'bluesky-user') {
+                insertKey = surveyResults.userID;
+            } else if (surveyType === 'bluesky-post') {
+                insertKey = surveyResults.postID;
+            }
+
+            let insertIndex = annotatedElements[surveyType].indexOf(insertKey);
+            if (insertIndex === -1) {
+                // New entry: append to end.
+                insertIndex = resultsArrays[surveyType].length;
+            }
+
+            resultsArrays[surveyType][insertIndex] = surveyResults;
+            annotatedElements[surveyType][insertIndex] = insertKey;
+
+            let lists2update = {
+                'resultsArrays': resultsArrays,
+                'annotatedElements': annotatedElements,
+            };
+
+            let bringNextUser = false;
+            let nextUser = '';
+            // If guided mode is enabled, advance to the next target after a successful annotation.
+            if (result.isGuided === true && (surveyType === 'x-user' || surveyType === 'x-post' || surveyType === 'instagram-user' || surveyType === 'instagram-post' || surveyType === 'bluesky-user' || surveyType === 'bluesky-post')) {
+                let dropIndex = activeTargetList.findIndex(item => insertKey.toLowerCase() === item.toLowerCase());
+                if (dropIndex > -1) {
+                    activeTargetList.splice(dropIndex, 1);
+                }
+
+                if (activeTargetList.length > 0) {
+                    bringNextUser = true;
+                    nextUser = activeTargetList[0];
+                }
+
+                lists2update.activeTargetList = activeTargetList;
+            }
+
+            chrome.storage.local.set(lists2update, function () {
+                if (bringNextUser === true) {
+                    if (surveyType === 'x-post') {
+                        window.location.href = platformURL + 'i/web/status/' + nextUser;
+                    } else if (surveyType === 'instagram-post') {
+                        window.location.href = platformURL + 'p/' + nextUser;
+                    } else if (surveyType === 'bluesky-user') {
+                        window.location.href = platformURL + 'profile/' + nextUser;
+                    } else if (surveyType === 'bluesky-post') {
+                        window.location.href = platformURL + 'profile/' + nextUser;
+                    } else {
+                        window.location.href = platformURL + nextUser;
+                    }
+                }
+
+                if (apiSuccess) {
+                    // @TODO: endpoint error handling isn't done properly; all API-related paths need full exception handling.
+                    let divName = "surveyFormContainer";
+                    if (surveyResults.surveyType === "x-post" || surveyResults.surveyType === "instagram-post") {
+                        divName += '-' + surveyResults.postID.toString();
+                    }
+
+                    let ss = successSpan.cloneNode(true);  // @TODO: Have this blink for back-to-back submissions.
+
+                    let surveyContainer = document.getElementById(divName).shadowRoot;
+                    let nc = surveyContainer.querySelector('.notification-container');
+
+                    if (nc !== null) {
+                        nc.replaceChild(ss, nc.firstChild);
+                        $(ss).fadeOut(0);
+                        $(ss).fadeIn(200);
+                    }
+                }
+            });
+        });
+    } catch(e) { console.debug('[SocialAnnotate] Extension context invalidated during storeResults.'); }
 }

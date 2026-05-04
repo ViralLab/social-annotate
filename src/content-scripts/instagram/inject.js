@@ -19,11 +19,31 @@ document.addEventListener('mh:media-response-ig', function(e) {
 
 window.addEventListener('mh:download-request', function(e) {
     let detail = e.detail;
-    if (!detail || !detail.postID) return;
+    if (!detail) return;
+    
+    let initialSurveyType = detail.surveyType || 'instagram-post';
+
+    if (initialSurveyType === 'instagram-user') {
+        let userID = detail.userID;
+        chrome.storage.local.get(['isProfileDownloadEnabled'], function(res) {
+            if (res.isProfileDownloadEnabled) {
+                let avatarEl = document.querySelector(SEL_IG.userAvatar || 'header img[alt]');
+                if (avatarEl && avatarEl.src) {
+                    chrome.runtime.sendMessage({ action: 'downloadMedia', urls: [avatarEl.src], userId: userID || 'user', postId: 'profile', surveyType: initialSurveyType });
+                } else {
+                    alert("No profile picture found.");
+                }
+            }
+            // Instagram has no banner — isBannerDownloadEnabled is intentionally unused here
+        });
+        return;
+    }
+
+    if (!detail.postID) return;
     
     let postID = detail.postID;
     let postOwner = detail.userID;
-    let surveyType = detail.surveyType || 'instagram-post';
+    let postSurveyType = detail.surveyType || 'instagram-post';
     
     let containerName = 'surveyFormContainer-' + postID;
     let surveyContainer = document.getElementById(containerName);
@@ -52,7 +72,7 @@ window.addEventListener('mh:download-request', function(e) {
         let blobs = urlsToDownload.filter(u => u.startsWith('[Blob Stream]'));
         
         if (validUrls.length > 0) {
-            chrome.runtime.sendMessage({ action: 'downloadMedia', urls: validUrls, userId: postOwner || 'user', postId: postID, surveyType: surveyType });
+            chrome.runtime.sendMessage({ action: 'downloadMedia', urls: validUrls, userId: postOwner || 'user', postId: postID, surveyType: postSurveyType });
         } else if (blobs.length > 0) {
             alert("This video is an active stream (Blob) and cannot be natively downloaded.");
         } else {
@@ -178,8 +198,11 @@ function processInstagramArticleNode(articleNode) {
         let postDetails = extractInstagramPostDetails(articleNode);
 
         if (postDetails) {
+            let postCtx = availableContextsInstagram.find(c => c.name === 'instagram-post');
+            if (!postCtx || !postCtx.formTemplate) return; // survey not active or config not yet loaded
+
             injectInstagramPostSurvey(articleNode, postDetails.postID, postDetails.postOwner);
-            availableContextsInstagram[1].renderSurvey(
+            postCtx.renderSurvey(
                 postDetails.postOwner,
                 postDetails.postID,
                 {
@@ -291,6 +314,23 @@ function initializeSurveys() {
                         values.surveyType = currentContext.name;
                         values.studyID = studyID;
                         storeResults(values, currentPlatform);
+
+                        let isUserSurvey = currentContext.name.endsWith('-user');
+                        if (isUserSurvey) {
+                            chrome.storage.local.get(['isProfileDownloadEnabled', 'isBannerDownloadEnabled'], function(res) {
+                                if (res.isProfileDownloadEnabled || res.isBannerDownloadEnabled) {
+                                    let evt = new CustomEvent('mh:download-request', { detail: { userID: values.userID, surveyType: currentContext.name } });
+                                    window.dispatchEvent(evt);
+                                }
+                            });
+                        } else {
+                            chrome.storage.local.get(['isMediaDownloadEnabled'], function(res) {
+                                if (res.isMediaDownloadEnabled) {
+                                    let evt = new CustomEvent('mh:download-request', { detail: { postID: values.postID, userID: values.userID, surveyType: currentContext.name } });
+                                    window.dispatchEvent(evt);
+                                }
+                            });
+                        }
                     }
                 }
 
@@ -304,22 +344,23 @@ function initializeSurveys() {
                 }
             }
         }
+
+        // Start observer only after formTemplate is set — prevents race condition
+        // where observer fires renderSurvey before config is loaded.
+        let filter = { childList: true, subtree: true };
+        if (result.selectors && result.selectors.instagram && result.selectors.instagram.observerFilter) {
+            filter = result.selectors.instagram.observerFilter;
+        }
+        igObserver.observe(observerTarget, filter);
+
+        // Process articles already in the DOM
+        document.querySelectorAll(SEL_IG.postContainer || 'article').forEach(processInstagramArticleNode);
     });
 }
 
-// Fire the survey initializer on script load
-initializeSurveys();
-
-// Start observing for instagram posts
+// Declare at module level so they are accessible inside initializeSurveys callback
 let igObserver = createObserver();
 let observerTarget = document.body;
-chrome.storage.local.get(['selectors'], function(result) {
-    let filter = { childList: true, subtree: true };
-    if (result.selectors && result.selectors.instagram && result.selectors.instagram.observerFilter) {
-        filter = result.selectors.instagram.observerFilter;
-    }
-    igObserver.observe(observerTarget, filter);
-    
-    // Initial process of existing articles
-    document.querySelectorAll(SEL_IG.postContainer || 'article').forEach(processInstagramArticleNode);
-});
+
+// Fire the survey initializer on script load — observer is started inside once formTemplate is ready
+initializeSurveys();

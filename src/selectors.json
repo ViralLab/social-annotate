@@ -1,5 +1,5 @@
 {
-  "twitter": {
+  "x": {
     "reactRoot": "#react-root",
     "tweetContainer": "article[role=\"article\"]",
     "tweetText": "[data-testid=\"tweetText\"]",
@@ -15,6 +15,8 @@
     "userDisplayName": "[data-testid=\"User-Name\"]",
     "userHandle": "[data-testid=\"User-Name\"] a[href][tabindex=\"-1\"] span",
     "userAvatar": "[data-testid=\"Tweet-User-Avatar\"] img[src*=\"profile_images\"]",
+    "userProfileAvatar": "[data-testid=\"UserAvatar\"] img[src*=\"profile_images\"]",
+    "userBanner": "img[src*=\"profile_banners\"]",
     "userBio": "[data-testid=\"UserDescription\"]",
     "userVerified": "[data-testid=\"icon-verified\"]",
     "userFollowers": "a[href$=\"/verified_followers\"], a[href$=\"/followers\"]",
@@ -36,6 +38,8 @@
     "postContainer": "article",
     "postLink": "a[href*='/p/'], a[href*='/reel/']",
     "userLink": "a[href]",
+    "userAvatar": "header img[alt]",
+    "userBanner": null,
     "observerFilter": {
       "attributes": false,
       "childList": true,
@@ -54,7 +58,8 @@
     "postTimestamp": "a[href*=\"/post/\"]",
     "userDisplayName": "[data-testid=\"profileHeaderDisplayName\"]",
     "userHandle": "[data-testid=\"profileHeaderHandle\"]",
-    "userAvatar": "[data-testid=\"userAvatarImage\"]",
+    "userAvatar": "div[aria-label*=\"'s avatar\"] img",
+    "userBanner": "div[aria-label=\"View profile banner\"] img",
     "userBio": "[data-testid=\"profileHeaderDescription\"]",
     "userFollowers": "[data-testid=\"profileHeaderFollowersButton\"]",
     "userFollowing": "[data-testid=\"profileHeaderFollowsButton\"]",

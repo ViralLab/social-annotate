@@ -1,10 +1,10 @@
 var config = {
     "exportFormat": "jsonl",
     "apiEndpoint": "",  // e.g. http://127.0.0.1:5000/response
-    "activeSurveys": ["twitter-tweet"], // default to only twitter-tweet to prevent dual rendering
+    "activeSurveys": ["x-post"], // default to only x-post to prevent dual rendering
     "surveys": {
-        "twitter-tweet": {
-            "socialMediaPlatform": "twitter",
+        "x-post": {
+            "socialMediaPlatform": "x",
             "injectElement": {},  // tweets are detected dynamically via MutationObserver, not a fixed element
             "studyID": "kokone",
             "mediaDownloadFolder": "",
@@ -31,8 +31,8 @@ var config = {
                 ]
             }
         },
-        "twitter-user": {
-            "socialMediaPlatform": "twitter",
+        "x-user": {
+            "socialMediaPlatform": "x",
             "injectElement": {
                 "name": "global-nav-inner",
                 "type": "class",

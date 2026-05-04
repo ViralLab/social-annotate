@@ -296,6 +296,12 @@ body {
   flex-direction: column;
   gap: 6px;
 }
+#post-media-toggles,
+#user-media-toggles {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 .toggle-row {
   display: flex;
   align-items: center;

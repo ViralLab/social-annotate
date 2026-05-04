@@ -13,16 +13,16 @@ chrome.runtime.onInstalled.addListener(function () {
 
     let initialStorage = {
         "resultsArrays": {
-            "twitter-user": [],
-            "twitter-tweet": [],
+            "x-user": [],
+            "x-post": [],
             "instagram-user": [],
             "instagram-post": [],
             "bluesky-post": [],
             "bluesky-user": []
         },  // @TODO pull these from a supported types list somewhere.
         "annotatedElements": {
-            "twitter-user": [],
-            "twitter-tweet": [],
+            "x-user": [],
+            "x-post": [],
             "instagram-user": [],
             "instagram-post": [],
             "bluesky-post": [],
@@ -32,7 +32,10 @@ chrome.runtime.onInstalled.addListener(function () {
         "config": config,
         "isEnabled": true,
         "isGuided": false,
-        "activeTargetList": [...config.surveys["twitter-user"].screenNameList]  // clone the array, keep the initial list for future reference.
+        "isMediaDownloadEnabled": false,
+        "isProfileDownloadEnabled": false,
+        "isBannerDownloadEnabled": false,
+        "activeTargetList": [...config.surveys["x-user"].screenNameList]  // clone the array, keep the initial list for future reference.
     };
 
     // Load default selectors from selectors.json and store them.
@@ -46,7 +49,7 @@ chrome.runtime.onInstalled.addListener(function () {
         })
         .catch(err => {
             console.error('Failed to load selectors.json, using empty defaults:', err);
-            initialStorage.selectors = { twitter: {}, instagram: {}, bluesky: {} };
+            initialStorage.selectors = { x: {}, instagram: {}, bluesky: {} };
             chrome.storage.local.set(initialStorage, function () {
                 console.log('Storage arrays initialized (without selectors).');
             });
@@ -54,10 +57,7 @@ chrome.runtime.onInstalled.addListener(function () {
 });
 
 
-// Catches HTML5 pushState page transitions so we can react to SPA navigation.
-// https://stackoverflow.com/questions/20865581/chrome-extension-content-script-not-loaded-until-page-is-refreshed
 chrome.webNavigation.onHistoryStateUpdated.addListener(function (details) {
-    // @TODO: send a message to the content script to re-run survey initialization on navigation.
 });
 
 // Listen for download requests from content scripts
@@ -66,9 +66,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const urls = message.urls;
         const userId = message.userId || 'unknown';
         const postId = message.postId || 'unknown';
-        const surveyType = message.surveyType || 'twitter-tweet';
-        
-        chrome.storage.local.get(['config'], function(result) {
+        const surveyType = message.surveyType || 'x-post';
+
+        chrome.storage.local.get(['config'], function (result) {
             let folderPrefix = "";
             if (surveyType && result.config && result.config.surveys && result.config.surveys[surveyType] && result.config.surveys[surveyType].mediaDownloadFolder) {
                 folderPrefix = result.config.surveys[surveyType].mediaDownloadFolder.trim();
@@ -82,7 +82,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             urls.forEach((url, index) => {
                 let format = 'jpg';
                 let cleanUrl = url.split('?')[0];
-                
+
                 try {
                     let urlObj = new URL(url);
                     if (urlObj.searchParams.has('format')) {
@@ -93,15 +93,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                             format = ext;
                         }
                     }
-                } catch(e) {}
-                
+                } catch (e) { }
+
                 const filename = `${folderPrefix}${userId}_${postId}_${index + 1}.${format}`;
                 chrome.downloads.download({
                     url: url,
                     filename: filename
                 });
             });
-            sendResponse({status: "started"});
+            sendResponse({ status: "started" });
         });
     }
     return true;

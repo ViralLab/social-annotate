@@ -2,7 +2,7 @@
 // @TODO Might have an allow duplicates checkbox in the config, if there is a use case for it.
 // Race conditions should not occur because events are called sequentially.
 function getCurrentScreenName(platform) {
-    if (platform === "twitter") {
+    if (platform === "x" || platform === "twitter") {
         let currentURL = window.location.href;
         let temp = currentURL.split('.com/');
         temp = temp[temp.length - 1];
@@ -100,6 +100,10 @@ class Context {
         window.__surveyContexts[callId] = { context: this, userID: userID, postID: postID, extras: extras };
 
         // Clone the form template so concurrent iframe loads don't accidentally share references to hidden defaults.
+        if (!this.formTemplate || !this.formTemplate.schema) {
+            console.warn('[SocialAnnotate] renderSurvey called before formTemplate was set for', this.name);
+            return;
+        }
         let templateCopy = JSON.parse(JSON.stringify(this.formTemplate));
 
         // Attach metadata fields to the template schema.
@@ -167,7 +171,7 @@ class Context {
                 formTemplate: templateCopy,
                 callId: callId,
                 surveyType: this.name,
-                enableDownload: (this.name === 'twitter-tweet' || this.name === 'instagram-post' || this.name === 'bluesky-post')
+                enableDownload: (this.name === 'x-post' || this.name === 'instagram-post' || this.name === 'bluesky-post')
             }, '*');
         };
 
@@ -232,7 +236,7 @@ function storeResults(surveyResults, socialMediaPlatform) {
         let platformURL;
 
         // @TODO: store this in the config when adding more platforms.
-        if (socialMediaPlatform == 'twitter') {
+        if (socialMediaPlatform == 'x' || socialMediaPlatform == 'twitter') {
             platformURL = window.location.hostname.includes("x.com") ? "https://x.com/" : "https://twitter.com/";
         } else if (socialMediaPlatform == 'instagram') {
             platformURL = "https://instagram.com/";
@@ -243,9 +247,9 @@ function storeResults(surveyResults, socialMediaPlatform) {
         let surveyType = surveyResults.surveyType;
 
         let insertKey = null;
-        if (surveyType === 'twitter-user') {
+        if (surveyType === 'x-user') {
             insertKey = surveyResults.userID;
-        } else if (surveyType === 'twitter-tweet') {
+        } else if (surveyType === 'x-post') {
             insertKey = surveyResults.postID;
         } else if (surveyType === 'instagram-user') {
             insertKey = surveyResults.userID;
@@ -274,7 +278,7 @@ function storeResults(surveyResults, socialMediaPlatform) {
         let bringNextUser = false;
         let nextUser = '';
         // If guided mode is enabled, advance to the next target after a successful annotation.
-        if (result.isGuided === true && (surveyType === 'twitter-user' || surveyType === 'twitter-tweet' || surveyType === 'instagram-user' || surveyType === 'instagram-post' || surveyType === 'bluesky-user' || surveyType === 'bluesky-post')) {
+        if (result.isGuided === true && (surveyType === 'x-user' || surveyType === 'x-post' || surveyType === 'instagram-user' || surveyType === 'instagram-post' || surveyType === 'bluesky-user' || surveyType === 'bluesky-post')) {
             let dropIndex = activeTargetList.findIndex(item => insertKey.toLowerCase() === item.toLowerCase());
             if (dropIndex > -1) {
                 activeTargetList.splice(dropIndex, 1);
@@ -290,7 +294,7 @@ function storeResults(surveyResults, socialMediaPlatform) {
 
         chrome.storage.local.set(lists2update, function () {
             if (bringNextUser === true) {
-                if (surveyType === 'twitter-tweet') {
+                if (surveyType === 'x-post') {
                     window.location.href = platformURL + 'i/web/status/' + nextUser;
                 } else if (surveyType === 'instagram-post') {
                     window.location.href = platformURL + 'p/' + nextUser;
@@ -306,7 +310,7 @@ function storeResults(surveyResults, socialMediaPlatform) {
             if (apiSuccess) {
                 // @TODO: endpoint error handling isn't done properly; all API-related paths need full exception handling.
                 let divName = "surveyFormContainer";
-                if (surveyResults.surveyType === "twitter-tweet" || surveyResults.surveyType === "instagram-post") {
+                if (surveyResults.surveyType === "x-post" || surveyResults.surveyType === "instagram-post") {
                     divName += '-' + surveyResults.postID.toString();
                 }
 

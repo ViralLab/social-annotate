@@ -137,7 +137,7 @@ function navigateToTarget(target) {
                 chrome.storage.local.set({ 'activeTargetList': newList }, function () {
                     // Navigate browser tab
                     let baseUrl;
-                    if (activeSurvey === 'twitter-tweet') {
+                    if (activeSurvey === 'x-post') {
                         baseUrl = 'https://x.com/i/web/status/';
                     } else if (platform === 'instagram') {
                         baseUrl = 'https://www.instagram.com/';
@@ -200,6 +200,7 @@ chrome.storage.local.get('config', function (data) {
                 }, function () {
                     updateAnnotationCount();
                     updateGuidedPanel();
+                    updateMediaToggles(chosenSurvey);
                     refresh_page();
                 });
             });
@@ -219,6 +220,7 @@ chrome.storage.local.get('config', function (data) {
 
     updateAnnotationCount();
     updateGuidedPanel();
+    updateMediaToggles(activeSurvey);
 });
 
 // ── Enable/Disable toggle ─────────────────────────────────
@@ -252,6 +254,36 @@ toggleGuided.addEventListener('change', function () {
     chrome.storage.local.set({ 'isGuided': toggleGuided.checked }, function () {
         updateGuidedPanel();
     });
+});
+
+// ── Media toggle visibility ───────────────────────────────
+function updateMediaToggles(surveyName) {
+    let isUserSurvey = surveyName && surveyName.endsWith('-user');
+    document.getElementById('post-media-toggles').style.display = isUserSurvey ? 'none' : 'flex';
+    document.getElementById('user-media-toggles').style.display = isUserSurvey ? 'flex' : 'none';
+}
+
+// ── Media download toggle ─────────────────────────────────
+let toggleMediaDownload = document.getElementById('toggleMediaDownload');
+let toggleProfileDownload = document.getElementById('toggleProfileDownload');
+let toggleBannerDownload = document.getElementById('toggleBannerDownload');
+
+chrome.storage.local.get(['isMediaDownloadEnabled', 'isProfileDownloadEnabled', 'isBannerDownloadEnabled'], function (data) {
+    toggleMediaDownload.checked = data.isMediaDownloadEnabled === true;
+    toggleProfileDownload.checked = data.isProfileDownloadEnabled === true;
+    toggleBannerDownload.checked = data.isBannerDownloadEnabled === true;
+});
+
+toggleMediaDownload.addEventListener('change', function () {
+    chrome.storage.local.set({ 'isMediaDownloadEnabled': toggleMediaDownload.checked });
+});
+
+toggleProfileDownload.addEventListener('change', function () {
+    chrome.storage.local.set({ 'isProfileDownloadEnabled': toggleProfileDownload.checked });
+});
+
+toggleBannerDownload.addEventListener('change', function () {
+    chrome.storage.local.set({ 'isBannerDownloadEnabled': toggleBannerDownload.checked });
 });
 
 // ── Export ─────────────────────────────────────────────────

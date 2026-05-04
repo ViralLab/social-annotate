@@ -1,7 +1,7 @@
 
 // Context class is defined in shared.js
-const availableContextsTwitter = [new Context('twitter-user', injectTwitterUserSurvey, checkUserURL),
-new Context('twitter-tweet', enableTweetObserver, null)];
+const availableContextsTwitter = [new Context('x-user', injectTwitterUserSurvey, checkUserURL),
+new Context('x-post', enableTweetObserver, null)];
 
 // Selectors loaded from storage (populated by initializeSurveys)
 let SEL = {};
@@ -12,24 +12,48 @@ let obsConfig = {};
 let observer = null;
 
 window.twitterApiMediaMap = {};
-document.addEventListener('mh:media-response', function(e) {
+document.addEventListener('mh:media-response', function (e) {
     if (e.detail) {
         Object.assign(window.twitterApiMediaMap, e.detail);
     }
 });
 
-window.addEventListener('mh:download-request', function(e) {
+window.addEventListener('mh:download-request', function (e) {
     let detail = e.detail;
-    if (!detail || !detail.postID) return;
-    
+    if (!detail) return;
+
+    let initialSurveyType = detail.surveyType || 'x-post';
+
+    if (initialSurveyType === 'x-user') {
+        let userID = detail.userID;
+        chrome.storage.local.get(['isProfileDownloadEnabled', 'isBannerDownloadEnabled'], function(res) {
+            if (res.isProfileDownloadEnabled) {
+                let avatarEl = document.querySelector(SEL.userProfileAvatar || '[data-testid="UserAvatar"] img[src*="profile_images"]');
+                if (avatarEl && avatarEl.src) {
+                    let avatarUrl = avatarEl.src.replace('_normal', '').replace('_bigger', '').replace('_mini', '');
+                    chrome.runtime.sendMessage({ action: 'downloadMedia', urls: [avatarUrl], userId: userID || 'user', postId: 'profile', surveyType: initialSurveyType });
+                }
+            }
+            if (res.isBannerDownloadEnabled) {
+                let bannerEl = document.querySelector(SEL.userBanner || 'img[src*="profile_banners"]');
+                if (bannerEl && bannerEl.src) {
+                    chrome.runtime.sendMessage({ action: 'downloadMedia', urls: [bannerEl.src], userId: userID || 'user', postId: 'banner', surveyType: initialSurveyType });
+                }
+            }
+        });
+        return;
+    }
+
+    if (!detail.postID) return;
+
     let tweetID = detail.postID;
     let tweetOwner = detail.userID;
-    let surveyType = detail.surveyType || 'twitter-tweet';
-    
+    let postSurveyType = detail.surveyType || 'x-post';
+
     let containerName = 'surveyFormContainer-' + tweetID;
     let surveyContainer = document.getElementById(containerName);
     let injectNode = surveyContainer ? surveyContainer.parentNode : null;
-    
+
     let urlsToDownload = [];
     if (window.twitterApiMediaMap && window.twitterApiMediaMap[tweetID]) {
         urlsToDownload = window.twitterApiMediaMap[tweetID];
@@ -38,11 +62,11 @@ window.addEventListener('mh:download-request', function(e) {
             urlsToDownload = extractTweetMedia(injectNode);
         }
     }
-    
+
     if (urlsToDownload && urlsToDownload.length > 0) {
         urlsToDownload = urlsToDownload.filter(u => !u.startsWith('blob:') && !u.startsWith('[Video Thumbnail]'));
         if (urlsToDownload.length > 0) {
-            chrome.runtime.sendMessage({ action: 'downloadMedia', urls: urlsToDownload, userId: tweetOwner || 'user', postId: tweetID, surveyType: surveyType });
+            chrome.runtime.sendMessage({ action: 'downloadMedia', urls: urlsToDownload, userId: tweetOwner || 'user', postId: tweetID, surveyType: postSurveyType });
         } else {
             alert("No original media URLs found. Wait for the API to load or check the post.");
         }
@@ -222,7 +246,7 @@ function injectTwitterUserSurvey(injectElement, userID) {
     surveyContainer.setAttribute("id", "surveyFormContainer");
     const shadowRoot = surveyContainer.attachShadow({ mode: 'open' });
 
-    let cssUrl = chrome.runtime.getURL("content-scripts/twitter/inject.css");
+    let cssUrl = chrome.runtime.getURL("content-scripts/x/inject.css");
     shadowRoot.innerHTML = `\
    <iframe class="surveyIframe" src="${chrome.runtime.getURL("sandbox/survey.html")}" data-css="${cssUrl}" style="border:none; width:100%; height:100%; background:transparent;"></iframe>\
 `;
@@ -377,8 +401,8 @@ function injectTwitterTweetSurvey(injectNode, tweetID, tweetOwner) {
     surveyContainer.setAttribute("id", containerName);
     const shadowRoot = surveyContainer.attachShadow({ mode: 'open' });
 
-    let cssUrl = chrome.runtime.getURL("content-scripts/twitter/inject.css");
-    
+    let cssUrl = chrome.runtime.getURL("content-scripts/x/inject.css");
+
     shadowRoot.innerHTML = `\
    <iframe class="surveyIframe" src="${chrome.runtime.getURL("sandbox/survey.html")}" data-css="${cssUrl}" style="border:none; width:100%; height:100%; background:transparent;"></iframe>\
 `;
@@ -399,7 +423,7 @@ function initializeSurveys() {
     chrome.storage.local.get(['config', 'isEnabled', 'activeTargetList', 'clientID', 'isGuided', 'selectors'], function (result) {
 
         // Load selectors into the module-level variable
-        SEL = (result.selectors && result.selectors.twitter) ? result.selectors.twitter : {};
+        SEL = (result.selectors && result.selectors.x) ? result.selectors.x : {};
 
         // Initialize observer infrastructure now that selectors are available
         reactRoot = document.querySelector(SEL.reactRoot || '#react-root');
@@ -414,16 +438,16 @@ function initializeSurveys() {
             let platformURL = window.location.hostname.includes("x.com") ? "https://x.com/" : "https://twitter.com/";
             let activeSurvey = result.config.activeSurveys && result.config.activeSurveys.length > 0 ? result.config.activeSurveys[0] : null;
 
-            if (activeSurvey === 'twitter-tweet') {
+            if (activeSurvey === 'x-post') {
                 window.location.href = platformURL + 'i/web/status/' + firstTarget;
                 return;
-            } else if (activeSurvey === 'twitter-user') {
+            } else if (activeSurvey === 'x-user') {
                 window.location.href = platformURL + firstTarget;
                 return;
             }
         }
 
-        const currentPlatform = 'twitter';
+        const currentPlatform = 'x';
         for (let index = 0; index < availableContextsTwitter.length; ++index) {
             let currentContext = availableContextsTwitter[index];
             if (!currentContext.name.includes(currentPlatform)) continue;
@@ -442,6 +466,23 @@ function initializeSurveys() {
                         values.surveyType = currentContext.name;
                         values.studyID = studyID;
                         storeResults(values, currentPlatform);
+
+                        let isUserSurvey = currentContext.name.endsWith('-user');
+                        if (isUserSurvey) {
+                            chrome.storage.local.get(['isProfileDownloadEnabled', 'isBannerDownloadEnabled'], function(res) {
+                                if (res.isProfileDownloadEnabled || res.isBannerDownloadEnabled) {
+                                    let evt = new CustomEvent('mh:download-request', { detail: { userID: values.userID, surveyType: currentContext.name } });
+                                    window.dispatchEvent(evt);
+                                }
+                            });
+                        } else {
+                            chrome.storage.local.get(['isMediaDownloadEnabled'], function(res) {
+                                if (res.isMediaDownloadEnabled) {
+                                    let evt = new CustomEvent('mh:download-request', { detail: { postID: values.postID, userID: values.userID, surveyType: currentContext.name } });
+                                    window.dispatchEvent(evt);
+                                }
+                            });
+                        }
                     }
                 }
 
@@ -449,7 +490,7 @@ function initializeSurveys() {
                 currentContext.submitAction = submitAction;
                 currentContext.injectSurvey(config.injectElement);
 
-                if (currentContext.name !== 'twitter-tweet') {
+                if (currentContext.name !== 'x-post') {
                     let surveyID = crawlUserName();
                     currentContext.renderSurvey(surveyID, null, {
                         userProfile: () => extractUserProfile()

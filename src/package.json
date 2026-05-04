@@ -10,7 +10,7 @@
     "type": "git",
     "url": "git+https://github.com/uluturki/social-annotate.git"
   },
-  "author": "Onur Varol & Ismail Uluturk",
+  "author": "Ali Najafi, Ismail Uluturk, and Onur Varol",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/uluturki/social-annotate/issues"

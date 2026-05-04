@@ -23,11 +23,34 @@ document.addEventListener('mh:bsky-video-found', function(e) {
 
 window.addEventListener('mh:download-request', function(e) {
     let detail = e.detail;
-    if (!detail || !detail.postID) return;
+    if (!detail) return;
+    
+    let initialSurveyType = detail.surveyType || 'bluesky-post';
+
+    if (initialSurveyType === 'bluesky-user') {
+        let userID = detail.userID;
+        chrome.storage.local.get(['isProfileDownloadEnabled', 'isBannerDownloadEnabled'], function(res) {
+            if (res.isProfileDownloadEnabled) {
+                let avatarEl = document.querySelector(SEL_BS.userAvatar || 'div[aria-label*="\'s avatar"] img');
+                if (avatarEl && avatarEl.src) {
+                    chrome.runtime.sendMessage({ action: 'downloadMedia', urls: [avatarEl.src], userId: userID || 'user', postId: 'profile', surveyType: initialSurveyType });
+                }
+            }
+            if (res.isBannerDownloadEnabled) {
+                let bannerEl = document.querySelector(SEL_BS.userBanner || 'div[aria-label="View profile banner"] img');
+                if (bannerEl && bannerEl.src) {
+                    chrome.runtime.sendMessage({ action: 'downloadMedia', urls: [bannerEl.src], userId: userID || 'user', postId: 'banner', surveyType: initialSurveyType });
+                }
+            }
+        });
+        return;
+    }
+
+    if (!detail.postID) return;
     
     let postID = detail.postID;
     let postOwner = detail.userID;
-    let surveyType = detail.surveyType || 'bluesky-post';
+    let postSurveyType = detail.surveyType || 'bluesky-post';
     
     let containerName = 'surveyFormContainer-' + postID;
     let surveyContainer = document.getElementById(containerName);
@@ -44,7 +67,7 @@ window.addEventListener('mh:download-request', function(e) {
         let thumbnails = urlsToDownload.filter(u => u.startsWith('[Video Thumbnail]'));
 
         if (validUrls.length > 0) {
-            chrome.runtime.sendMessage({ action: 'downloadMedia', urls: validUrls, userId: postOwner || 'user', postId: postID, surveyType: surveyType });
+            chrome.runtime.sendMessage({ action: 'downloadMedia', urls: validUrls, userId: postOwner || 'user', postId: postID, surveyType: postSurveyType });
         } else if (blobs.length > 0) {
             // Find only the video element(s) inside THIS specific post that were tagged by inject-api.js
             let taggedVideos = injectNode ? injectNode.querySelectorAll('video[data-bsky-cid]') : [];
@@ -55,7 +78,7 @@ window.addEventListener('mh:download-request', function(e) {
                     let url = `https://bsky.social/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(v.dataset.bskyDid)}&cid=${encodeURIComponent(v.dataset.bskyCid)}`;
                     if (!blobUrls.includes(url)) blobUrls.push(url);
                 });
-                chrome.runtime.sendMessage({ action: 'downloadMedia', urls: blobUrls, userId: postOwner || 'user', postId: postID, surveyType: surveyType });
+                chrome.runtime.sendMessage({ action: 'downloadMedia', urls: blobUrls, userId: postOwner || 'user', postId: postID, surveyType: postSurveyType });
             } else {
                 alert("Video not yet loaded. Please scroll the video into view and let it start playing, then try again.");
             }
@@ -146,7 +169,7 @@ function extractUserProfile() {
 
     // Profile picture URL
     try {
-        let avatarEl = document.querySelector(SEL_BS.userAvatar || '[data-testid="userAvatarImage"]');
+        let avatarEl = document.querySelector(SEL_BS.userAvatar || 'div[aria-label*="\'s avatar"] img');
         if (avatarEl) {
             profile.avatarUrl = avatarEl.src;
         }
@@ -384,6 +407,23 @@ function initializeSurveys() {
                         values.surveyType = currentContext.name;
                         values.studyID = studyID;
                         storeResults(values, currentPlatform);
+
+                        let isUserSurvey = currentContext.name.endsWith('-user');
+                        if (isUserSurvey) {
+                            chrome.storage.local.get(['isProfileDownloadEnabled', 'isBannerDownloadEnabled'], function(res) {
+                                if (res.isProfileDownloadEnabled || res.isBannerDownloadEnabled) {
+                                    let evt = new CustomEvent('mh:download-request', { detail: { userID: values.userID, surveyType: currentContext.name } });
+                                    window.dispatchEvent(evt);
+                                }
+                            });
+                        } else {
+                            chrome.storage.local.get(['isMediaDownloadEnabled'], function(res) {
+                                if (res.isMediaDownloadEnabled) {
+                                    let evt = new CustomEvent('mh:download-request', { detail: { postID: values.postID, userID: values.userID, surveyType: currentContext.name } });
+                                    window.dispatchEvent(evt);
+                                }
+                            });
+                        }
                     }
                 }
 

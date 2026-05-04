@@ -1,9 +1,23 @@
 {
-  "name": "Content Annotator",
+  "name": "Social Annotate",
   "version": "1.0",
-  "description": "Content annotator application developed by Ismail Uluturk and Onur Varol",
-  "permissions": ["activeTab", "declarativeContent", "storage", "downloads", "tabs", "webNavigation"],
-  "host_permissions": ["*://twitter.com/*", "*://instagram.com/*", "*://www.instagram.com/*", "*://x.com/*", "*://bsky.app/*", "*://bsky.social/*"],
+  "description": "Social Annotate application developed by Ali Najafi, Ismail Uluturk and Onur Varol",
+  "permissions": [
+    "activeTab",
+    "declarativeContent",
+    "storage",
+    "downloads",
+    "tabs",
+    "webNavigation"
+  ],
+  "host_permissions": [
+    "*://twitter.com/*",
+    "*://instagram.com/*",
+    "*://www.instagram.com/*",
+    "*://x.com/*",
+    "*://bsky.app/*",
+    "*://bsky.social/*"
+  ],
   "options_page": "options/options.html",
   "background": {
     "service_worker": "background/background.js"
@@ -12,7 +26,9 @@
     "extension_pages": "script-src 'self'; object-src 'self'"
   },
   "sandbox": {
-    "pages": ["sandbox/survey.html"]
+    "pages": [
+      "sandbox/survey.html"
+    ]
   },
   "action": {
     "default_title": "social-annotate",
@@ -26,19 +42,29 @@
   },
   "content_scripts": [
     {
-      "matches": ["*://twitter.com/*", "*://x.com/*"],
+      "matches": [
+        "*://twitter.com/*",
+        "*://x.com/*"
+      ],
       "run_at": "document_start",
       "world": "MAIN",
       "js": [
-        "content-scripts/twitter/inject-api.js"
+        "content-scripts/x/inject-api.js"
       ]
     },
     {
-      "matches": ["*://twitter.com/*", "*://x.com/*", "file:///*"],
+      "matches": [
+        "*://twitter.com/*",
+        "*://x.com/*",
+        "file:///*"
+      ],
       "run_at": "document_end",
-      "exclude_matches": ["*://twitter.com/settings/*", "*://x.com/settings/*"],
+      "exclude_matches": [
+        "*://twitter.com/settings/*",
+        "*://x.com/settings/*"
+      ],
       "css": [
-        "content-scripts/twitter/inject.css",
+        "content-scripts/x/inject.css",
         "dep/jsonform/deps/opt/bootstrap.css"
       ],
       "js": [
@@ -48,11 +74,14 @@
         "dep/jsonform/deps/opt/jsv.js",
         "dep/jsonform/lib/jsonform.js",
         "content-scripts/shared/shared.js",
-        "content-scripts/twitter/inject.js"
+        "content-scripts/x/inject.js"
       ]
     },
     {
-      "matches": ["*://instagram.com/*", "*://www.instagram.com/*"],
+      "matches": [
+        "*://instagram.com/*",
+        "*://www.instagram.com/*"
+      ],
       "run_at": "document_start",
       "world": "MAIN",
       "js": [
@@ -60,7 +89,9 @@
       ]
     },
     {
-      "matches": ["*://www.instagram.com/*"],
+      "matches": [
+        "*://www.instagram.com/*"
+      ],
       "run_at": "document_end",
       "css": [
         "content-scripts/instagram/inject.css",
@@ -77,7 +108,9 @@
       ]
     },
     {
-      "matches": ["*://bsky.app/*"],
+      "matches": [
+        "*://bsky.app/*"
+      ],
       "run_at": "document_start",
       "world": "MAIN",
       "js": [
@@ -85,7 +118,9 @@
       ]
     },
     {
-      "matches": ["*://bsky.app/*"],
+      "matches": [
+        "*://bsky.app/*"
+      ],
       "run_at": "document_end",
       "css": [
         "content-scripts/bluesky/inject.css",
@@ -114,11 +149,13 @@
         "sandbox/survey.html",
         "selectors.json",
         "content-scripts/instagram/inject.css",
-        "content-scripts/twitter/inject.css",
+        "content-scripts/x/inject.css",
         "content-scripts/bluesky/inject.css",
         "dep/jsonform/deps/opt/bootstrap.css"
       ],
-      "matches": ["<all_urls>"]
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ],
   "manifest_version": 3

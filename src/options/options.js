@@ -182,7 +182,7 @@ function wireAnnotationUpload(key) {
 
 // ── Build survey card HTML ────────────────────────────────
 function buildSurveyCard(key, survey) {
-    let platform = survey.socialMediaPlatform || 'twitter';
+    let platform = survey.socialMediaPlatform || 'x';
     return `
     <div class="survey-card" id="card_${key}">
       <div class="card-header">
@@ -618,7 +618,7 @@ function previewSurvey(key) {
     iframe.src = chrome.runtime.getURL('sandbox/survey.html');
     iframe.style.cssText = 'border:none; width:100%; min-height:280px; background:transparent;';
 
-    let platform = key.startsWith('instagram') ? 'instagram' : (key.startsWith('bluesky') ? 'bluesky' : 'twitter');
+    let platform = key.startsWith('instagram') ? 'instagram' : (key.startsWith('bluesky') ? 'bluesky' : 'x');
     let cssUrl = chrome.runtime.getURL('content-scripts/' + platform + '/inject.css');
 
     iframe.onload = function () {
@@ -776,16 +776,16 @@ function escapeAttr(str) {
 
         let initialStorage = {
             "resultsArrays": {
-                "twitter-user": [],
-                "twitter-tweet": [],
+                "x-user": [],
+                "x-post": [],
                 "instagram-user": [],
                 "instagram-post": [],
                 "bluesky-post": [],
                 "bluesky-user": []
             },
             "annotatedElements": {
-                "twitter-user": [],
-                "twitter-tweet": [],
+                "x-user": [],
+                "x-post": [],
                 "instagram-user": [],
                 "instagram-post": [],
                 "bluesky-post": [],
@@ -795,7 +795,10 @@ function escapeAttr(str) {
             "config": config,  // default config from config.js
             "isEnabled": true,
             "isGuided": false,
-            "activeTargetList": [...config.surveys["twitter-user"].screenNameList]
+            "isMediaDownloadEnabled": false,
+            "isProfileDownloadEnabled": false,
+            "isBannerDownloadEnabled": false,
+            "activeTargetList": [...config.surveys["x-user"].screenNameList]
         };
 
         // Load default selectors, then clear & re-initialize storage
@@ -805,7 +808,7 @@ function escapeAttr(str) {
                 initialStorage.selectors = selectors;
             })
             .catch(() => {
-                initialStorage.selectors = { twitter: {}, instagram: {}, bluesky: {} };
+                initialStorage.selectors = { x: {}, instagram: {}, bluesky: {} };
             })
             .finally(() => {
                 chrome.storage.local.clear(function () {

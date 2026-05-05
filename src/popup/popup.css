@@ -24,6 +24,24 @@
   --ease:           0.18s ease;
 }
 
+/* ── Light Theme ─────────────────────────────────────────── */
+[data-theme="light"] {
+  --bg:             #f4f6fb;
+  --bg-elevated:    #ffffff;
+  --surface:        rgba(0,0,0,0.04);
+  --border:         rgba(0,0,0,0.10);
+  --border-hover:   rgba(0,0,0,0.20);
+  --accent:         #3b7ff5;
+  --accent-soft:    rgba(59,127,245,0.12);
+  --accent-glow:    rgba(59,127,245,0.22);
+  --green:          #12a87a;
+  --green-soft:     rgba(18,168,122,0.12);
+  --text:           #1a202c;
+  --text-2:         #4a5568;
+  --text-3:         #a0aec0;
+  --danger:         #e53e3e;
+}
+
 body {
   width: 340px;
   min-height: 100px;
@@ -71,6 +89,13 @@ body {
   background: rgba(255,255,255,0.08);
   border-color: var(--border-hover);
 }
+[data-theme="light"] .icon-btn:hover {
+  background: rgba(0,0,0,0.06);
+}
+
+/* Theme toggle icon */
+.icon-btn .theme-icon { font-size: 14px; line-height: 1; transition: transform 0.35s ease; }
+.icon-btn:hover .theme-icon { transform: rotate(20deg) scale(1.15); }
 
 /* ── Survey Selector ────────────────────────────────────── */
 .survey-selector {
@@ -105,6 +130,9 @@ body {
 .dropdown-trigger:hover {
   border-color: var(--border-hover);
   background: rgba(255,255,255,0.06);
+}
+[data-theme="light"] .dropdown-trigger:hover {
+  background: rgba(0,0,0,0.04);
 }
 .dropdown-caret {
   color: var(--text-3);
@@ -207,7 +235,7 @@ body {
 .progress-track {
   width: 100%;
   height: 6px;
-  background: rgba(255,255,255,0.06);
+  background: rgba(0,0,0,0.08);
   border-radius: 3px;
   overflow: hidden;
   margin-bottom: 12px;
@@ -224,7 +252,7 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 8px 10px;
-  background: rgba(255,255,255,0.03);
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
   margin-bottom: 12px;
@@ -340,7 +368,7 @@ body {
 .toggle-switch input { opacity: 0; width: 0; height: 0; }
 .toggle-slider {
   position: absolute; inset: 0;
-  background: rgba(255,255,255,0.1);
+  background: rgba(0,0,0,0.15);
   border-radius: 11px;
   transition: background var(--ease);
 }

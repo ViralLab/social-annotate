@@ -1,3 +1,22 @@
+// ── Theme ──────────────────────────────────────────────────
+function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    let icon = document.getElementById('theme-icon');
+    if (icon) icon.textContent = theme === 'light' ? '🌙' : '☀️';
+}
+
+chrome.storage.local.get(['theme'], function (data) {
+    applyTheme(data.theme || 'dark');
+});
+
+document.getElementById('theme-toggle').addEventListener('click', function () {
+    let current = document.documentElement.getAttribute('data-theme') || 'dark';
+    let next = current === 'dark' ? 'light' : 'dark';
+    chrome.storage.local.set({ theme: next }, function () {
+        applyTheme(next);
+    });
+});
+
 // ── Tab navigation ────────────────────────────────────────
 document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', function () {

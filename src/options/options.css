@@ -29,6 +29,26 @@
   --ease: 0.18s ease;
 }
 
+/* ── Light Theme ─────────────────────────────────────────── */
+[data-theme="light"] {
+  --bg:              #f4f6fb;
+  --card-bg:         rgba(0,0,0,0.03);
+  --card-border:     rgba(0,0,0,0.10);
+  --card-hover:      rgba(59,127,245,0.25);
+  --accent:          #3b7ff5;
+  --accent-2:        #6c3ff5;
+  --accent-grad:     linear-gradient(135deg, #3b7ff5, #6c3ff5);
+  --accent-glow:     rgba(59,127,245,0.18);
+  --text-primary:    #1a202c;
+  --text-secondary:  #4a5568;
+  --text-muted:      #a0aec0;
+  --input-bg:        rgba(0,0,0,0.04);
+  --input-border:    rgba(0,0,0,0.12);
+  --input-focus:     rgba(59,127,245,0.45);
+  --success:         #12a87a;
+  --error:           #e53e3e;
+}
+
 html, body {
   background: var(--bg);
   color: var(--text-primary);
@@ -54,6 +74,9 @@ html, body {
   padding: 0 28px;
   z-index: 100;
 }
+[data-theme="light"] .app-header {
+  background: rgba(255,255,255,0.92);
+}
 .header-left { display: flex; align-items: center; gap: 14px; }
 .header-logo { width: 36px; height: 36px; border-radius: 8px; }
 .header-title { font-size: 16px; font-weight: 700; letter-spacing: -0.3px; }
@@ -63,7 +86,7 @@ html, body {
 .tab-nav {
   display: flex;
   gap: 4px;
-  background: rgba(255,255,255,0.04);
+  background: rgba(0,0,0,0.04);
   border: 1px solid var(--card-border);
   border-radius: var(--r-md);
   padding: 4px;
@@ -80,7 +103,7 @@ html, body {
   cursor: pointer;
   transition: all var(--ease);
 }
-.tab-btn:hover { color: var(--text-primary); background: rgba(255,255,255,0.05); }
+.tab-btn:hover { color: var(--text-primary); background: rgba(0,0,0,0.05); }
 .tab-btn.active { background: var(--accent-grad); color: #fff; }
 
 /* ── Layout ─────────────────────────────────────────────── */
@@ -156,7 +179,7 @@ html, body {
   align-items: center;
   justify-content: space-between;
   padding: 15px 20px;
-  background: rgba(255,255,255,0.02);
+  background: var(--surface, rgba(0,0,0,0.02));
   cursor: pointer;
   user-select: none;
   border-bottom: 1px solid transparent;
@@ -222,12 +245,12 @@ html, body {
   0%, 100% { opacity: 1; } 50% { opacity: 0.5; }
 }
 .btn-close-preview {
-  background: rgba(255,255,255,0.05); border: 1px solid var(--card-border);
+  background: var(--input-bg); border: 1px solid var(--card-border);
   color: var(--text-secondary); border-radius: var(--r-sm);
   font-size: 12px; padding: 4px 10px; cursor: pointer;
   font-family: var(--font); transition: all var(--ease);
 }
-.btn-close-preview:hover { color: var(--text-primary); background: rgba(255,255,255,0.1); }
+.btn-close-preview:hover { color: var(--text-primary); background: var(--card-bg); }
 .preview-body {
   padding: 24px;
 }
@@ -246,6 +269,9 @@ html, body {
   display: flex; align-items: center;
   padding: 0 28px; z-index: 100;
 }
+[data-theme="light"] .action-bar {
+  background: rgba(255,255,255,0.92);
+}
 .action-bar-inner {
   max-width: 860px; width: 100%; margin: 0 auto;
   display: flex; align-items: center; justify-content: space-between;
@@ -262,15 +288,15 @@ html, body {
 .btn-primary { background: var(--accent-grad); color: #fff; }
 .btn-primary:hover { opacity: 0.85; transform: translateY(-1px); }
 .btn-secondary {
-  background: rgba(255,255,255,0.06); color: var(--text-primary);
+  background: var(--input-bg); color: var(--text-primary);
   border: 1px solid var(--card-border);
 }
-.btn-secondary:hover { background: rgba(255,255,255,0.1); border-color: var(--card-hover); }
+.btn-secondary:hover { background: var(--card-bg); border-color: var(--card-hover); }
 .btn-ghost {
   background: none; color: var(--text-secondary);
   border: 1px solid var(--input-border); cursor: pointer;
 }
-.btn-ghost:hover { color: var(--text-primary); background: rgba(255,255,255,0.05); }
+.btn-ghost:hover { color: var(--text-primary); background: var(--input-bg); }
 .file-input { display: none; }
 
 /* ── About Page ─────────────────────────────────────────── */
@@ -295,7 +321,7 @@ html, body {
 }
 .mode-toggle {
   display: flex; gap: 2px;
-  background: rgba(255,255,255,0.04); border: 1px solid var(--card-border);
+  background: var(--input-bg); border: 1px solid var(--card-border);
   border-radius: var(--r-sm); padding: 3px; overflow: hidden;
 }
 .mode-toggle-btn {
@@ -313,36 +339,36 @@ html, body {
   margin-bottom: 14px;
 }
 .btn-add-field {
-  background: rgba(255,255,255,0.06); border: 1px solid var(--card-border);
+  background: var(--input-bg); border: 1px solid var(--card-border);
   color: var(--text-primary); font-family: var(--font); font-size: 12px;
   font-weight: 500; padding: 7px 14px; border-radius: var(--r-sm);
   cursor: pointer; transition: all var(--ease);
   display: inline-flex; align-items: center; gap: 6px;
 }
-.btn-add-field:hover { background: rgba(255,255,255,0.1); border-color: var(--accent); }
+.btn-add-field:hover { background: var(--card-bg); border-color: var(--accent); }
 .add-field-select {
   background: var(--input-bg); border: 1px solid var(--input-border);
   color: var(--text-primary); font-family: var(--font); font-size: 12px;
   padding: 7px 10px; border-radius: var(--r-sm); outline: none; cursor: pointer;
 }
-.add-field-select option { background: #1a1d26; color: var(--text-primary); }
+.add-field-select option { background: var(--bg); color: var(--text-primary); }
 
 /* ── Builder Field Cards ────────────────────────────────── */
 .builder-fields { min-height: 40px; }
 
 .builder-field {
-  background: rgba(255,255,255,0.03); border: 1px solid var(--card-border);
+  background: var(--card-bg); border: 1px solid var(--card-border);
   border-radius: var(--r-md); margin-bottom: 10px;
   transition: border-color var(--ease), box-shadow var(--ease), opacity var(--ease);
 }
-.builder-field:hover { border-color: rgba(255,255,255,0.15); }
+.builder-field:hover { border-color: var(--card-hover); }
 .builder-field.dragging { opacity: 0.4; border-color: var(--accent); }
 .builder-field.drag-over { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
 
 .builder-field-header {
   display: flex; align-items: center; gap: 10px;
   padding: 10px 14px; cursor: grab;
-  border-bottom: 1px solid rgba(255,255,255,0.04);
+  border-bottom: 1px solid var(--card-border);
 }
 .builder-field-header:active { cursor: grabbing; }
 
@@ -401,7 +427,7 @@ html, body {
 .option-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .option-pill {
   display: flex; align-items: center; gap: 4px;
-  background: rgba(255,255,255,0.06); border: 1px solid var(--card-border);
+  background: var(--input-bg); border: 1px solid var(--card-border);
   border-radius: 20px; padding: 4px 6px 4px 10px; font-size: 12px;
 }
 .option-pill-text {
@@ -455,12 +481,12 @@ html, body {
 }
 .btn-upload-list {
   display: inline-flex; align-items: center; gap: 5px;
-  background: rgba(255,255,255,0.06); border: 1px solid var(--card-border);
+  background: var(--input-bg); border: 1px solid var(--card-border);
   color: var(--text-primary); font-family: var(--font); font-size: 12px;
   font-weight: 500; padding: 6px 12px; border-radius: var(--r-sm);
   cursor: pointer; transition: all var(--ease);
 }
-.btn-upload-list:hover { background: rgba(255,255,255,0.1); border-color: var(--accent); }
+.btn-upload-list:hover { background: var(--card-bg); border-color: var(--accent); }
 .btn-clear-list {
   background: none; border: 1px solid var(--card-border);
   color: var(--text-muted); font-family: var(--font); font-size: 12px;
@@ -503,14 +529,32 @@ html, body {
 @keyframes modalFadeIn { from { opacity: 0; } to { opacity: 1; } }
 
 .modal-card {
-  background: #1a1d26;
+  background: var(--bg-elevated, #ffffff);
   border: 1px solid var(--card-border);
   border-radius: var(--r-lg);
   padding: 36px 40px;
   max-width: 440px; width: 90%;
   text-align: center;
-  box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+  box-shadow: 0 24px 64px rgba(0,0,0,0.25);
   animation: modalSlideUp 0.25s ease;
+}
+
+/* Theme toggle button in options header */
+.theme-toggle-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--input-bg); border: 1px solid var(--card-border);
+  color: var(--text-secondary);
+  width: 34px; height: 34px;
+  border-radius: var(--r-sm); cursor: pointer;
+  font-size: 15px; line-height: 1;
+  transition: all var(--ease); flex-shrink: 0;
+  margin-left: 10px;
+}
+.theme-toggle-btn:hover {
+  color: var(--text-primary);
+  background: var(--card-bg);
+  border-color: var(--card-hover);
+  transform: rotate(15deg) scale(1.1);
 }
 @keyframes modalSlideUp {
   from { opacity: 0; transform: translateY(16px); }

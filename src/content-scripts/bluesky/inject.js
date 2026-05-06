@@ -428,6 +428,7 @@ function initializeSurveys() {
                 }
 
                 currentContext.formTemplate = config.surveyFormSchema;
+                currentContext.theme = config.theme || "dark";
                 currentContext.submitAction = submitAction;
                 currentContext.injectSurvey(config.injectElement);
 

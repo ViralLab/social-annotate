@@ -100,16 +100,47 @@ class Context {
     }
 
     renderSurvey(userID, postID = null, extras = {}) {
+        if (!isExtensionContextValid()) return;
+        
+        let formName = 'surveyFormContainer';
+        if (postID != null) {
+            formName = formName + '-' + postID.toString();
+        }
+        
+        let wrapper = document.getElementById(formName);
+        if (wrapper && wrapper.shadowRoot) {
+            let iframe = wrapper.shadowRoot.querySelector('.surveyIframe');
+            if (iframe) {
+                iframe.addEventListener('load', () => {
+                    iframe.dataset.loaded = 'true';
+                });
+            }
+        }
+
+        chrome.storage.local.get(['config'], (result) => {
+            let freshTemplate = this.formTemplate;
+            let freshTheme = this.theme || 'dark';
+            
+            if (!chrome.runtime.lastError && result && result.config && result.config.surveys && result.config.surveys[this.name]) {
+                let config = result.config.surveys[this.name];
+                if (config.surveyFormSchema) freshTemplate = config.surveyFormSchema;
+                if (config.theme) freshTheme = config.theme;
+            }
+            this._doRenderSurvey(userID, postID, extras, freshTemplate, freshTheme);
+        });
+    }
+
+    _doRenderSurvey(userID, postID, extras, freshTemplate, freshTheme) {
         if (!window.__surveyContexts) window.__surveyContexts = {};
         let callId = this.name + (postID ? '-' + postID : '');
         window.__surveyContexts[callId] = { context: this, userID: userID, postID: postID, extras: extras };
 
         // Clone the form template so concurrent iframe loads don't accidentally share references to hidden defaults.
-        if (!this.formTemplate || !this.formTemplate.schema) {
+        if (!freshTemplate || !freshTemplate.schema) {
             console.warn('[SocialAnnotate] renderSurvey called before formTemplate was set for', this.name);
             return;
         }
-        let templateCopy = JSON.parse(JSON.stringify(this.formTemplate));
+        let templateCopy = JSON.parse(JSON.stringify(freshTemplate));
 
         // Attach metadata fields to the template schema.
         for (let key in metadataSchemes) {
@@ -164,21 +195,47 @@ class Context {
                         let evt = new CustomEvent('mh:download-request', { detail: { callId: event.data.callId, postID: ctxData.postID, userID: ctxData.userID, surveyType: ctxData.context.name } });
                         window.dispatchEvent(evt);
                     }
+                } else if (event.data && event.data.type === 'resize') {
+                    let ctxData = window.__surveyContexts[event.data.callId];
+                    if (ctxData) {
+                        let formName = 'surveyFormContainer';
+                        if (ctxData.postID != null) {
+                            formName = formName + '-' + ctxData.postID;
+                        }
+                        let wrapper = document.getElementById(formName);
+                        if (wrapper && wrapper.shadowRoot) {
+                            let iframe = wrapper.shadowRoot.querySelector('.surveyIframe');
+                            if (iframe) {
+                                iframe.style.height = event.data.height + 'px';
+                                // Important: make sure the container allows the iframe to dictate its height
+                                wrapper.style.height = event.data.height + 'px';
+                            }
+                        }
+                    }
                 }
             });
             window.__surveyListenerAdded = true;
         }
 
-        iframe.onload = () => {
+        let sendRenderMsg = () => {
             iframe.contentWindow.postMessage({
                 type: 'render',
                 cssUrl: iframe.getAttribute('data-css'),
                 formTemplate: templateCopy,
                 callId: callId,
                 surveyType: this.name,
+                theme: freshTheme,
                 enableDownload: (this.name === 'x-post' || this.name === 'instagram-post' || this.name === 'bluesky-post')
             }, '*');
         };
+
+        // If the iframe's onload already fired while we were waiting for storage, send immediately.
+        if (iframe.dataset.loaded === 'true') {
+            sendRenderMsg();
+        } else {
+            // Otherwise wait for it
+            iframe.addEventListener('load', sendRenderMsg);
+        }
 
         // Insert notification container before iframe.
         let nc = notificationContainer.cloneNode(true);

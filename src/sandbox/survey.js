@@ -4,6 +4,10 @@ window.addEventListener('message', function (event) {
   var data = event.data;
 
   if (data.type === 'render') {
+    if (data.theme) {
+      document.body.setAttribute('data-theme', data.theme);
+      document.documentElement.setAttribute('data-theme', data.theme);
+    }
     // Dynamically add the host's CSS if provided
     if (data.cssUrl) {
       document.getElementById('dynamic-css').textContent = '@import url("' + data.cssUrl + '");';
@@ -36,6 +40,67 @@ window.addEventListener('message', function (event) {
 
     // Render jsonform
     formEl.empty().jsonForm(data.formTemplate);
+
+    // jsonform wraps all fields in a single root <div> as the only direct
+    // child of the form. Convert it to the carousel container.
+    var rootDiv = formEl.find('> div').first();
+    if (rootDiv.length > 0) {
+      rootDiv.addClass('sa-fields-scroll');
+
+      // Ensure submit button is the last item inside the carousel
+      var submitBtn = formEl.find('.surveySubmitBtn, input[type="submit"]').first();
+      if (submitBtn.length > 0 && !$.contains(rootDiv[0], submitBtn[0])) {
+        rootDiv.append(submitBtn);
+      }
+
+      // Add mouse drag scrolling to the carousel
+      var slider = rootDiv[0];
+      var isDown = false;
+      var startX;
+      var scrollLeft;
+
+      slider.addEventListener('mousedown', function(e) {
+        isDown = true;
+        slider.style.cursor = 'grabbing';
+        slider.style.scrollSnapType = 'none'; // Disable snap while dragging for smoother feel
+        startX = e.pageX - slider.offsetLeft;
+        scrollLeft = slider.scrollLeft;
+      });
+      slider.addEventListener('mouseleave', function() {
+        isDown = false;
+        slider.style.cursor = '';
+        slider.style.scrollSnapType = '';
+      });
+      slider.addEventListener('mouseup', function() {
+        isDown = false;
+        slider.style.cursor = '';
+        slider.style.scrollSnapType = '';
+      });
+      slider.addEventListener('mousemove', function(e) {
+        if (!isDown) return;
+        e.preventDefault();
+        var x = e.pageX - slider.offsetLeft;
+        var walk = (x - startX) * 1.5; // Scroll speed multiplier
+        slider.scrollLeft = scrollLeft - walk;
+      });
+    }
+
+    // Notify parent of rendered height so the iframe can shrink-wrap.
+    // Use ResizeObserver so we re-fire whenever CSS loads and changes layout.
+    function reportHeight() {
+      var h = document.body.offsetHeight || document.documentElement.offsetHeight;
+      window.parent.postMessage({ type: 'resize', height: h, callId: data.callId }, '*');
+    }
+
+    if (typeof ResizeObserver !== 'undefined') {
+      var ro = new ResizeObserver(reportHeight);
+      ro.observe(document.body);
+    } else {
+      // Fallback: probe at increasing delays to catch async CSS load
+      reportHeight();
+      setTimeout(reportHeight, 150);
+      setTimeout(reportHeight, 500);
+    }
 
     // Initial button state:
     var submitBtn = formEl.find('.surveySubmitBtn');

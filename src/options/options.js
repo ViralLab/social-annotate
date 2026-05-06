@@ -87,6 +87,10 @@ function loadPage() {
                 let listArr = Array.isArray(survey.screenNameList) ? survey.screenNameList : [];
                 document.getElementById(key + '_annotation-list').value = listArr.join(',\n');
             }
+            let themeEl = document.getElementById(key + '_theme');
+            if (themeEl) {
+                themeEl.value = survey.theme || 'dark';
+            }
             if (survey.hasOwnProperty('surveyFormSchema')) {
                 let jsonStr = JSON.stringify(survey.surveyFormSchema, null, '\t');
                 document.getElementById(key + '_form-template').value = jsonStr;
@@ -236,6 +240,17 @@ function buildSurveyCard(key, survey) {
             <button class="btn-clear-list" data-key="${key}">✕ Clear</button>
           </div>
           <textarea id="${key}_annotation-list" class="field-textarea field-textarea--short" rows="2" spellcheck="false"></textarea>
+        </div>
+
+        <div class="field-group" style="margin-top:16px;">
+          <label class="field-label" for="${key}_theme">
+            Survey Theme
+            <span class="field-hint">Choose between dark (glassmorphism) and light themes</span>
+          </label>
+          <select class="field-input" id="${key}_theme">
+            <option value="dark">Dark</option>
+            <option value="light">Light</option>
+          </select>
         </div>
 
         <!-- Mode toggle -->
@@ -635,10 +650,13 @@ function previewSurvey(key) {
     previewBody.innerHTML = '';
     let iframe = document.createElement('iframe');
     iframe.src = chrome.runtime.getURL('sandbox/survey.html');
-    iframe.style.cssText = 'border:none; width:100%; min-height:280px; background:transparent;';
+    iframe.style.cssText = 'border:none; width:100%; height:auto; display:block; background:transparent;';
 
     let platform = key.startsWith('instagram') ? 'instagram' : (key.startsWith('bluesky') ? 'bluesky' : 'x');
     let cssUrl = chrome.runtime.getURL('content-scripts/' + platform + '/inject.css');
+
+    let themeEl = document.getElementById(key + '_theme');
+    let themeVal = themeEl ? themeEl.value : 'dark';
 
     iframe.onload = function () {
         iframe.contentWindow.postMessage({
@@ -646,13 +664,30 @@ function previewSurvey(key) {
             cssUrl: cssUrl,
             formTemplate: formTemplate,
             callId: 'preview-' + key,
-            surveyType: key
+            surveyType: key,
+            theme: themeVal
         }, '*');
     };
 
     previewBody.appendChild(iframe);
     previewPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
+
+// Auto-resize preview iframes when the sandbox reports its content height
+window.addEventListener('message', function (e) {
+    if (e.data && e.data.type === 'resize' && e.data.callId) {
+        let callId = e.data.callId;
+        // callId format is 'preview-<surveyKey>'
+        if (!callId.startsWith('preview-')) return;
+        let key = callId.slice('preview-'.length);
+        let panel = document.getElementById(key + '_preview-body');
+        if (!panel) return;
+        let iframe = panel.querySelector('iframe');
+        if (iframe) {
+            iframe.style.height = (e.data.height + 16) + 'px';
+        }
+    }
+});
 
 function closePreview(key) {
     document.getElementById(key + '_preview-panel').style.display = 'none';
@@ -681,6 +716,10 @@ function saveOptionsPage() {
             if (survey.hasOwnProperty('screenNameList')) {
                 let valStr = document.getElementById(key + '_annotation-list').value;
                 configData.surveys[key].screenNameList = valStr.split(',').map(s => s.trim()).filter(s => s);
+            }
+            let themeEl = document.getElementById(key + '_theme');
+            if (themeEl) {
+                configData.surveys[key].theme = themeEl.value;
             }
             // Read from visual builder or JSON textarea depending on mode
             try {

@@ -11,8 +11,23 @@
       background-color: transparent !important;
       margin: 0;
       padding: 0;
-      overflow: visible;
+      overflow: hidden;
       color-scheme: dark light;
+    }
+    /* Neutralize fixed/absolute positioning used in inject.css so the
+       iframe body correctly reflects the actual content height */
+    #surveyForm {
+      position: static !important;
+      width: 100% !important;
+    }
+    div.survey-container-tweet {
+      height: auto !important;
+      min-height: unset !important;
+      position: static !important;
+    }
+    div.survey-container-user {
+      position: static !important;
+      min-height: unset !important;
     }
   </style>
 </head>

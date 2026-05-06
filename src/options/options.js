@@ -225,6 +225,19 @@ function buildSurveyCard(key, survey) {
           <input type="text" class="field-input" id="${key}_media-download-folder" placeholder="Default Downloads folder">
         </div>
 
+        <div class="field-group" style="margin-top:16px;">
+          <label class="field-label" for="${key}_annotation-list">
+            Annotation List
+            <span class="field-hint">Comma-separated usernames or tweet IDs</span>
+          </label>
+          <div class="annotation-upload-row">
+            <input type="file" id="${key}_annotation-file" class="file-input" accept=".txt,.csv">
+            <label for="${key}_annotation-file" class="btn-upload-list">📄 Load from file</label>
+            <button class="btn-clear-list" data-key="${key}">✕ Clear</button>
+          </div>
+          <textarea id="${key}_annotation-list" class="field-textarea field-textarea--short" rows="2" spellcheck="false"></textarea>
+        </div>
+
         <!-- Mode toggle -->
         <div class="mode-toggle-row">
           <label class="field-label" style="margin-bottom:0;">Form Template</label>
@@ -252,19 +265,6 @@ function buildSurveyCard(key, survey) {
         <div id="${key}_json-view" style="display:none;">
           <textarea id="${key}_form-template" class="field-textarea" rows="10" spellcheck="false"></textarea>
           <div class="json-error" id="${key}_json-error"></div>
-        </div>
-
-        <div class="field-group" style="margin-top:16px;">
-          <label class="field-label" for="${key}_annotation-list">
-            Annotation List
-            <span class="field-hint">Comma-separated usernames or tweet IDs</span>
-          </label>
-          <div class="annotation-upload-row">
-            <input type="file" id="${key}_annotation-file" class="file-input" accept=".txt,.csv">
-            <label for="${key}_annotation-file" class="btn-upload-list">📄 Load from file</label>
-            <button class="btn-clear-list" data-key="${key}">✕ Clear</button>
-          </div>
-          <textarea id="${key}_annotation-list" class="field-textarea" rows="3" spellcheck="false"></textarea>
         </div>
         <div class="card-actions">
           <button class="btn-preview" data-key="${key}">▶ Preview Survey</button>

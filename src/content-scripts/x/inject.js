@@ -24,25 +24,9 @@ window.addEventListener('mh:download-request', function (e) {
 
     let initialSurveyType = detail.surveyType || 'x-post';
 
-    if (initialSurveyType === 'x-user') {
-        let userID = detail.userID;
-        chrome.storage.local.get(['isProfileDownloadEnabled', 'isBannerDownloadEnabled'], function(res) {
-            if (res.isProfileDownloadEnabled) {
-                let avatarEl = document.querySelector(SEL.userProfileAvatar || '[data-testid="UserAvatar"] img[src*="profile_images"]');
-                if (avatarEl && avatarEl.src) {
-                    let avatarUrl = avatarEl.src.replace('_normal', '').replace('_bigger', '').replace('_mini', '');
-                    chrome.runtime.sendMessage({ action: 'downloadMedia', urls: [avatarUrl], userId: userID || 'user', postId: 'profile', surveyType: initialSurveyType });
-                }
-            }
-            if (res.isBannerDownloadEnabled) {
-                let bannerEl = document.querySelector(SEL.userBanner || 'img[src*="profile_banners"]');
-                if (bannerEl && bannerEl.src) {
-                    chrome.runtime.sendMessage({ action: 'downloadMedia', urls: [bannerEl.src], userId: userID || 'user', postId: 'banner', surveyType: initialSurveyType });
-                }
-            }
-        });
-        return;
-    }
+    // User-survey downloads (profile picture & banner) are handled directly
+    // in the submitAction to avoid race conditions with guided-mode navigation.
+    if (initialSurveyType === 'x-user') return;
 
     if (!detail.postID) return;
 
@@ -138,6 +122,76 @@ function crawlUserName() {
     return temp;
 }
 
+/**
+ * Extract the profile avatar URL from the current page.
+ * X/Twitter has changed their DOM structure multiple times, so this function
+ * tries multiple strategies in order of reliability.
+ *
+ * All selectors come from SEL (populated from selectors.json) so that
+ * selector_agent.py can update them dynamically without code changes.
+ */
+function getProfileAvatarUrl() {
+    // Strategy 1: JSON-LD structured data (most reliable source)
+    // X injects a <script type="application/ld+json"> that always contains
+    // the profile image URL at 400x400 resolution.
+    try {
+        let schemaSelector = SEL.userProfileSchema || 'script[data-testid="UserProfileSchema-test"]';
+        let schemaEl = document.querySelector(schemaSelector);
+        if (schemaEl) {
+            let schema = JSON.parse(schemaEl.textContent);
+            let imageUrl = schema?.mainEntity?.image?.contentUrl;
+            if (imageUrl) return imageUrl;
+            let thumbUrl = schema?.mainEntity?.image?.thumbnailUrl;
+            if (thumbUrl) return thumbUrl;
+        }
+    } catch (e) { /* JSON parse failed, continue to next strategy */ }
+
+    // Strategy 2: Avatar container element (SEL.userProfileAvatar)
+    // This may be a direct img selector or a container; handle both.
+    let avatarSelector = SEL.userProfileAvatar || '[data-testid^="UserAvatar-Container-"]';
+    let avatarContainer = document.querySelector(avatarSelector);
+    if (avatarContainer) {
+        // If the selector matched an <img> directly, return its src
+        if (avatarContainer.tagName === 'IMG' && avatarContainer.src) return avatarContainer.src;
+        // Otherwise search inside the container
+        let img = avatarContainer.querySelector('img[src*="profile_images"]');
+        if (img && img.src) return img.src;
+        let anyImg = avatarContainer.querySelector('img[src*="pbs.twimg.com"]');
+        if (anyImg && anyImg.src) return anyImg.src;
+    }
+
+    // Strategy 3: Legacy fallback — [data-testid="UserAvatar"]
+    let legacyContainer = document.querySelector('[data-testid="UserAvatar"]');
+    if (legacyContainer) {
+        let img = legacyContainer.querySelector('img[src*="profile_images"]');
+        if (img && img.src) return img.src;
+        let anyImg = legacyContainer.querySelector('img[src*="pbs.twimg.com"]');
+        if (anyImg && anyImg.src) return anyImg.src;
+    }
+
+    // Strategy 4: background-image CSS on avatar container divs
+    let containers = document.querySelectorAll(avatarSelector + ', [data-testid="UserAvatar"]');
+    for (let container of containers) {
+        let allDivs = container.querySelectorAll('div');
+        for (let div of allDivs) {
+            let bg = window.getComputedStyle(div).backgroundImage;
+            if (bg && bg !== 'none' && bg.includes('profile_images')) {
+                let match = bg.match(/url\(["']?(.*?)["']?\)/);
+                if (match && match[1]) return match[1];
+            }
+        }
+    }
+
+    // Strategy 5: Page-wide fallback — any img with profile_images not inside tweets
+    let allProfileImgs = document.querySelectorAll('img[src*="profile_images"]');
+    for (let img of allProfileImgs) {
+        let tweetAvatar = img.closest('[data-testid="Tweet-User-Avatar"]');
+        if (!tweetAvatar && img.src) return img.src;
+    }
+
+    return null;
+}
+
 function extractUserProfile() {
     let profile = {};
 
@@ -167,9 +221,9 @@ function extractUserProfile() {
 
     // Profile picture URL
     try {
-        let avatarEl = document.querySelector(SEL.userAvatar || '[data-testid="UserAvatar"] img[src*="profile_images"]');
-        if (avatarEl) {
-            profile.avatarUrl = avatarEl.src;
+        let avatarUrl = getProfileAvatarUrl();
+        if (avatarUrl) {
+            profile.avatarUrl = avatarUrl;
         }
     } catch (e) { /* skip */ }
 
@@ -465,24 +519,46 @@ function initializeSurveys() {
                     if (!errors) {
                         values.surveyType = currentContext.name;
                         values.studyID = studyID;
-                        storeResults(values, currentPlatform);
 
                         let isUserSurvey = currentContext.name.endsWith('-user');
                         if (isUserSurvey) {
-                            chrome.storage.local.get(['isProfileDownloadEnabled', 'isBannerDownloadEnabled'], function(res) {
-                                if (res.isProfileDownloadEnabled || res.isBannerDownloadEnabled) {
-                                    let evt = new CustomEvent('mh:download-request', { detail: { userID: values.userID, surveyType: currentContext.name } });
-                                    window.dispatchEvent(evt);
+                            // IMPORTANT: Capture media URLs synchronously BEFORE storeResults,
+                            // because storeResults triggers guided-mode navigation which
+                            // changes the page and invalidates the DOM elements.
+                            let capturedAvatarUrl = null;
+                            let capturedBannerUrl = null;
+                            let rawAvatarUrl = getProfileAvatarUrl();
+                            if (rawAvatarUrl) {
+                                capturedAvatarUrl = rawAvatarUrl.replace('_normal', '').replace('_bigger', '').replace('_mini', '').replace('_200x200', '_400x400').replace('_reasonably_small', '_400x400');
+                            }
+                            let bannerEl = document.querySelector(SEL.userBanner || 'img[src*="profile_banners"]');
+                            if (bannerEl && bannerEl.src) {
+                                capturedBannerUrl = bannerEl.src;
+                            }
+                            let capturedUserID = values.userID;
+                            let capturedSurveyType = currentContext.name;
+
+                            // Send download messages BEFORE storeResults to avoid the navigation race.
+                            chrome.storage.local.get(['isProfileDownloadEnabled', 'isBannerDownloadEnabled'], function (res) {
+                                if (res.isProfileDownloadEnabled && capturedAvatarUrl) {
+                                    chrome.runtime.sendMessage({ action: 'downloadMedia', urls: [capturedAvatarUrl], userId: capturedUserID || 'user', postId: 'profile', surveyType: capturedSurveyType });
+                                }
+                                if (res.isBannerDownloadEnabled && capturedBannerUrl) {
+                                    chrome.runtime.sendMessage({ action: 'downloadMedia', urls: [capturedBannerUrl], userId: capturedUserID || 'user', postId: 'banner', surveyType: capturedSurveyType });
                                 }
                             });
                         } else {
-                            chrome.storage.local.get(['isMediaDownloadEnabled'], function(res) {
+                            chrome.storage.local.get(['isMediaDownloadEnabled'], function (res) {
                                 if (res.isMediaDownloadEnabled) {
                                     let evt = new CustomEvent('mh:download-request', { detail: { postID: values.postID, userID: values.userID, surveyType: currentContext.name } });
                                     window.dispatchEvent(evt);
                                 }
                             });
                         }
+
+                        // Call storeResults AFTER capturing media URLs.
+                        // This is safe because storeResults is also async internally.
+                        storeResults(values, currentPlatform);
                     }
                 }
 

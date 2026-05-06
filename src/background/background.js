@@ -98,9 +98,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 let typeSubfolder = "others/";
                 const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
                 const videoExtensions = ['mp4', 'webm', 'mov', 'avi'];
-                
+
                 const isUserSurvey = surveyType.endsWith('-user');
-                
+
                 if (isUserSurvey) {
                     if (postId === 'profile') {
                         typeSubfolder = "profile_pictures/";

@@ -83,12 +83,12 @@ window.addEventListener('mh:download-request', function(e) {
                 alert("Video not yet loaded. Please scroll the video into view and let it start playing, then try again.");
             }
         } else if (thumbnails.length > 0) {
-            alert("No original media URLs found. Only thumbnails available.");
+            console.log("No original media URLs found. Only thumbnails available.");
         } else {
-            alert("No supported media found.");
+            console.log("No supported media found.");
         }
     } else {
-        alert("No media found on this post.");
+        console.log("No media found on this post.");
     }
 });
 

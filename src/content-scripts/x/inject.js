@@ -68,10 +68,10 @@ window.addEventListener('mh:download-request', function (e) {
         if (urlsToDownload.length > 0) {
             chrome.runtime.sendMessage({ action: 'downloadMedia', urls: urlsToDownload, userId: tweetOwner || 'user', postId: tweetID, surveyType: postSurveyType });
         } else {
-            alert("No original media URLs found. Wait for the API to load or check the post.");
+            console.log("No original media URLs found. Wait for the API to load or check the post.");
         }
     } else {
-        alert("No media found on this post.");
+        console.log("No media found on this post.");
     }
 });
 

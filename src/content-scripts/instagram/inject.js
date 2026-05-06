@@ -31,7 +31,7 @@ window.addEventListener('mh:download-request', function(e) {
                 if (avatarEl && avatarEl.src) {
                     chrome.runtime.sendMessage({ action: 'downloadMedia', urls: [avatarEl.src], userId: userID || 'user', postId: 'profile', surveyType: initialSurveyType });
                 } else {
-                    alert("No profile picture found.");
+                    console.log("No profile picture found.");
                 }
             }
             // Instagram has no banner — isBannerDownloadEnabled is intentionally unused here
@@ -76,10 +76,10 @@ window.addEventListener('mh:download-request', function(e) {
         } else if (blobs.length > 0) {
             alert("This video is an active stream (Blob) and cannot be natively downloaded.");
         } else {
-            alert("No supported media found.");
+            console.log("No supported media found.");
         }
     } else {
-        alert("No media found on this post.");
+        console.log("No media found on this post.");
     }
 });
 

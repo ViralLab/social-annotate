@@ -69,13 +69,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const surveyType = message.surveyType || 'x-post';
 
         chrome.storage.local.get(['config'], function (result) {
-            let folderPrefix = "";
+            let rootFolder = "SocialAnnotateMedia/" + surveyType + "/";
             if (surveyType && result.config && result.config.surveys && result.config.surveys[surveyType] && result.config.surveys[surveyType].mediaDownloadFolder) {
-                folderPrefix = result.config.surveys[surveyType].mediaDownloadFolder.trim();
-                // Replace backslashes with forward slashes for cross-platform compatibility
-                folderPrefix = folderPrefix.replace(/\\/g, '/');
-                if (folderPrefix && !folderPrefix.endsWith('/')) {
-                    folderPrefix += '/';
+                let customFolder = result.config.surveys[surveyType].mediaDownloadFolder.trim().replace(/\\/g, '/');
+                if (customFolder) {
+                    rootFolder = "SocialAnnotateMedia/" + customFolder;
+                    if (!rootFolder.endsWith('/')) rootFolder += '/';
                 }
             }
 
@@ -89,13 +88,38 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                         format = urlObj.searchParams.get('format');
                     } else {
                         let ext = cleanUrl.split('.').pop();
-                        if (['jpg', 'jpeg', 'png', 'gif', 'mp4'].includes(ext.toLowerCase())) {
+                        if (['jpg', 'jpeg', 'png', 'gif', 'mp4', 'webp', 'webm'].includes(ext.toLowerCase())) {
                             format = ext;
                         }
                     }
                 } catch (e) { }
 
-                const filename = `${folderPrefix}${userId}_${postId}_${index + 1}.${format}`;
+                // Determine subfolder based on media type and survey context
+                let typeSubfolder = "others/";
+                const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
+                const videoExtensions = ['mp4', 'webm', 'mov', 'avi'];
+                
+                const isUserSurvey = surveyType.endsWith('-user');
+                
+                if (isUserSurvey) {
+                    if (postId === 'profile') {
+                        typeSubfolder = "profile_pictures/";
+                    } else if (postId === 'banner') {
+                        typeSubfolder = "profile_banner/";
+                    } else if (imageExtensions.includes(format.toLowerCase())) {
+                        typeSubfolder = "pictures/";
+                    } else if (videoExtensions.includes(format.toLowerCase())) {
+                        typeSubfolder = "videos/";
+                    }
+                } else {
+                    if (imageExtensions.includes(format.toLowerCase())) {
+                        typeSubfolder = "pictures/";
+                    } else if (videoExtensions.includes(format.toLowerCase())) {
+                        typeSubfolder = "videos/";
+                    }
+                }
+
+                const filename = `${rootFolder}${typeSubfolder}${userId}_${postId}_${index + 1}.${format}`;
                 chrome.downloads.download({
                     url: url,
                     filename: filename

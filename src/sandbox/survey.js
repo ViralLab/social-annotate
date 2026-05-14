@@ -1,5 +1,7 @@
 // Listen for messages from the parent window
 window.addEventListener('message', function (event) {
+  // Debug: log incoming messages to help trace preview issues
+  try { console.debug('[Sandbox] message received origin=', event.origin, 'data=', event.data && event.data.type); } catch(e) {}
   // Validate origin if needed, but since it's an extension communicating from host page, event.origin is the host page
   var data = event.data;
 
@@ -15,12 +17,16 @@ window.addEventListener('message', function (event) {
 
     // Attach onSubmit callback to the schema returning message to parent
     data.formTemplate.onSubmit = function (errors, values) {
+      // Prefer targeting the parent origin if available via document.referrer
+      let parentOrigin = '*';
+      try { if (document.referrer) parentOrigin = (new URL(document.referrer)).origin; } catch(e) { parentOrigin = '*'; }
       window.parent.postMessage({
         type: 'submit',
         errors: errors,
         values: values,
-        callId: data.callId
-      }, '*');
+        callId: data.callId,
+        token: data.token
+      }, parentOrigin);
 
       // Stage 3: transition button to green submitted state
       if (!errors) {
@@ -89,7 +95,9 @@ window.addEventListener('message', function (event) {
     // Use ResizeObserver so we re-fire whenever CSS loads and changes layout.
     function reportHeight() {
       var h = document.body.offsetHeight || document.documentElement.offsetHeight;
-      window.parent.postMessage({ type: 'resize', height: h, callId: data.callId }, '*');
+      let parentOrigin = '*';
+      try { if (document.referrer) parentOrigin = (new URL(document.referrer)).origin; } catch(e) { parentOrigin = '*'; }
+      window.parent.postMessage({ type: 'resize', height: h, callId: data.callId, token: data.token }, parentOrigin);
     }
 
     if (typeof ResizeObserver !== 'undefined') {

@@ -81,6 +81,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             urls.forEach((url, index) => {
                 let format = 'jpg';
                 let cleanUrl = url.split('?')[0];
+                let mediaToken = null;
 
                 try {
                     let urlObj = new URL(url);
@@ -91,6 +92,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                         if (['jpg', 'jpeg', 'png', 'gif', 'mp4', 'webp', 'webm'].includes(ext.toLowerCase())) {
                             format = ext;
                         }
+                    }
+
+                    // Build a stable media token from path to help trace files back to content.
+                    let pathParts = urlObj.pathname.split('/').filter(Boolean);
+                    if (pathParts.length > 0) {
+                        let last = pathParts[pathParts.length - 1];
+                        mediaToken = last.replace(/\.[a-zA-Z0-9]+$/, '');
                     }
                 } catch (e) { }
 
@@ -119,14 +127,44 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     }
                 }
 
-                const filename = `${rootFolder}${typeSubfolder}${userId}_${postId}_${index + 1}.${format}`;
+                // Keep filenames content-linkable: user + post + media token.
+                let safeUserId = String(userId).replace(/[^a-zA-Z0-9._-]/g, '_');
+                let safePostId = String(postId).replace(/[^a-zA-Z0-9._-]/g, '_');
+                let safeToken = mediaToken ? String(mediaToken).replace(/[^a-zA-Z0-9._-]/g, '_') : String(index + 1);
+                const filename = `${rootFolder}${typeSubfolder}${safeUserId}_${safePostId}_${safeToken}.${format}`;
                 chrome.downloads.download({
                     url: url,
                     filename: filename
+                }, function(downloadId) {
+                    if (chrome.runtime.lastError) {
+                        console.error('Download failed:', chrome.runtime.lastError.message, url);
+                    } else {
+                        console.log('Download started, id=', downloadId, url);
+                    }
                 });
             });
             sendResponse({ status: "started" });
         });
+    }
+    else if (message.action === 'postApi') {
+        // Proxy an API POST through the background service worker so we can handle CORS and report status.
+        (async () => {
+            try {
+                const endpoint = message.endpoint;
+                const body = message.body || null;
+                const res = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: typeof body === 'string' ? body : JSON.stringify(body)
+                });
+                const ok = res && res.ok;
+                sendResponse({ ok: ok, status: res.status });
+            } catch (err) {
+                console.error('postApi error', err);
+                sendResponse({ ok: false, error: String(err) });
+            }
+        })();
+        return true; // indicate we will call sendResponse asynchronously
     }
     return true;
 });

@@ -54,18 +54,20 @@ document.addEventListener('click', function (e) {
 // ── Annotation count ──────────────────────────────────────
 function updateAnnotationCount() {
     chrome.storage.local.get(['config', 'annotatedElements'], function (data) {
+        if (!data || !data.config || !data.config.activeSurveys) return;
         let activeSurvey = data.config.activeSurveys[0];
-        let count = data.annotatedElements[activeSurvey] ? data.annotatedElements[activeSurvey].length : 0;
-        document.getElementById('annotationCount').textContent = count;
+        let count = (data.annotatedElements && data.annotatedElements[activeSurvey]) ? data.annotatedElements[activeSurvey].length : 0;
+        let el = document.getElementById('annotationCount'); if (el) el.textContent = count;
     });
 }
 
 // ── Guided panel update ───────────────────────────────────
 function updateGuidedPanel() {
     chrome.storage.local.get(['config', 'isGuided', 'activeTargetList', 'annotatedElements'], function (data) {
+        if (!data || !data.config || !data.config.activeSurveys) return;
         let panel = document.getElementById('guided-panel');
         let activeSurvey = data.config.activeSurveys[0];
-        let survey = data.config.surveys[activeSurvey];
+        let survey = data.config.surveys ? data.config.surveys[activeSurvey] : null;
         let fullList = (survey && survey.screenNameList) ? survey.screenNameList : [];
         let remaining = data.activeTargetList || [];
 
@@ -193,6 +195,7 @@ document.getElementById('nav-next').addEventListener('click', function () {
 
 // ── Populate dropdown ─────────────────────────────────────
 chrome.storage.local.get('config', function (data) {
+    if (!data || !data.config || !data.config.surveys) return;
     for (let key in data.config.surveys) {
         let li = document.createElement('li');
         li.textContent = key;

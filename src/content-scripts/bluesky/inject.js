@@ -13,11 +13,12 @@ let observerBS = null;
 
 // Cache of intercepted Bluesky video DIDs+CIDs from the MAIN world interceptor
 // Map: cid -> { did, cid }
-window.bskyInterceptedVideos = {};
+if (!window.__socialAnnotate__) window.__socialAnnotate__ = {};
+if (!window.__socialAnnotate__.bskyInterceptedVideos) window.__socialAnnotate__.bskyInterceptedVideos = {};
 
 document.addEventListener('mh:bsky-video-found', function(e) {
     if (e.detail && e.detail.cid && e.detail.did) {
-        window.bskyInterceptedVideos[e.detail.cid] = e.detail;
+        window.__socialAnnotate__.bskyInterceptedVideos[e.detail.cid] = e.detail;
     }
 });
 
@@ -80,7 +81,7 @@ window.addEventListener('mh:download-request', function(e) {
                 });
                 chrome.runtime.sendMessage({ action: 'downloadMedia', urls: blobUrls, userId: postOwner || 'user', postId: postID, surveyType: postSurveyType });
             } else {
-                alert("Video not yet loaded. Please scroll the video into view and let it start playing, then try again.");
+                console.warn("Video not yet loaded. Please scroll the video into view and let it start playing, then try again.");
             }
         } else if (thumbnails.length > 0) {
             console.log("No original media URLs found. Only thumbnails available.");

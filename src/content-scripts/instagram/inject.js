@@ -7,12 +7,13 @@ const availableContextsInstagram = [
 // Selectors loaded from storage (populated by initializeSurveys)
 let SEL_IG = {};
 
-window.instagramApiMediaMap = {};
+if (!window.__socialAnnotate__) window.__socialAnnotate__ = {};
+if (!window.__socialAnnotate__.instagramApiMediaMap) window.__socialAnnotate__.instagramApiMediaMap = {};
 document.addEventListener('mh:media-response-ig', function(e) {
     if (e.detail) {
         Object.keys(e.detail).forEach(k => {
-            if (!window.instagramApiMediaMap[k]) window.instagramApiMediaMap[k] = [];
-            window.instagramApiMediaMap[k].push(...e.detail[k]);
+            if (!window.__socialAnnotate__.instagramApiMediaMap[k]) window.__socialAnnotate__.instagramApiMediaMap[k] = [];
+            window.__socialAnnotate__.instagramApiMediaMap[k].push(...e.detail[k]);
         });
     }
 });
@@ -55,8 +56,8 @@ window.addEventListener('mh:download-request', function(e) {
     }
     
     // Supplement with intercepted API URLs to get native .mp4s!
-    if (window.instagramApiMediaMap && window.instagramApiMediaMap[postID]) {
-        let apiVids = window.instagramApiMediaMap[postID];
+    if (window.__socialAnnotate__ && window.__socialAnnotate__.instagramApiMediaMap && window.__socialAnnotate__.instagramApiMediaMap[postID]) {
+        let apiVids = window.__socialAnnotate__.instagramApiMediaMap[postID];
         if (apiVids.length > 0) {
             // Strip out any Blob streams since we successfully found the raw MP4 from the API
             urlsToDownload = urlsToDownload.filter(u => !u.startsWith('[Blob Stream]'));
@@ -74,7 +75,7 @@ window.addEventListener('mh:download-request', function(e) {
         if (validUrls.length > 0) {
             chrome.runtime.sendMessage({ action: 'downloadMedia', urls: validUrls, userId: postOwner || 'user', postId: postID, surveyType: postSurveyType });
         } else if (blobs.length > 0) {
-            alert("This video is an active stream (Blob) and cannot be natively downloaded.");
+            console.warn("This video is an active stream (Blob) and cannot be natively downloaded.");
         } else {
             console.log("No supported media found.");
         }

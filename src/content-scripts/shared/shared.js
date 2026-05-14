@@ -131,9 +131,12 @@ class Context {
     }
 
     _doRenderSurvey(userID, postID, extras, freshTemplate, freshTheme) {
-        if (!window.__surveyContexts) window.__surveyContexts = {};
+        // namespace per-extension to avoid global collisions
+        if (!window.__socialAnnotate__) window.__socialAnnotate__ = {};
+        if (!window.__socialAnnotate__.surveyContexts) window.__socialAnnotate__.surveyContexts = {};
         let callId = this.name + (postID ? '-' + postID : '');
-        window.__surveyContexts[callId] = { context: this, userID: userID, postID: postID, extras: extras };
+        const token = Math.random().toString(36).slice(2);
+        window.__socialAnnotate__.surveyContexts[callId] = { context: this, userID: userID, postID: postID, extras: extras, token: token };
 
         // Clone the form template so concurrent iframe loads don't accidentally share references to hidden defaults.
         if (!freshTemplate || !freshTemplate.schema) {
@@ -168,61 +171,60 @@ class Context {
         let iframe = shadowRoot.querySelector('.surveyIframe');
 
         // Set up global submit listener once; all survey contexts route through it.
-        if (!window.__surveyListenerAdded) {
+        if (!window.__socialAnnotate__.listenerAdded) {
+            // Sandbox pages are served from a different origin; validate using per-call token instead.
             window.addEventListener('message', function (event) {
-                if (event.data && event.data.type === 'submit') {
-                    let ctxData = window.__surveyContexts[event.data.callId];
+                if (!event || !event.data) return;
+                const data = event.data;
+                const callId = data.callId;
+                if (!callId) return;
+
+                const ctxData = window.__socialAnnotate__.surveyContexts[callId];
+                if (!ctxData || !ctxData.token) return;
+                if (data.token !== ctxData.token) return; // token mismatch => ignore
+
+                if (data.type === 'submit') {
                     if (ctxData && ctxData.context && ctxData.context.submitAction) {
-                        // Guarantee absolute data integrity by piping the exact IDs from creation context directly into payload.
-                        event.data.values.userID = ctxData.userID;
-                        if (ctxData.postID !== null) {
-                            event.data.values.postID = ctxData.postID;
-                        }
+                        data.values.userID = ctxData.userID;
+                        if (ctxData.postID !== null) data.values.postID = ctxData.postID;
                         if (ctxData.extras) {
                             for (let k in ctxData.extras) {
                                 if (typeof ctxData.extras[k] === 'function') {
-                                    event.data.values[k] = ctxData.extras[k]();
+                                    data.values[k] = ctxData.extras[k]();
                                 } else {
-                                    event.data.values[k] = ctxData.extras[k];
+                                    data.values[k] = ctxData.extras[k];
                                 }
                             }
                         }
-                        ctxData.context.submitAction(event.data.errors, event.data.values);
+                        ctxData.context.submitAction(data.errors, data.values);
                     }
-                } else if (event.data && event.data.type === 'downloadMedia') {
-                    let ctxData = window.__surveyContexts[event.data.callId];
-                    if (ctxData) {
-                        let evt = new CustomEvent('mh:download-request', { detail: { callId: event.data.callId, postID: ctxData.postID, userID: ctxData.userID, surveyType: ctxData.context.name } });
-                        window.dispatchEvent(evt);
-                    }
-                } else if (event.data && event.data.type === 'resize') {
-                    let ctxData = window.__surveyContexts[event.data.callId];
-                    if (ctxData) {
-                        let formName = 'surveyFormContainer';
-                        if (ctxData.postID != null) {
-                            formName = formName + '-' + ctxData.postID;
-                        }
-                        let wrapper = document.getElementById(formName);
-                        if (wrapper && wrapper.shadowRoot) {
-                            let iframe = wrapper.shadowRoot.querySelector('.surveyIframe');
-                            if (iframe) {
-                                iframe.style.height = event.data.height + 'px';
-                                // Important: make sure the container allows the iframe to dictate its height
-                                wrapper.style.height = event.data.height + 'px';
-                            }
+                } else if (data.type === 'downloadMedia') {
+                    let evt = new CustomEvent('mh:download-request', { detail: { callId: callId, postID: ctxData.postID, userID: ctxData.userID, surveyType: ctxData.context.name } });
+                    window.dispatchEvent(evt);
+                } else if (data.type === 'resize') {
+                    let formName = 'surveyFormContainer';
+                    if (ctxData.postID != null) formName = formName + '-' + ctxData.postID;
+                    let wrapper = document.getElementById(formName);
+                    if (wrapper && wrapper.shadowRoot) {
+                        let iframe = wrapper.shadowRoot.querySelector('.surveyIframe');
+                        if (iframe) {
+                            iframe.style.height = data.height + 'px';
+                            wrapper.style.height = data.height + 'px';
                         }
                     }
                 }
             });
-            window.__surveyListenerAdded = true;
+            window.__socialAnnotate__.listenerAdded = true;
         }
 
         let sendRenderMsg = () => {
+            const ctxToken = window.__socialAnnotate__.surveyContexts[callId].token;
             iframe.contentWindow.postMessage({
                 type: 'render',
                 cssUrl: iframe.getAttribute('data-css'),
                 formTemplate: templateCopy,
                 callId: callId,
+                token: ctxToken,
                 surveyType: this.name,
                 theme: freshTheme,
                 enableDownload: (this.name === 'x-post' || this.name === 'instagram-post' || this.name === 'bluesky-post')
@@ -274,22 +276,15 @@ function storeResults(surveyResults, socialMediaPlatform) {
     let apiSuccess = true;
     try {
         chrome.storage.local.get(['config'], function (result) {
-            if (result.config.apiEndpoint !== '') {
+            if (result && result.config && result.config.apiEndpoint) {
                 apiSuccess = false;
-                let headers = new Headers();
-                headers.append('Accept', 'application/json');
-                headers.append('Access-Control-Allow-Origin', '*');
-                headers.append('Content-Type', 'application/json');
-
-                fetch(result.config.apiEndpoint, {
-                    mode: 'no-cors',
-                    method: "POST",
-                    body: JSON.stringify(surveyResults),
-                    headers: headers
-                }).then(res => {
-                    console.log("Request complete! response:", res);
-                    // @TODO: handle non-success response status codes explicitly.
-                    apiSuccess = true;
+                // Proxy POST via background to avoid no-cors issues and allow reporting
+                chrome.runtime.sendMessage({ action: 'postApi', endpoint: result.config.apiEndpoint, body: surveyResults }, function (resp) {
+                    if (resp && resp.ok) {
+                        apiSuccess = true;
+                    } else {
+                        console.warn('[SocialAnnotate] API POST failed', resp);
+                    }
                 });
             }
         });
@@ -385,14 +380,16 @@ function storeResults(surveyResults, socialMediaPlatform) {
 
                     let ss = successSpan.cloneNode(true);  // @TODO: Have this blink for back-to-back submissions.
 
-                    let surveyContainer = document.getElementById(divName).shadowRoot;
-                    let nc = surveyContainer.querySelector('.notification-container');
+                    try {
+                        let surveyContainer = document.getElementById(divName).shadowRoot;
+                        let nc = surveyContainer.querySelector('.notification-container');
 
-                    if (nc !== null) {
-                        nc.replaceChild(ss, nc.firstChild);
-                        $(ss).fadeOut(0);
-                        $(ss).fadeIn(200);
-                    }
+                        if (nc !== null) {
+                            nc.replaceChild(ss, nc.firstChild);
+                            $(ss).fadeOut(0);
+                            $(ss).fadeIn(200);
+                        }
+                    } catch (e) { console.debug('Could not show success UI:', e); }
                 }
             });
         });

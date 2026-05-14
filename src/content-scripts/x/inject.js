@@ -11,10 +11,11 @@ let reactRoot = null;
 let obsConfig = {};
 let observer = null;
 
-window.twitterApiMediaMap = {};
+if (!window.__socialAnnotate__) window.__socialAnnotate__ = {};
+if (!window.__socialAnnotate__.twitterApiMediaMap) window.__socialAnnotate__.twitterApiMediaMap = {};
 document.addEventListener('mh:media-response', function (e) {
     if (e.detail) {
-        Object.assign(window.twitterApiMediaMap, e.detail);
+        Object.assign(window.__socialAnnotate__.twitterApiMediaMap, e.detail);
     }
 });
 
@@ -39,8 +40,8 @@ window.addEventListener('mh:download-request', function (e) {
     let injectNode = surveyContainer ? surveyContainer.parentNode : null;
 
     let urlsToDownload = [];
-    if (window.twitterApiMediaMap && window.twitterApiMediaMap[tweetID]) {
-        urlsToDownload = window.twitterApiMediaMap[tweetID];
+    if (window.__socialAnnotate__ && window.__socialAnnotate__.twitterApiMediaMap && window.__socialAnnotate__.twitterApiMediaMap[tweetID]) {
+        urlsToDownload = window.__socialAnnotate__.twitterApiMediaMap[tweetID];
     } else {
         if (injectNode) {
             urlsToDownload = extractTweetMedia(injectNode);
@@ -324,8 +325,8 @@ function extractTweetMedia(articleNode) {
     let mediaUrls = [];
 
     let details = extractTweetDetails(articleNode);
-    if (details && details.tweetID && window.twitterApiMediaMap && window.twitterApiMediaMap[details.tweetID]) {
-        return window.twitterApiMediaMap[details.tweetID];
+    if (details && details.tweetID && window.__socialAnnotate__ && window.__socialAnnotate__.twitterApiMediaMap && window.__socialAnnotate__.twitterApiMediaMap[details.tweetID]) {
+        return window.__socialAnnotate__.twitterApiMediaMap[details.tweetID];
     }
 
     // Extract standard high-res image sources
@@ -390,14 +391,47 @@ function extractTweetMetrics(articleNode) {
         return parseInt(str, 10) || 0;
     };
 
-    const extractFromAria = (testId) => {
-        let el = articleNode.querySelector(`[data-testid="${testId}"]`) || articleNode.querySelector(`[data-testid="un${testId}"]`);
+    const isLikelyCssSelector = (value) => {
+        if (!value || typeof value !== 'string') return false;
+        // If it contains common CSS selector characters, treat it as a selector.
+        return /[\s.#\[\]>:+~]/.test(value);
+    };
+
+    const findMetricElement = (selectorOrTestId) => {
+        if (!selectorOrTestId) return null;
+
+        if (isLikelyCssSelector(selectorOrTestId)) {
+            return articleNode.querySelector(selectorOrTestId);
+        }
+
+        // Backward-compatible path for data-testid tokens (e.g. "reply", "retweet").
+        return articleNode.querySelector(`[data-testid="${selectorOrTestId}"]`) ||
+            articleNode.querySelector(`[data-testid="un${selectorOrTestId}"]`);
+    };
+
+    const extractFromAria = (selectorOrTestId) => {
+        let el = findMetricElement(selectorOrTestId);
         if (el) {
             let aria = el.getAttribute('aria-label');
             if (aria) {
                 let match = aria.match(/^([\d,\.]+[kmKM]?)\s+/i);
                 if (match) return parseShortNumber(match[1]);
             }
+
+            // Some older Twitter UIs encode counts in attributes.
+            let attrCount = el.getAttribute('data-tweet-stat-count');
+            if (attrCount) {
+                return parseShortNumber(attrCount);
+            }
+
+            // Sometimes the count is in a nested child rather than the action root.
+            let nestedCount = el.querySelector('[data-tweet-stat-count], .ProfileTweet-actionCountForPresentation, .icon-and-text');
+            if (nestedCount) {
+                let nestedAttr = nestedCount.getAttribute('data-tweet-stat-count');
+                if (nestedAttr) return parseShortNumber(nestedAttr);
+                return parseShortNumber(nestedCount.innerText);
+            }
+
             return parseShortNumber(el.innerText);
         }
         return 0;
@@ -439,13 +473,34 @@ function extractTweetDetails(articleNode) {
         return null; // Ignore ads, sponsored posts, or unrendered skeleton nodes.
     }
 
-    let tweetLink = timeElement.parentNode.href;
-    tweetLink = tweetLink.split('/');
+    let href = timeElement.parentNode.href;
 
-    return {
-        tweetOwner: tweetLink[3],
-        tweetID: tweetLink[tweetLink.length - 1]
-    };
+    // Prefer explicit status URL parsing, including archive-wrapped links.
+    // Examples handled:
+    // - https://twitter.com/user/status/1234567890
+    // - https://x.com/user/status/1234567890
+    // - https://web.archive.org/.../https://twitter.com/user/status/1234567890
+    let statusMatch = href.match(/(?:https?:\/\/)?(?:x|twitter)\.com\/([^\/?#]+)\/status\/(\d+)/i);
+    if (statusMatch) {
+        return {
+            tweetOwner: statusMatch[1],
+            tweetID: statusMatch[2]
+        };
+    }
+
+    // Fallback: extract from any /status/<digits> fragment.
+    let idMatch = href.match(/\/status\/(\d+)/i);
+    if (idMatch) {
+        let owner = 'unknown';
+        let ownerMatch = href.match(/(?:x|twitter)\.com\/([^\/?#]+)\//i);
+        if (ownerMatch) owner = ownerMatch[1];
+        return {
+            tweetOwner: owner,
+            tweetID: idMatch[1]
+        };
+    }
+
+    return null;
 }
 
 function injectTwitterTweetSurvey(injectNode, tweetID, tweetOwner) {

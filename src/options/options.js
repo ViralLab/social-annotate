@@ -9,13 +9,16 @@ chrome.storage.local.get(['theme'], function (data) {
     applyTheme(data.theme || 'dark');
 });
 
-document.getElementById('theme-toggle').addEventListener('click', function () {
-    let current = document.documentElement.getAttribute('data-theme') || 'dark';
-    let next = current === 'dark' ? 'light' : 'dark';
-    chrome.storage.local.set({ theme: next }, function () {
-        applyTheme(next);
+const themeToggleEl = document.getElementById('theme-toggle');
+if (themeToggleEl) {
+    themeToggleEl.addEventListener('click', function () {
+        let current = document.documentElement.getAttribute('data-theme') || 'dark';
+        let next = current === 'dark' ? 'light' : 'dark';
+        chrome.storage.local.set({ theme: next }, function () {
+            applyTheme(next);
+        });
     });
-});
+}
 
 // ── Tab navigation ────────────────────────────────────────
 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -30,7 +33,8 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 // ── Page init ─────────────────────────────────────────────
 $('#save-button').click(saveOptionsPage);
 $('#export-button').click(exportOptions);
-document.getElementById('upload-file').addEventListener('change', handleFileSelect, false);
+const uploadFileEl = document.getElementById('upload-file');
+if (uploadFileEl) uploadFileEl.addEventListener('change', handleFileSelect, false);
 $('#import-button').click(importOptions);
 
 loadPage();
@@ -44,14 +48,21 @@ let fieldIdCounter = 0;
 // ── Load ──────────────────────────────────────────────────
 function loadPage() {
     chrome.storage.local.get(['config', 'isEnabled', 'clientID'], function (result) {
-        document.getElementById('api-endpoint').value = result.config.apiEndpoint;
+        if (!result || !result.config) {
+            const sc = document.getElementById('survey-container');
+            if (sc) sc.textContent = 'No configuration found.';
+            return;
+        }
+        const apiEl = document.getElementById('api-endpoint');
+        if (apiEl) apiEl.value = result.config.apiEndpoint || '';
 
         let html = '';
         for (let key in result.config.surveys) {
             let survey = result.config.surveys[key];
             html += buildSurveyCard(key, survey);
         }
-        document.getElementById('survey-container').innerHTML = html;
+        const sc = document.getElementById('survey-container');
+        if (sc) sc.innerHTML = html;
 
         // Wire collapse toggles
         document.querySelectorAll('.card-header').forEach(header => {
@@ -77,7 +88,8 @@ function loadPage() {
         for (let key in result.config.surveys) {
             let survey = result.config.surveys[key];
             if (survey.hasOwnProperty('injectElement')) {
-                document.getElementById(key + '_insert-location').value = survey.injectElement.name || '';
+                let insertEl = document.getElementById(key + '_insert-location');
+                if (insertEl) insertEl.value = survey.injectElement.name || '';
             }
             if (survey.hasOwnProperty('mediaDownloadFolder') || true) {
                 let folderEl = document.getElementById(key + '_media-download-folder');
@@ -85,7 +97,8 @@ function loadPage() {
             }
             if (survey.hasOwnProperty('screenNameList')) {
                 let listArr = Array.isArray(survey.screenNameList) ? survey.screenNameList : [];
-                document.getElementById(key + '_annotation-list').value = listArr.join(',\n');
+                let annEl = document.getElementById(key + '_annotation-list');
+                if (annEl) annEl.value = listArr.join(',\n');
             }
             let themeEl = document.getElementById(key + '_theme');
             if (themeEl) {
@@ -106,6 +119,13 @@ function loadPage() {
             // Wire annotation list file upload
             wireAnnotationUpload(key);
         }
+    });
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/[&<>"'`=\/]/g, function (s) {
+        return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;","/":"&#x2F;","`":"&#x60;","=":"&#x3D;"})[s];
     });
 }
 
@@ -205,21 +225,23 @@ function wireAnnotationUpload(key) {
 
 // ── Build survey card HTML ────────────────────────────────
 function buildSurveyCard(key, survey) {
-    let platform = survey.socialMediaPlatform || 'x';
-    return `
-    <div class="survey-card" id="card_${key}">
+        let platform = survey.socialMediaPlatform || 'x';
+        let safeKey = escapeHtml(key);
+        let safePlatform = escapeHtml(platform);
+        return `
+                <div class="survey-card" id="card_${key}">
       <div class="card-header">
         <div class="card-header-left">
-          <img src="../images/${platform}.png" class="platform-icon" alt="${platform}">
-          <span class="survey-name">${key}</span>
-          <span class="platform-badge">${platform}</span>
+                    <img src="../images/${safePlatform}.png" class="platform-icon" alt="${safePlatform}">
+                    <span class="survey-name">${safeKey}</span>
+                    <span class="platform-badge">${safePlatform}</span>
         </div>
         <span class="card-toggle">▾</span>
       </div>
       <div class="card-body">
         <div class="field-group">
-          <label class="field-label" for="${key}_insert-location">Insert Location</label>
-          <input type="text" class="field-input" id="${key}_insert-location" placeholder="HTML element name">
+                                        <label class="field-label" for="${key}_insert-location">Insert Location</label>
+                                        <input type="text" class="field-input" id="${key}_insert-location" placeholder="HTML element name">
         </div>
         <div class="field-group">
           <label class="field-label" for="${key}_media-download-folder">
@@ -230,16 +252,16 @@ function buildSurveyCard(key, survey) {
         </div>
 
         <div class="field-group" style="margin-top:16px;">
-          <label class="field-label" for="${key}_annotation-list">
+            <label class="field-label" for="${key}_annotation-list">
             Annotation List
             <span class="field-hint">Comma-separated usernames or tweet IDs</span>
           </label>
-          <div class="annotation-upload-row">
-            <input type="file" id="${key}_annotation-file" class="file-input" accept=".txt,.csv">
-            <label for="${key}_annotation-file" class="btn-upload-list">📄 Load from file</label>
-            <button class="btn-clear-list" data-key="${key}">✕ Clear</button>
-          </div>
-          <textarea id="${key}_annotation-list" class="field-textarea field-textarea--short" rows="2" spellcheck="false"></textarea>
+                        <div class="annotation-upload-row">
+                                                <input type="file" id="${key}_annotation-file" class="file-input" accept=".txt,.csv">
+                                                <label for="${key}_annotation-file" class="btn-upload-list">📄 Load from file</label>
+                                                <button class="btn-clear-list" data-key="${key}">✕ Clear</button>
+                    </div>
+                                        <textarea id="${key}_annotation-list" class="field-textarea field-textarea--short" rows="2" spellcheck="false"></textarea>
         </div>
 
         <div class="field-group" style="margin-top:16px;">
@@ -247,7 +269,7 @@ function buildSurveyCard(key, survey) {
             Survey Theme
             <span class="field-hint">Choose between dark (glassmorphism) and light themes</span>
           </label>
-          <select class="field-input" id="${key}_theme">
+                                        <select class="field-input" id="${key}_theme">
             <option value="dark">Dark</option>
             <option value="light">Light</option>
           </select>
@@ -263,7 +285,7 @@ function buildSurveyCard(key, survey) {
         </div>
 
         <!-- Visual Builder -->
-        <div id="${key}_builder-view">
+                <div id="${key}_builder-view">
           <div class="builder-toolbar">
             <select class="add-field-select">
               <option value="radiobuttons">Radio Buttons</option>
@@ -273,26 +295,26 @@ function buildSurveyCard(key, survey) {
             </select>
             <button class="btn-add-field">+ Add Field</button>
           </div>
-          <div class="builder-fields" id="${key}_builder-fields"></div>
+                                        <div class="builder-fields" id="${key}_builder-fields"></div>
         </div>
 
         <!-- JSON Editor (hidden by default) -->
-        <div id="${key}_json-view" style="display:none;">
-          <textarea id="${key}_form-template" class="field-textarea" rows="10" spellcheck="false"></textarea>
-          <div class="json-error" id="${key}_json-error"></div>
+                <div id="${key}_json-view" style="display:none;">
+                    <textarea id="${key}_form-template" class="field-textarea" rows="10" spellcheck="false"></textarea>
+                    <div class="json-error" id="${key}_json-error"></div>
         </div>
         <div class="card-actions">
-          <button class="btn-preview" data-key="${key}">▶ Preview Survey</button>
+                                        <button class="btn-preview" data-key="${key}">▶ Preview Survey</button>
         </div>
       </div>
-      <div class="preview-panel" id="${key}_preview-panel" style="display:none;">
+            <div class="preview-panel" id="${key}_preview-panel" style="display:none;">
         <div class="preview-panel-header">
           <span class="preview-panel-title">
             <span class="preview-dot"></span> Live Preview
           </span>
-          <button class="btn-close-preview" data-key="${key}">✕ Close</button>
+                                        <button class="btn-close-preview" data-key="${key}">✕ Close</button>
         </div>
-        <div class="preview-body" id="${key}_preview-body"></div>
+                                <div class="preview-body" id="${key}_preview-body"></div>
       </div>
     </div>`;
 }
@@ -659,14 +681,18 @@ function previewSurvey(key) {
     let themeVal = themeEl ? themeEl.value : 'dark';
 
     iframe.onload = function () {
+        console.debug('[Options] preview iframe loaded for', key);
+        const token = Math.random().toString(36).slice(2);
         iframe.contentWindow.postMessage({
             type: 'render',
             cssUrl: cssUrl,
             formTemplate: formTemplate,
             callId: 'preview-' + key,
             surveyType: key,
-            theme: themeVal
+            theme: themeVal,
+            token: token
         }, '*');
+        console.debug('[Options] posted render to preview iframe for', key);
     };
 
     previewBody.appendChild(iframe);

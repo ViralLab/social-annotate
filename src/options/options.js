@@ -225,7 +225,7 @@ function wireAnnotationUpload(key) {
 
 // ── Build survey card HTML ────────────────────────────────
 function buildSurveyCard(key, survey) {
-        let platform = survey.socialMediaPlatform || 'x';
+        let platform = survey.socialMediaPlatform || (key.startsWith('instagram') ? 'instagram' : (key.startsWith('bluesky') ? 'bluesky' : (key.startsWith('whatsapp') ? 'whatsapp' : 'x')));
         let safeKey = escapeHtml(key);
         let safePlatform = escapeHtml(platform);
         return `
@@ -674,7 +674,7 @@ function previewSurvey(key) {
     iframe.src = chrome.runtime.getURL('sandbox/survey.html');
     iframe.style.cssText = 'border:none; width:100%; height:auto; display:block; background:transparent;';
 
-    let platform = key.startsWith('instagram') ? 'instagram' : (key.startsWith('bluesky') ? 'bluesky' : 'x');
+    let platform = key.startsWith('instagram') ? 'instagram' : (key.startsWith('bluesky') ? 'bluesky' : (key.startsWith('whatsapp') ? 'whatsapp' : 'x'));
     let cssUrl = chrome.runtime.getURL('content-scripts/' + platform + '/inject.css');
 
     let themeEl = document.getElementById(key + '_theme');
@@ -865,7 +865,8 @@ function escapeAttr(str) {
                 "instagram-user": [],
                 "instagram-post": [],
                 "bluesky-post": [],
-                "bluesky-user": []
+                "bluesky-user": [],
+                "whatsapp-post": []
             },
             "annotatedElements": {
                 "x-user": [],
@@ -873,7 +874,8 @@ function escapeAttr(str) {
                 "instagram-user": [],
                 "instagram-post": [],
                 "bluesky-post": [],
-                "bluesky-user": []
+                "bluesky-user": [],
+                "whatsapp-post": []
             },
             "clientID": clientID,
             "config": config,  // default config from config.js
@@ -892,7 +894,7 @@ function escapeAttr(str) {
                 initialStorage.selectors = selectors;
             })
             .catch(() => {
-                initialStorage.selectors = { x: {}, instagram: {}, bluesky: {} };
+                initialStorage.selectors = { x: {}, instagram: {}, bluesky: {}, whatsapp: {} };
             })
             .finally(() => {
                 chrome.storage.local.clear(function () {

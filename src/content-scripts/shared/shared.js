@@ -227,7 +227,7 @@ class Context {
                 token: ctxToken,
                 surveyType: this.name,
                 theme: freshTheme,
-                enableDownload: (this.name === 'x-post' || this.name === 'instagram-post' || this.name === 'bluesky-post')
+                enableDownload: (this.name === 'x-post' || this.name === 'instagram-post' || this.name === 'bluesky-post' || this.name === 'whatsapp-post')
             }, '*');
         };
 
@@ -249,7 +249,8 @@ class Context {
             if (!isExtensionContextValid()) return;
             chrome.storage.local.get(['annotatedElements'], function (result) {
                 let checkID = (postID === null ? userID : postID);
-                let entryIndex = result.annotatedElements[surveyType].indexOf(checkID);
+                let tracked = (result.annotatedElements && result.annotatedElements[surveyType]) ? result.annotatedElements[surveyType] : [];
+                let entryIndex = tracked.indexOf(checkID);
                 if (entryIndex !== -1) {
                     let os = overwriteSpan.cloneNode(true);
                     nc.replaceChild(os, nc.firstChild);
@@ -306,9 +307,14 @@ function storeResults(surveyResults, socialMediaPlatform) {
                 platformURL = "https://instagram.com/";
             } else if (socialMediaPlatform == 'bluesky') {
                 platformURL = "https://bsky.app/";
+            } else if (socialMediaPlatform == 'whatsapp') {
+                platformURL = "https://web.whatsapp.com/";
             }
 
             let surveyType = surveyResults.surveyType;
+
+            if (!resultsArrays[surveyType]) resultsArrays[surveyType] = [];
+            if (!annotatedElements[surveyType]) annotatedElements[surveyType] = [];
 
             let insertKey = null;
             if (surveyType === 'x-user') {
@@ -322,6 +328,8 @@ function storeResults(surveyResults, socialMediaPlatform) {
             } else if (surveyType === 'bluesky-user') {
                 insertKey = surveyResults.userID;
             } else if (surveyType === 'bluesky-post') {
+                insertKey = surveyResults.postID;
+            } else if (surveyType === 'whatsapp-post') {
                 insertKey = surveyResults.postID;
             }
 
@@ -374,7 +382,7 @@ function storeResults(surveyResults, socialMediaPlatform) {
                 if (apiSuccess) {
                     // @TODO: endpoint error handling isn't done properly; all API-related paths need full exception handling.
                     let divName = "surveyFormContainer";
-                    if (surveyResults.surveyType === "x-post" || surveyResults.surveyType === "instagram-post") {
+                    if (surveyResults.surveyType === "x-post" || surveyResults.surveyType === "instagram-post" || surveyResults.surveyType === "bluesky-post" || surveyResults.surveyType === "whatsapp-post") {
                         divName += '-' + surveyResults.postID.toString();
                     }
 

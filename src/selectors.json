@@ -69,5 +69,19 @@
       "childList": true,
       "subtree": true
     }
+  },
+  "whatsapp": {
+    "conversationMessages": "[data-testid='conversation-panel-messages']",
+    "postContainer": "[data-testid^='conv-msg-']",
+    "messageContainer": "[data-testid='msg-container']",
+    "copyableText": ".copyable-text[data-pre-plain-text]",
+    "messageText": "[data-testid*='selectable-text']",
+    "mediaImage": "img[src]",
+    "mediaVideo": "video, video source, [data-testid='video-content'] [style*='background-image'], [data-testid='msg-video'] [style*='background-image']",
+    "observerFilter": {
+      "attributes": false,
+      "childList": true,
+      "subtree": true
+    }
   }
 }

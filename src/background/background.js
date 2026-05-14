@@ -18,7 +18,8 @@ chrome.runtime.onInstalled.addListener(function () {
             "instagram-user": [],
             "instagram-post": [],
             "bluesky-post": [],
-            "bluesky-user": []
+            "bluesky-user": [],
+            "whatsapp-post": []
         },  // @TODO pull these from a supported types list somewhere.
         "annotatedElements": {
             "x-user": [],
@@ -26,7 +27,8 @@ chrome.runtime.onInstalled.addListener(function () {
             "instagram-user": [],
             "instagram-post": [],
             "bluesky-post": [],
-            "bluesky-user": []
+            "bluesky-user": [],
+            "whatsapp-post": []
         }, // @TODO pull these from a supported types list somewhere.
         "clientID": clientID,
         "config": config,
@@ -49,7 +51,7 @@ chrome.runtime.onInstalled.addListener(function () {
         })
         .catch(err => {
             console.error('Failed to load selectors.json, using empty defaults:', err);
-            initialStorage.selectors = { x: {}, instagram: {}, bluesky: {} };
+            initialStorage.selectors = { x: {}, instagram: {}, bluesky: {}, whatsapp: {} };
             chrome.storage.local.set(initialStorage, function () {
                 console.log('Storage arrays initialized (without selectors).');
             });
@@ -84,21 +86,34 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 let mediaToken = null;
 
                 try {
-                    let urlObj = new URL(url);
-                    if (urlObj.searchParams.has('format')) {
-                        format = urlObj.searchParams.get('format');
-                    } else {
-                        let ext = cleanUrl.split('.').pop();
-                        if (['jpg', 'jpeg', 'png', 'gif', 'mp4', 'webp', 'webm'].includes(ext.toLowerCase())) {
-                            format = ext;
+                    if (url.startsWith('data:')) {
+                        let mimeMatch = url.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-+.]+);/);
+                        if (mimeMatch) {
+                            let mimeType = mimeMatch[1].toLowerCase();
+                            if (mimeType.includes('mp4')) format = 'mp4';
+                            else if (mimeType.includes('webm')) format = 'webm';
+                            else if (mimeType.includes('jpeg')) format = 'jpg';
+                            else if (mimeType.includes('png')) format = 'png';
+                            else if (mimeType.includes('gif')) format = 'gif';
+                            else if (mimeType.includes('webp')) format = 'webp';
                         }
-                    }
+                    } else {
+                        let urlObj = new URL(url);
+                        if (urlObj.searchParams.has('format')) {
+                            format = urlObj.searchParams.get('format');
+                        } else {
+                            let ext = cleanUrl.split('.').pop();
+                            if (['jpg', 'jpeg', 'png', 'gif', 'mp4', 'webp', 'webm'].includes(ext.toLowerCase())) {
+                                format = ext;
+                            }
+                        }
 
-                    // Build a stable media token from path to help trace files back to content.
-                    let pathParts = urlObj.pathname.split('/').filter(Boolean);
-                    if (pathParts.length > 0) {
-                        let last = pathParts[pathParts.length - 1];
-                        mediaToken = last.replace(/\.[a-zA-Z0-9]+$/, '');
+                        // Build a stable media token from path to help trace files back to content.
+                        let pathParts = urlObj.pathname.split('/').filter(Boolean);
+                        if (pathParts.length > 0) {
+                            let last = pathParts[pathParts.length - 1];
+                            mediaToken = last.replace(/\.[a-zA-Z0-9]+$/, '');
+                        }
                     }
                 } catch (e) { }
 

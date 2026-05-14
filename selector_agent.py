@@ -158,8 +158,29 @@ TWITTER_FIELDS = {
         "scope": "user",
     },
     "userAvatar": {
-        "description": "The profile picture <img> element. Should target the img with 'profile_images' in its src.",
-        "example": '[data-testid="UserAvatar"] img[src*="profile_images"]',
+        "description": "The profile picture <img> element inside TWEET-LEVEL avatars (not the profile page). Should target the img with 'profile_images' in its src inside the tweet's avatar container.",
+        "example": '[data-testid="Tweet-User-Avatar"] img[src*="profile_images"]',
+        "type": "selector",
+        "optional": True,
+        "scope": "tweet",
+    },
+    "userProfileAvatar": {
+        "description": "The container element for the large profile avatar on a user's profile page. X uses dynamic testids like UserAvatar-Container-{username}. The selector should match this container; the code will search inside it for img tags or background-image CSS.",
+        "example": '[data-testid^="UserAvatar-Container-"]',
+        "type": "selector",
+        "optional": True,
+        "scope": "user",
+    },
+    "userProfileSchema": {
+        "description": "The JSON-LD structured data <script> tag that X injects into the page head on profile pages. Contains the profile image URL at mainEntity.image.contentUrl. This is the most reliable source for the avatar URL.",
+        "example": 'script[data-testid="UserProfileSchema-test"]',
+        "type": "selector",
+        "optional": True,
+        "scope": "user",
+    },
+    "userBanner": {
+        "description": "The banner/header image on a user's profile page. Should target the <img> element with 'profile_banners' in its src.",
+        "example": 'img[src*="profile_banners"]',
         "type": "selector",
         "optional": True,
         "scope": "user",
@@ -246,8 +267,16 @@ PLATFORM_FIELDS = {
 # ── HTML Cleaning ──────────────────────────────────────────
 
 def clean_html(raw_html: str, max_chars: int = 80000) -> str:
-    """Strip scripts, styles, and excessive whitespace to reduce token usage."""
-    # Remove <script> and <style> blocks
+    """Strip scripts, styles, and excessive whitespace to reduce token usage.
+    
+    Preserves JSON-LD <script type="application/ld+json"> tags since they contain
+    structured data with data-testid attributes needed for selector generation.
+    """
+    # Extract JSON-LD scripts to preserve them
+    jsonld_scripts = re.findall(r'<script[^>]*type=["\']application/ld\+json["\'][^>]*>.*?</script>', raw_html, flags=re.DOTALL | re.IGNORECASE)
+    jsonld_block = '\n'.join(jsonld_scripts) if jsonld_scripts else ''
+    
+    # Remove all <script> and <style> blocks
     cleaned = re.sub(r'<script[^>]*>.*?</script>', '', raw_html, flags=re.DOTALL | re.IGNORECASE)
     cleaned = re.sub(r'<style[^>]*>.*?</style>', '', cleaned, flags=re.DOTALL | re.IGNORECASE)
     # Remove HTML comments
@@ -261,6 +290,9 @@ def clean_html(raw_html: str, max_chars: int = 80000) -> str:
         start = max(0, article_match.start() - 2000)
         end = min(len(cleaned), article_match.end() + 2000)
         cleaned = cleaned[start:end]
+    # Re-attach preserved JSON-LD scripts so the LLM can see them
+    if jsonld_block:
+        cleaned = jsonld_block + '\n' + cleaned
     # Truncate if still too long
     if len(cleaned) > max_chars:
         cleaned = cleaned[:max_chars] + "\n... [TRUNCATED]"

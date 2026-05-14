@@ -158,9 +158,23 @@ function extractMessageDetails(messageNode) {
         }
     }
 
+    let timestamp = '';
+    // Extract full timestamp [Time, Date] from prePlainText first
+    let m = prePlainText.match(/\[(.*?)\]/);
+    if (m) {
+        timestamp = m[1];
+    } else {
+        // Fallback: Look for postAuthorTime (usually just the time, no date)
+        let timeNode = messageNode.querySelector(SEL_WA.postAuthorTime || '[data-testid="msg-meta"] span[dir="auto"]');
+        if (timeNode) {
+            timestamp = timeNode.innerText || timeNode.textContent || '';
+        }
+    }
+
     return {
         postID,
-        userID: userID || 'unknown'
+        userID: userID || 'unknown',
+        postAuthorTime: timestamp
     };
 }
 
@@ -203,7 +217,8 @@ function processMessageNode(messageNode) {
         details.postID,
         {
             tweetContent: () => extractMessageText(messageNode),
-            mediaUrls: () => extractMessageMedia(messageNode)
+            mediaUrls: () => extractMessageMedia(messageNode),
+            postCreationTime: details.postAuthorTime
         }
     );
 }

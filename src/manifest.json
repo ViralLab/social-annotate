@@ -19,7 +19,9 @@
     "*://bsky.social/*",
     "*://web.whatsapp.com/*",
     "*://web.telegram.org/*",
-    "*://truthsocial.com/*"
+    "*://truthsocial.com/*",
+    "http://127.0.0.1/*",
+    "http://localhost/*"
   ],
   "options_page": "options/options.html",
   "background": {
@@ -59,7 +61,9 @@
       "matches": [
         "*://twitter.com/*",
         "*://x.com/*",
-        "file:///*"
+        "file:///*",
+        "http://127.0.0.1/*",
+        "http://localhost/*"
       ],
       "run_at": "document_end",
       "exclude_matches": [
@@ -142,7 +146,9 @@
     {
       "matches": [
         "*://web.whatsapp.com/*",
-        "file:///*"
+        "file:///*",
+        "http://127.0.0.1/*",
+        "http://localhost/*"
       ],
       "run_at": "document_end",
       "css": [
@@ -161,8 +167,20 @@
     },
     {
       "matches": [
+        "*://web.telegram.org/*"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "js": [
+        "content-scripts/telegram/inject-api.js"
+      ]
+    },
+    {
+      "matches": [
         "*://web.telegram.org/*",
-        "file:///*"
+        "file:///*",
+        "http://127.0.0.1/*",
+        "http://localhost/*"
       ],
       "run_at": "document_end",
       "css": [
@@ -182,7 +200,9 @@
     {
       "matches": [
         "*://truthsocial.com/*",
-        "file:///*"
+        "file:///*",
+        "http://127.0.0.1/*",
+        "http://localhost/*"
       ],
       "run_at": "document_end",
       "css": [

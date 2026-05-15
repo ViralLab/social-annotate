@@ -62,6 +62,43 @@ chrome.runtime.onInstalled.addListener(function () {
 chrome.webNavigation.onHistoryStateUpdated.addListener(function (details) {
 });
 
+// Intercept native downloads triggered by the content script (e.g., Telegram SW streams)
+chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
+    if (item.url && item.url.includes('#sa_post=')) {
+        try {
+            let urlObj = new URL(item.url);
+            let params = new URLSearchParams(urlObj.hash.substring(1));
+            let surveyType = params.get('sa_type') || 'telegram-post';
+            let userId = params.get('sa_user') || 'user';
+            let postId = params.get('sa_post') || 'unknown';
+            let format = params.get('sa_format') || 'mp4';
+
+            let safeUserId = String(userId).replace(/[^a-zA-Z0-9._-]/g, '_');
+            let safePostId = String(postId).replace(/[^a-zA-Z0-9._-]/g, '_');
+
+            chrome.storage.local.get(['config'], function (result) {
+                let rootFolder = "SocialAnnotateMedia/" + surveyType + "/";
+                if (surveyType && result.config && result.config.surveys && result.config.surveys[surveyType] && result.config.surveys[surveyType].mediaDownloadFolder) {
+                    let customFolder = result.config.surveys[surveyType].mediaDownloadFolder.trim().replace(/\\/g, '/');
+                    if (customFolder) {
+                        rootFolder = "SocialAnnotateMedia/" + customFolder;
+                        if (!rootFolder.endsWith('/')) rootFolder += '/';
+                    }
+                }
+                
+                let filename = `${rootFolder}videos/${safeUserId}_${safePostId}_video.${format}`;
+                suggest({ filename: filename });
+            });
+            return true; // indicates asynchronous suggest
+        } catch (e) {
+            console.error('[Social Annotate] Error renaming intercepted download:', e);
+            suggest(); // fallback to default
+        }
+    } else {
+        suggest();
+    }
+});
+
 // Listen for download requests from content scripts
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'downloadMedia') {

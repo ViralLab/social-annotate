@@ -98,5 +98,24 @@
       "childList": true,
       "subtree": true
     }
+  },
+  "truthsocial": {
+    "appRoot": "#root",
+    "postContainer": "[data-testid=\"status\"]",
+    "postText": "[data-testid=\"status-content\"] [data-testid=\"markup\"]",
+    "postImage": "img",
+    "videoPlayer": "video",
+    "metricsReply": null,
+    "metricsRepost": null,
+    "metricsLike": null,
+    "postTimestamp": "a[href*=\"/posts/\"] time",
+    "userDisplayName": "[data-testid=\"account\"] p.truncate",
+    "userHandle": "[data-testid=\"account\"] a[href^=\"/@\"]",
+    "userAvatar": "[data-testid=\"account\"] img[alt=\"Avatar\"]",
+    "observerFilter": {
+      "attributes": false,
+      "childList": true,
+      "subtree": true
+    }
   }
 }

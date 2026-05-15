@@ -18,7 +18,8 @@
     "*://bsky.app/*",
     "*://bsky.social/*",
     "*://web.whatsapp.com/*",
-    "*://web.telegram.org/*"
+    "*://web.telegram.org/*",
+    "*://truthsocial.com/*"
   ],
   "options_page": "options/options.html",
   "background": {
@@ -177,6 +178,26 @@
         "content-scripts/shared/shared.js",
         "content-scripts/telegram/inject.js"
       ]
+    },
+    {
+      "matches": [
+        "*://truthsocial.com/*",
+        "file:///*"
+      ],
+      "run_at": "document_end",
+      "css": [
+        "content-scripts/truthsocial/inject.css",
+        "dep/jsonform/deps/opt/bootstrap.css"
+      ],
+      "js": [
+        "dep/analytics.js",
+        "dep/jsonform/deps/jquery.min.js",
+        "dep/jsonform/deps/underscore.js",
+        "dep/jsonform/deps/opt/jsv.js",
+        "dep/jsonform/lib/jsonform.js",
+        "content-scripts/shared/shared.js",
+        "content-scripts/truthsocial/inject.js"
+      ]
     }
   ],
   "icons": {
@@ -193,6 +214,7 @@
         "content-scripts/instagram/inject.css",
         "content-scripts/x/inject.css",
         "content-scripts/bluesky/inject.css",
+        "content-scripts/truthsocial/inject.css",
         "dep/jsonform/deps/opt/bootstrap.css"
       ],
       "matches": [

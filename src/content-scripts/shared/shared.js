@@ -309,6 +309,8 @@ function storeResults(surveyResults, socialMediaPlatform) {
                 platformURL = "https://bsky.app/";
             } else if (socialMediaPlatform == 'whatsapp') {
                 platformURL = "https://web.whatsapp.com/";
+            } else if (socialMediaPlatform == 'truthsocial') {
+                platformURL = "https://truthsocial.com/";
             }
 
             let surveyType = surveyResults.surveyType;
@@ -331,6 +333,10 @@ function storeResults(surveyResults, socialMediaPlatform) {
                 insertKey = surveyResults.postID;
             } else if (surveyType === 'whatsapp-post') {
                 insertKey = surveyResults.postID;
+            } else if (surveyType === 'telegram-post') {
+                insertKey = surveyResults.postID;
+            } else if (surveyType === 'truthsocial-post') {
+                insertKey = surveyResults.postID;
             }
 
             let insertIndex = annotatedElements[surveyType].indexOf(insertKey);
@@ -350,7 +356,7 @@ function storeResults(surveyResults, socialMediaPlatform) {
             let bringNextUser = false;
             let nextUser = '';
             // If guided mode is enabled, advance to the next target after a successful annotation.
-            if (result.isGuided === true && (surveyType === 'x-user' || surveyType === 'x-post' || surveyType === 'instagram-user' || surveyType === 'instagram-post' || surveyType === 'bluesky-user' || surveyType === 'bluesky-post')) {
+            if (result.isGuided === true && (surveyType === 'x-user' || surveyType === 'x-post' || surveyType === 'instagram-user' || surveyType === 'instagram-post' || surveyType === 'bluesky-user' || surveyType === 'bluesky-post' || surveyType === 'truthsocial-post')) {
                 let dropIndex = activeTargetList.findIndex(item => insertKey.toLowerCase() === item.toLowerCase());
                 if (dropIndex > -1) {
                     activeTargetList.splice(dropIndex, 1);
@@ -374,6 +380,8 @@ function storeResults(surveyResults, socialMediaPlatform) {
                         window.location.href = platformURL + 'profile/' + nextUser;
                     } else if (surveyType === 'bluesky-post') {
                         window.location.href = platformURL + 'profile/' + nextUser;
+                    } else if (surveyType === 'truthsocial-post') {
+                        window.location.href = platformURL + nextUser;
                     } else {
                         window.location.href = platformURL + nextUser;
                     }
@@ -382,7 +390,7 @@ function storeResults(surveyResults, socialMediaPlatform) {
                 if (apiSuccess) {
                     // @TODO: endpoint error handling isn't done properly; all API-related paths need full exception handling.
                     let divName = "surveyFormContainer";
-                    if (surveyResults.surveyType === "x-post" || surveyResults.surveyType === "instagram-post" || surveyResults.surveyType === "bluesky-post" || surveyResults.surveyType === "whatsapp-post") {
+                    if (surveyResults.surveyType === "x-post" || surveyResults.surveyType === "instagram-post" || surveyResults.surveyType === "bluesky-post" || surveyResults.surveyType === "whatsapp-post" || surveyResults.surveyType === "telegram-post" || surveyResults.surveyType === "truthsocial-post") {
                         divName += '-' + surveyResults.postID.toString();
                     }
 

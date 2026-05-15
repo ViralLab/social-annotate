@@ -225,7 +225,7 @@ function wireAnnotationUpload(key) {
 
 // ── Build survey card HTML ────────────────────────────────
 function buildSurveyCard(key, survey) {
-        let platform = survey.socialMediaPlatform || (key.startsWith('instagram') ? 'instagram' : (key.startsWith('bluesky') ? 'bluesky' : (key.startsWith('whatsapp') ? 'whatsapp' : 'x')));
+        let platform = survey.socialMediaPlatform || (key.startsWith('truthsocial') ? 'truthsocial' : (key.startsWith('instagram') ? 'instagram' : (key.startsWith('bluesky') ? 'bluesky' : (key.startsWith('whatsapp') ? 'whatsapp' : 'x'))));
         let safeKey = escapeHtml(key);
         let safePlatform = escapeHtml(platform);
         return `
@@ -674,7 +674,7 @@ function previewSurvey(key) {
     iframe.src = chrome.runtime.getURL('sandbox/survey.html');
     iframe.style.cssText = 'border:none; width:100%; height:auto; display:block; background:transparent;';
 
-    let platform = key.startsWith('instagram') ? 'instagram' : (key.startsWith('bluesky') ? 'bluesky' : (key.startsWith('whatsapp') ? 'whatsapp' : 'x'));
+    let platform = key.startsWith('truthsocial') ? 'truthsocial' : (key.startsWith('instagram') ? 'instagram' : (key.startsWith('bluesky') ? 'bluesky' : (key.startsWith('whatsapp') ? 'whatsapp' : 'x')));
     let cssUrl = chrome.runtime.getURL('content-scripts/' + platform + '/inject.css');
 
     let themeEl = document.getElementById(key + '_theme');

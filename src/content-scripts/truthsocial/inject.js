@@ -1,4 +1,7 @@
-const availableContextsTruthSocial = [new Context('truthsocial-post', enablePostObserver, null)];
+const availableContextsTruthSocial = [
+    new Context('truthsocial-post', enablePostObserver, null),
+    new Context('truthsocial-user', injectTruthSocialUserSurvey, checkUserURL)
+];
 
 let SEL_TS = {};
 let tsRoot = null;
@@ -10,6 +13,8 @@ window.addEventListener('mh:download-request', function(e) {
     if (!detail) return;
     
     let initialSurveyType = detail.surveyType || 'truthsocial-post';
+    if (initialSurveyType === 'truthsocial-user') return;
+    
     if (!detail.postID) return;
     
     let postID = detail.postID;
@@ -177,6 +182,97 @@ function extractPostDetails(postNode) {
     };
 }
 
+function crawlUserName() {
+    let currentURL = window.location.href;
+    if (window.location.protocol === 'file:') {
+        let handle = document.querySelector('p.text-muted-foreground[style="direction: ltr;"]');
+        if (handle) {
+            let text = handle.textContent.trim().replace(/^@/, '');
+            if (text) return text;
+        }
+        return 'local-test-user';
+    }
+    let match = currentURL.match(/\/@([^/?#]+)/);
+    if (match) return match[1];
+    return '';
+}
+
+function extractUserProfile() {
+    let profile = {};
+
+    try {
+        let nameEl = document.querySelector('h1.text-xl, div.px-4 p.text-lg');
+        if (nameEl) profile.displayName = nameEl.textContent.trim();
+    } catch (e) {}
+
+    try {
+        let handleEl = document.querySelector('p.text-muted-foreground[style="direction: ltr;"]');
+        if (handleEl) profile.handle = handleEl.textContent.trim();
+    } catch (e) {}
+
+    try {
+        let avatarEl = document.querySelector('img[src*="accounts/avatars"]');
+        if (avatarEl) profile.avatarUrl = avatarEl.src;
+    } catch (e) {}
+
+    try {
+        let bannerEl = document.querySelector('img[src*="accounts/headers"]');
+        if (bannerEl) profile.bannerUrl = bannerEl.src;
+    } catch (e) {}
+
+    try {
+        let followersEl = document.querySelector('[data-testid="followers-button"]');
+        if (followersEl) {
+            let text = followersEl.textContent.trim();
+            profile.followersText = text;
+            let numMatch = text.match(/([\d,.]+[KMB]?)/i);
+            if (numMatch) profile.followersCount = numMatch[1];
+        }
+    } catch (e) {}
+
+    try {
+        let followingEl = document.querySelector('[data-testid="following-button"]');
+        if (followingEl) {
+            let text = followingEl.textContent.trim();
+            profile.followingText = text;
+            let numMatch = text.match(/([\d,.]+[KMB]?)/i);
+            if (numMatch) profile.followingCount = numMatch[1];
+        }
+    } catch (e) {}
+    
+    try {
+        let urlEl = document.querySelector('.max-w-\\[300px\\] a');
+        if (urlEl) {
+            profile.websiteUrl = urlEl.href;
+        }
+    } catch(e) {}
+
+    return profile;
+}
+
+function injectTruthSocialUserSurvey(injectElement, userID) {
+    let surveyContainer = document.createElement('div');
+    surveyContainer.className = "survey-container-user";
+    surveyContainer.setAttribute("id", "surveyFormContainer");
+    const shadowRoot = surveyContainer.attachShadow({ mode: 'open' });
+
+    let cssUrl = chrome.runtime.getURL("content-scripts/truthsocial/inject.css");
+    shadowRoot.innerHTML = `\\
+   <iframe class="surveyIframe" src="${chrome.runtime.getURL("sandbox/survey.html")}" data-css="${cssUrl}" style="border:none; width:100%; height:100%; background:transparent;"></iframe>\\
+`;
+
+    let fixedBar = document.querySelector(SEL_TS.appRoot || '#root');
+    if (fixedBar) {
+        fixedBar.insertAdjacentElement('beforebegin', surveyContainer);
+    }
+}
+
+function checkUserURL() {
+    if (window.location.protocol === 'file:') return true;
+    let uname = crawlUserName();
+    return uname !== '' && !window.location.pathname.startsWith('/posts/');
+}
+
 function injectTruthSocialPostSurvey(injectNode, postID) {
     let surveyContainer = document.createElement('div');
     surveyContainer.className = "survey-container-post";
@@ -210,6 +306,9 @@ function initializeSurveys() {
             if (activeSurvey === 'truthsocial-post') {
                 window.location.href = platformURL + firstTarget;
                 return;
+            } else if (activeSurvey === 'truthsocial-user') {
+                window.location.href = platformURL + firstTarget;
+                return;
             }
         }
 
@@ -231,14 +330,36 @@ function initializeSurveys() {
                     if (!errors) {
                         values.surveyType = currentContext.name;
                         values.studyID = studyID;
-                        storeResults(values, currentPlatform);
+                        
+                        let isUserSurvey = currentContext.name.endsWith('-user');
+                        if (isUserSurvey) {
+                            let capturedAvatarUrl = null;
+                            let capturedBannerUrl = null;
+                            let profile = extractUserProfile();
+                            if (profile.avatarUrl) capturedAvatarUrl = profile.avatarUrl;
+                            if (profile.bannerUrl) capturedBannerUrl = profile.bannerUrl;
+                            
+                            let capturedUserID = values.userID;
+                            let capturedSurveyType = currentContext.name;
 
-                        chrome.storage.local.get(['isMediaDownloadEnabled'], function(res) {
-                            if (res.isMediaDownloadEnabled) {
-                                let evt = new CustomEvent('mh:download-request', { detail: { postID: values.postID, userID: values.userID, surveyType: currentContext.name } });
-                                window.dispatchEvent(evt);
-                            }
-                        });
+                            chrome.storage.local.get(['isProfileDownloadEnabled', 'isBannerDownloadEnabled'], function (res) {
+                                if (res.isProfileDownloadEnabled && capturedAvatarUrl) {
+                                    chrome.runtime.sendMessage({ action: 'downloadMedia', urls: [capturedAvatarUrl], userId: capturedUserID || 'user', postId: 'profile', surveyType: capturedSurveyType });
+                                }
+                                if (res.isBannerDownloadEnabled && capturedBannerUrl) {
+                                    chrome.runtime.sendMessage({ action: 'downloadMedia', urls: [capturedBannerUrl], userId: capturedUserID || 'user', postId: 'banner', surveyType: capturedSurveyType });
+                                }
+                            });
+                        } else {
+                            chrome.storage.local.get(['isMediaDownloadEnabled'], function(res) {
+                                if (res.isMediaDownloadEnabled) {
+                                    let evt = new CustomEvent('mh:download-request', { detail: { postID: values.postID, userID: values.userID, surveyType: currentContext.name } });
+                                    window.dispatchEvent(evt);
+                                }
+                            });
+                        }
+
+                        storeResults(values, currentPlatform);
                     }
                 }
 
@@ -246,6 +367,13 @@ function initializeSurveys() {
                 currentContext.theme = config.theme || "dark";
                 currentContext.submitAction = submitAction;
                 currentContext.injectSurvey(config.injectElement);
+
+                if (currentContext.name !== 'truthsocial-post') {
+                    let surveyID = crawlUserName();
+                    currentContext.renderSurvey(surveyID, null, {
+                        userProfile: () => extractUserProfile()
+                    });
+                }
             }
         }
     });

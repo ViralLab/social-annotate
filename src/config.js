@@ -304,6 +304,51 @@ var config = {
                     }
                 ]
             }
+        },
+        "truthsocial-user": {
+            "socialMediaPlatform": "truthsocial",
+            "injectElement": {
+                "name": "root",
+                "type": "id",
+                "index": 0
+            },
+            "studyID": "maruko",
+            "mediaDownloadFolder": "",
+            "screenNameList": [],
+            "surveyFormSchema": {
+                "schema": {
+                    "bot": {
+                        "type": "string",
+                        "title": "Do you believe this user to be a bot?",
+                        "enum": ["Yes", "No"],
+                        "required": true
+                    },
+                    "confidence": {
+                        "type": "integer",
+                        "title": "How confident with your response to bot question?",
+                        "description": "0 for least and 5 for the most confident",
+                        "default": 3,
+                        "minimum": 0,
+                        "maximum": 5,
+                        "required": true
+                    }
+                },
+                "form": [
+                    {
+                        "key": "bot",
+                        "type": "radiobuttons"
+                    },
+                    {
+                        "key": "confidence",
+                        "type": "range"
+                    },
+                    {
+                        "type": "submit",
+                        "title": "Submit",
+                        "htmlClass": "surveySubmitBtn"
+                    }
+                ]
+            }
         }
     }
 };

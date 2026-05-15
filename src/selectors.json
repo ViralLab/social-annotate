@@ -83,5 +83,20 @@
       "childList": true,
       "subtree": true
     }
+  },
+  "telegram": {
+    "conversationMessages": ".MessageList .messages-container",
+    "postContainer": ".Message",
+    "messageText": ".text-content",
+    "mediaImage": "img.media-photo, img.full-media, canvas.thumbnail.shown",
+    "mediaVideo": "video.full-media, video",
+    "userAvatar": ".Avatar__media",
+    "userDisplayName": ".fullName",
+    "postTimestamp": ".message-time",
+    "observerFilter": {
+      "attributes": false,
+      "childList": true,
+      "subtree": true
+    }
   }
 }

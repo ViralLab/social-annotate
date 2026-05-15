@@ -17,7 +17,8 @@
     "*://x.com/*",
     "*://bsky.app/*",
     "*://bsky.social/*",
-    "*://web.whatsapp.com/*"
+    "*://web.whatsapp.com/*",
+    "*://web.telegram.org/*"
   ],
   "options_page": "options/options.html",
   "background": {
@@ -155,6 +156,26 @@
         "dep/jsonform/lib/jsonform.js",
         "content-scripts/shared/shared.js",
         "content-scripts/whatsapp/inject.js"
+      ]
+    },
+    {
+      "matches": [
+        "*://web.telegram.org/*",
+        "file:///*"
+      ],
+      "run_at": "document_end",
+      "css": [
+        "content-scripts/bluesky/inject.css",
+        "dep/jsonform/deps/opt/bootstrap.css"
+      ],
+      "js": [
+        "dep/analytics.js",
+        "dep/jsonform/deps/jquery.min.js",
+        "dep/jsonform/deps/underscore.js",
+        "dep/jsonform/deps/opt/jsv.js",
+        "dep/jsonform/lib/jsonform.js",
+        "content-scripts/shared/shared.js",
+        "content-scripts/telegram/inject.js"
       ]
     }
   ],

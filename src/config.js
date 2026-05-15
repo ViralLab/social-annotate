@@ -248,6 +248,34 @@ var config = {
                     }
                 ]
             }
+        },
+        "telegram-post": {
+            "socialMediaPlatform": "telegram",
+            "injectElement": {},
+            "studyID": "kokone",
+            "mediaDownloadFolder": "",
+            "screenNameList": [],
+            "surveyFormSchema": {
+                "schema": {
+                    "hatespeech": {
+                        "type": "string",
+                        "title": "Does this message contain HateSpeech?",
+                        "enum": ["Yes", "No"],
+                        "required": true
+                    }
+                },
+                "form": [
+                    {
+                        "key": "hatespeech",
+                        "type": "radiobuttons"
+                    },
+                    {
+                        "type": "submit",
+                        "title": "Submit",
+                        "htmlClass": "surveySubmitBtn"
+                    }
+                ]
+            }
         }
     }
 };

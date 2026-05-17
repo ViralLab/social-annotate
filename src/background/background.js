@@ -59,6 +59,59 @@ chrome.runtime.onInstalled.addListener(function () {
 });
 
 
+// ── Merge new survey types into stored config ──────────────────────────────
+// Runs on every service-worker start so new surveys added to config.js are
+// available without clearing storage.
+function mergeSurveysIntoStorage() {
+    chrome.storage.local.get(['config', 'resultsArrays', 'annotatedElements', 'selectors'], function (stored) {
+        if (!stored.config) return; // first-run handled by onInstalled
+
+        let changed = false;
+
+        // 1. Merge missing survey definitions
+        for (let key in config.surveys) {
+            if (!stored.config.surveys[key]) {
+                stored.config.surveys[key] = config.surveys[key];
+                changed = true;
+                console.log('[SA] Migrated new survey into storage:', key);
+            }
+        }
+
+        // 2. Ensure resultsArrays and annotatedElements have entries for all surveys
+        let ra = stored.resultsArrays || {};
+        let ae = stored.annotatedElements || {};
+        for (let key in config.surveys) {
+            if (!ra[key]) { ra[key] = []; changed = true; }
+            if (!ae[key]) { ae[key] = []; changed = true; }
+        }
+
+        // 3. Re-sync selectors from selectors.json (picks up new platform selector keys)
+        if (changed) {
+            fetch(chrome.runtime.getURL('selectors.json'))
+                .then(r => r.json())
+                .then(selectors => {
+                    chrome.storage.local.set({
+                        config: stored.config,
+                        resultsArrays: ra,
+                        annotatedElements: ae,
+                        selectors: selectors
+                    });
+                })
+                .catch(() => {
+                    chrome.storage.local.set({
+                        config: stored.config,
+                        resultsArrays: ra,
+                        annotatedElements: ae
+                    });
+                });
+        }
+    });
+}
+
+// Run migration on every extension start (handles dev reloads)
+chrome.runtime.onInstalled.addListener(mergeSurveysIntoStorage);
+chrome.runtime.onStartup.addListener(mergeSurveysIntoStorage);
+
 chrome.webNavigation.onHistoryStateUpdated.addListener(function (details) {
 });
 
@@ -127,12 +180,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                         let mimeMatch = url.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-+.]+);/);
                         if (mimeMatch) {
                             let mimeType = mimeMatch[1].toLowerCase();
-                            if (mimeType.includes('mp4')) format = 'mp4';
-                            else if (mimeType.includes('webm')) format = 'webm';
-                            else if (mimeType.includes('jpeg')) format = 'jpg';
-                            else if (mimeType.includes('png')) format = 'png';
-                            else if (mimeType.includes('gif')) format = 'gif';
-                            else if (mimeType.includes('webp')) format = 'webp';
+                            if (mimeType.includes('mp4'))        format = 'mp4';
+                            else if (mimeType.includes('webm'))  format = 'webm';
+                            else if (mimeType.includes('jpeg'))  format = 'jpg';
+                            else if (mimeType.includes('png'))   format = 'png';
+                            else if (mimeType.includes('gif'))   format = 'gif';
+                            else if (mimeType.includes('webp'))  format = 'webp';
+                            else if (mimeType.startsWith('video/')) format = 'mp4';  // mp2t, ogg, etc.
+                            else if (mimeType.startsWith('audio/')) format = 'mp3';
                         }
                     } else {
                         let urlObj = new URL(url);

@@ -20,6 +20,7 @@
     "*://web.whatsapp.com/*",
     "*://web.telegram.org/*",
     "*://truthsocial.com/*",
+    "*://www.linkedin.com/*",
     "http://127.0.0.1/*",
     "http://localhost/*"
   ],
@@ -177,6 +178,16 @@
     },
     {
       "matches": [
+        "*://web.whatsapp.com/*"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "js": [
+        "content-scripts/whatsapp/inject-api.js"
+      ]
+    },
+    {
+      "matches": [
         "*://web.telegram.org/*",
         "file:///*",
         "http://127.0.0.1/*",
@@ -218,6 +229,37 @@
         "content-scripts/shared/shared.js",
         "content-scripts/truthsocial/inject.js"
       ]
+    },
+    {
+      "matches": [
+        "*://www.linkedin.com/*"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "js": [
+        "content-scripts/linkedin/inject-api.js"
+      ]
+    },
+    {
+      "matches": [
+        "*://www.linkedin.com/*",
+        "file:///*",
+        "http://127.0.0.1/*",
+        "http://localhost/*"
+      ],
+      "run_at": "document_end",
+      "css": [
+        "content-scripts/linkedin/inject.css"
+      ],
+      "js": [
+        "dep/analytics.js",
+        "dep/jsonform/deps/jquery.min.js",
+        "dep/jsonform/deps/underscore.js",
+        "dep/jsonform/deps/opt/jsv.js",
+        "dep/jsonform/lib/jsonform.js",
+        "content-scripts/shared/shared.js",
+        "content-scripts/linkedin/inject.js"
+      ]
     }
   ],
   "icons": {
@@ -235,6 +277,7 @@
         "content-scripts/x/inject.css",
         "content-scripts/bluesky/inject.css",
         "content-scripts/truthsocial/inject.css",
+        "content-scripts/linkedin/inject.css",
         "dep/jsonform/deps/opt/bootstrap.css"
       ],
       "matches": [

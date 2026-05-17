@@ -9,8 +9,28 @@ let waObserver = null;
 let waObserverConfig = { attributes: false, childList: true, subtree: true };
 
 // WhatsApp opens videos in a fullscreen modal which removes the <video> tag from the message node.
-// We observe the document for any <video> tags to capture their blob URLs when they play.
+// Also, it decodes videos in memory and creates blob URLs that aren't always immediately attached.
+// We track all video blob URLs observed in the DOM OR intercepted by the MAIN-world script.
 let recentVideoUrls = new Set();
+
+// Listen to interceptor events from MAIN world
+window.addEventListener('mh:wa-video-blob-created', e => {
+    if (e.detail && e.detail.url) {
+        recentVideoUrls.add(e.detail.url);
+    }
+});
+
+// Query existing blobs on load
+const reqId = Date.now().toString();
+const blobsListener = function(e) {
+    if (e.detail && e.detail.reqId === reqId && e.detail.urls) {
+        e.detail.urls.forEach(url => recentVideoUrls.add(url));
+        window.removeEventListener('mh:get-wa-video-blobs-result', blobsListener);
+    }
+};
+window.addEventListener('mh:get-wa-video-blobs-result', blobsListener);
+window.dispatchEvent(new CustomEvent('mh:get-wa-video-blobs', { detail: { reqId } }));
+
 const videoModalObserver = new MutationObserver(mutations => {
     mutations.forEach(mutation => {
         if (mutation.addedNodes) {
@@ -31,6 +51,35 @@ const videoModalObserver = new MutationObserver(mutations => {
 // Start observing as soon as the script loads
 if (document.documentElement) {
     videoModalObserver.observe(document.documentElement, { childList: true, subtree: true });
+}
+
+// ---------------------------------------------------------------------------
+// Blob Download Strategy:
+// Chrome extensions in isolated worlds cannot natively fetch() blob: URLs
+// created by the page. We delegate fetching to the MAIN world (inject-api.js).
+// ---------------------------------------------------------------------------
+function fetchBlobFromMainWorld(url) {
+    return new Promise((resolve, reject) => {
+        const reqId = Date.now().toString() + Math.random().toString().substring(2, 6);
+        
+        const listener = function(e) {
+            if (e.detail && e.detail.reqId === reqId) {
+                window.removeEventListener('mh:fetch-wa-blob-result', listener);
+                if (e.detail.error) reject(new Error(e.detail.error));
+                else resolve(e.detail.dataUrl);
+            }
+        };
+        
+        window.addEventListener('mh:fetch-wa-blob-result', listener);
+        window.dispatchEvent(new CustomEvent('mh:fetch-wa-blob', {
+            detail: { url: url, reqId: reqId }
+        }));
+        
+        setTimeout(() => {
+            window.removeEventListener('mh:fetch-wa-blob-result', listener);
+            reject(new Error('MAIN-world fetch timeout'));
+        }, 15000);
+    });
 }
 
 
@@ -57,18 +106,11 @@ window.addEventListener('mh:download-request', async function (e) {
         for (let url of urlsToDownload) {
             if (url.startsWith('blob:')) {
                 try {
-                    let response = await fetch(url);
-                    let blob = await response.blob();
-                    let dataUrl = await new Promise((resolve, reject) => {
-                        let reader = new FileReader();
-                        reader.onloadend = () => resolve(reader.result);
-                        reader.onerror = reject;
-                        reader.readAsDataURL(blob);
-                    });
+                    let dataUrl = await fetchBlobFromMainWorld(url);
                     finalUrls.push(dataUrl);
                 } catch (err) {
-                    console.error("Failed to fetch blob URL:", err);
-                    finalUrls.push(url);
+                    console.error("[Social Annotate WA] Failed to fetch blob URL:", err);
+                    finalUrls.push(url); // Send raw URL as last resort (though it will fail in bg)
                 }
             } else {
                 finalUrls.push(url);

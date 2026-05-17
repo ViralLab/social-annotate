@@ -349,6 +349,72 @@ var config = {
                     }
                 ]
             }
+        },
+        "linkedin-post": {
+            "socialMediaPlatform": "linkedin",
+            "injectElement": {},
+            "studyID": "kokone",
+            "mediaDownloadFolder": "",
+            "screenNameList": [],
+            "surveyFormSchema": {
+                "schema": {
+                    "hatespeech": {
+                        "type": "string",
+                        "title": "Does this post contain HateSpeech?",
+                        "enum": ["Yes", "No"],
+                        "required": true
+                    }
+                },
+                "form": [
+                    {
+                        "key": "hatespeech",
+                        "type": "radiobuttons"
+                    },
+                    {
+                        "type": "submit",
+                        "title": "Submit",
+                        "htmlClass": "surveySubmitBtn"
+                    }
+                ]
+            }
+        },
+        "linkedin-user": {
+            "socialMediaPlatform": "linkedin",
+            "injectElement": {},
+            "studyID": "kokone",
+            "mediaDownloadFolder": "",
+            "screenNameList": [],
+            "surveyFormSchema": {
+                "schema": {
+                    "hatespeech": {
+                        "type": "string",
+                        "title": "Does this user spread HateSpeech?",
+                        "enum": ["Yes", "No"],
+                        "required": true
+                    },
+                    "confidence": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 10,
+                        "title": "Confidence (0-10)"
+                    }
+                },
+                "form": [
+                    {
+                        "key": "hatespeech",
+                        "type": "radiobuttons"
+                    },
+                    {
+                        "key": "confidence",
+                        "type": "range"
+                    },
+                    {
+                        "type": "submit",
+                        "title": "Submit",
+                        "htmlClass": "surveySubmitBtn"
+                    }
+                ]
+            }
         }
     }
 };

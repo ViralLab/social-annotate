@@ -10,23 +10,28 @@ window.addEventListener('message', function (event) {
       document.body.setAttribute('data-theme', data.theme);
       document.documentElement.setAttribute('data-theme', data.theme);
     }
-    // Dynamically add the host's CSS if provided
+    // Dynamically add the host's CSS if provided — use a <link> element
+    // instead of @import to avoid Chrome's sandbox "unsafe navigation" warning.
     if (data.cssUrl) {
-      document.getElementById('dynamic-css').textContent = '@import url("' + data.cssUrl + '");';
+      var existingLink = document.getElementById('dynamic-css-link');
+      if (existingLink) existingLink.remove();
+      var link = document.createElement('link');
+      link.id = 'dynamic-css-link';
+      link.rel = 'stylesheet';
+      link.type = 'text/css';
+      link.href = data.cssUrl;
+      document.head.appendChild(link);
     }
 
     // Attach onSubmit callback to the schema returning message to parent
     data.formTemplate.onSubmit = function (errors, values) {
-      // Prefer targeting the parent origin if available via document.referrer
-      let parentOrigin = '*';
-      try { if (document.referrer) parentOrigin = (new URL(document.referrer)).origin; } catch(e) { parentOrigin = '*'; }
       window.parent.postMessage({
         type: 'submit',
         errors: errors,
         values: values,
         callId: data.callId,
         token: data.token
-      }, parentOrigin);
+      }, '*');
 
       // Stage 3: transition button to green submitted state
       if (!errors) {
@@ -40,7 +45,7 @@ window.addEventListener('message', function (event) {
     // so that multiple tweet forms can coexist on the page without id collisions.
     // Note: formEl still holds the jQuery reference to the element even after the id is removed.
     var formEl = $('#surveyForm');
-    if (data.surveyType === 'x-post' || data.surveyType === 'instagram-post' || data.surveyType === 'bluesky-post') {
+    if (data.surveyType === 'x-post' || data.surveyType === 'instagram-post' || data.surveyType === 'bluesky-post' || data.surveyType === 'whatsapp-post' || data.surveyType === 'telegram-post' || data.surveyType === 'truthsocial-post' || data.surveyType === 'linkedin-post' || data.surveyType === 'linkedin-user' || data.surveyType === 'truthsocial-user') {
       formEl.removeAttr('id').addClass('surveyFormTweet');
     }
 
@@ -95,9 +100,7 @@ window.addEventListener('message', function (event) {
     // Use ResizeObserver so we re-fire whenever CSS loads and changes layout.
     function reportHeight() {
       var h = document.body.offsetHeight || document.documentElement.offsetHeight;
-      let parentOrigin = '*';
-      try { if (document.referrer) parentOrigin = (new URL(document.referrer)).origin; } catch(e) { parentOrigin = '*'; }
-      window.parent.postMessage({ type: 'resize', height: h, callId: data.callId, token: data.token }, parentOrigin);
+      window.parent.postMessage({ type: 'resize', height: h, callId: data.callId, token: data.token }, '*');
     }
 
     if (typeof ResizeObserver !== 'undefined') {

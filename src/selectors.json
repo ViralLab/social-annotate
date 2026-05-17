@@ -1,121 +1,145 @@
 {
-  "x": {
-    "reactRoot": "#react-root",
-    "tweetContainer": "article[role=\"article\"]",
-    "tweetText": "[data-testid=\"tweetText\"]",
-    "tweetPhoto": "[data-testid=\"tweetPhoto\"] img",
-    "videoPlayer": "[data-testid=\"videoPlayer\"] video",
-    "cardWrapper": "[data-testid=\"card.wrapper\"]",
-    "metricsReply": "reply",
-    "metricsRetweet": "retweet",
-    "metricsLike": "like",
-    "metricsBookmark": "bookmark",
-    "metricsViewsPattern": "views?",
-    "tweetTimestamp": "time",
-    "userDisplayName": "[data-testid=\"User-Name\"]",
-    "userHandle": "[data-testid=\"User-Name\"] a[href][tabindex=\"-1\"] span",
-    "userAvatar": "[data-testid=\"Tweet-User-Avatar\"] img[src*=\"profile_images\"]",
-    "userProfileAvatar": "[data-testid^=\"UserAvatar-Container-\"]",
-    "userProfileSchema": "script[data-testid=\"UserProfileSchema-test\"]",
-    "userBanner": "img[src*=\"profile_banners\"]",
-    "userBio": "[data-testid=\"UserDescription\"]",
-    "userVerified": "[data-testid=\"icon-verified\"]",
-    "userFollowers": "a[href$=\"/verified_followers\"], a[href$=\"/followers\"]",
-    "userFollowing": "a[href$=\"/following\"]",
-    "userLocation": "[data-testid=\"UserLocation\"]",
-    "userJoinDate": "[data-testid=\"UserJoinDate\"]",
-    "userUrl": "[data-testid=\"UserUrl\"]",
-    "observerFilter": {
-      "attributes": true,
-      "childList": true,
-      "subtree": true,
-      "attributeFilter": [
-        "role"
-      ]
+    "x": {
+        "reactRoot": "#react-root",
+        "tweetContainer": "article[role=\"article\"]",
+        "tweetText": "[data-testid=\"tweetText\"]",
+        "tweetPhoto": "[data-testid=\"tweetPhoto\"] img",
+        "videoPlayer": "[data-testid=\"videoPlayer\"] video",
+        "cardWrapper": "[data-testid=\"card.wrapper\"]",
+        "metricsReply": "reply",
+        "metricsRetweet": "retweet",
+        "metricsLike": "like",
+        "metricsBookmark": "bookmark",
+        "metricsViewsPattern": "views?",
+        "tweetTimestamp": "time",
+        "userDisplayName": "[data-testid=\"User-Name\"]",
+        "userHandle": "[data-testid=\"User-Name\"] a[href][tabindex=\"-1\"] span",
+        "userAvatar": "[data-testid=\"Tweet-User-Avatar\"] img[src*=\"profile_images\"]",
+        "userProfileAvatar": "[data-testid^=\"UserAvatar-Container-\"]",
+        "userProfileSchema": "script[data-testid=\"UserProfileSchema-test\"]",
+        "userBanner": "img[src*=\"profile_banners\"]",
+        "userBio": "[data-testid=\"UserDescription\"]",
+        "userVerified": "[data-testid=\"icon-verified\"]",
+        "userFollowers": "a[href$=\"/verified_followers\"], a[href$=\"/followers\"]",
+        "userFollowing": "a[href$=\"/following\"]",
+        "userLocation": "[data-testid=\"UserLocation\"]",
+        "userJoinDate": "[data-testid=\"UserJoinDate\"]",
+        "userUrl": "[data-testid=\"UserUrl\"]",
+        "observerFilter": {
+            "attributes": true,
+            "childList": true,
+            "subtree": true,
+            "attributeFilter": [
+                "role"
+            ]
+        }
+    },
+    "instagram": {
+        "reactRoot": "#react-root",
+        "postContainer": "article",
+        "postLink": "a[href*='/p/'], a[href*='/reel/']",
+        "userLink": "a[href]",
+        "userAvatar": "header img[alt]",
+        "userBanner": null,
+        "observerFilter": {
+            "attributes": false,
+            "childList": true,
+            "subtree": true
+        }
+    },
+    "bluesky": {
+        "appRoot": "#root",
+        "postContainer": "[data-testid*=\"feedItem\"], [data-testid*=\"postThreadItem\"]",
+        "postText": "[data-testid=\"postText\"]",
+        "postImage": "img[src*=\"cdn.bsky.app\"]",
+        "videoPlayer": "video",
+        "metricsReply": "[data-testid=\"replyBtn\"]",
+        "metricsRepost": "[data-testid=\"repostBtn\"]",
+        "metricsLike": "[data-testid=\"likeBtn\"], [data-testid=\"unlikeBtn\"]",
+        "postTimestamp": "a[href*=\"/post/\"]",
+        "userDisplayName": "[data-testid=\"profileHeaderDisplayName\"]",
+        "userHandle": "[data-testid=\"profileHeaderHandle\"]",
+        "userAvatar": "div[aria-label*=\"'s avatar\"] img",
+        "userBanner": "div[aria-label=\"View profile banner\"] img",
+        "userBio": "[data-testid=\"profileHeaderDescription\"]",
+        "userFollowers": "[data-testid=\"profileHeaderFollowersButton\"]",
+        "userFollowing": "[data-testid=\"profileHeaderFollowsButton\"]",
+        "observerFilter": {
+            "attributes": false,
+            "childList": true,
+            "subtree": true
+        }
+    },
+    "whatsapp": {
+        "conversationMessages": "[data-testid='conversation-panel-messages']",
+        "postContainer": "[data-testid^='conv-msg-']",
+        "messageContainer": "[data-testid='msg-container']",
+        "copyableText": ".copyable-text[data-pre-plain-text]",
+        "messageText": "[data-testid*='selectable-text']",
+        "mediaImage": "img[src]",
+        "mediaVideo": "video, video source, [data-testid='video-content'] [style*='background-image'], [data-testid='msg-video'] [style*='background-image']",
+        "observerFilter": {
+            "attributes": false,
+            "childList": true,
+            "subtree": true
+        }
+    },
+    "telegram": {
+        "conversationMessages": ".MessageList .messages-container",
+        "postContainer": ".Message",
+        "messageText": ".text-content",
+        "mediaImage": "img.media-photo, img.full-media, canvas.thumbnail.shown",
+        "mediaVideo": "video.full-media, video",
+        "userAvatar": ".Avatar__media",
+        "userDisplayName": ".fullName",
+        "postTimestamp": ".message-time",
+        "observerFilter": {
+            "attributes": false,
+            "childList": true,
+            "subtree": true
+        }
+    },
+    "truthsocial": {
+        "appRoot": "#root",
+        "postContainer": "[data-testid=\"status\"]",
+        "postText": "[data-testid=\"status-content\"] [data-testid=\"markup\"]",
+        "postImage": "img",
+        "videoPlayer": "video",
+        "metricsReply": null,
+        "metricsRepost": null,
+        "metricsLike": null,
+        "postTimestamp": "a[href*=\"/posts/\"] time",
+        "userDisplayName": "[data-testid=\"account\"] p.truncate",
+        "userHandle": "[data-testid=\"account\"] a[href^=\"/@\"]",
+        "userAvatar": "[data-testid=\"account\"] img[alt=\"Avatar\"]",
+        "observerFilter": {
+            "attributes": false,
+            "childList": true,
+            "subtree": true
+        }
+    },
+    "linkedin": {
+        "appRoot": "#root",
+        "postContainer": "[data-testid=\"mainFeed\"] [role=\"listitem\"]",
+        "postText": "[data-testid=\"expandable-text-box\"]",
+        "postImage": "img[alt=\"View image\"]",
+        "videoPlayer": "video",
+        "metricsReply": null,
+        "metricsRepost": null,
+        "metricsLike": null,
+        "postTimestamp": null,
+        "userDisplayName": "section[componentkey*='Topcard'] h2",
+        "userHeadline": "section[componentkey*='Topcard'] p.d8d5bbbc._2f6a5622",
+        "userLocation": "section[componentkey*='Topcard'] p.bab73015._98cb9b8f",
+        "userFollowers": "a[href*='followers'] p",
+        "userConnections": "a[href*='connections'] p",
+        "userAvatar": "section[componentkey*='Topcard'] figure img._17236dac:not([alt='Cover photo'])[fetchpriority='high']",
+        "userHandle": "a[href*='/in/'][tabindex='0']:not([componentkey])",
+        "observerFilter": {
+            "attributes": false,
+            "childList": true,
+            "subtree": true
+        },
+        "userBanner": "section[componentkey*='Topcard'] figure img._17236dac[alt='Cover photo']"
     }
-  },
-  "instagram": {
-    "reactRoot": "#react-root",
-    "postContainer": "article",
-    "postLink": "a[href*='/p/'], a[href*='/reel/']",
-    "userLink": "a[href]",
-    "userAvatar": "header img[alt]",
-    "userBanner": null,
-    "observerFilter": {
-      "attributes": false,
-      "childList": true,
-      "subtree": true
-    }
-  },
-  "bluesky": {
-    "appRoot": "#root",
-    "postContainer": "[data-testid*=\"feedItem\"], [data-testid*=\"postThreadItem\"]",
-    "postText": "[data-testid=\"postText\"]",
-    "postImage": "img[src*=\"cdn.bsky.app\"]",
-    "videoPlayer": "video",
-    "metricsReply": "[data-testid=\"replyBtn\"]",
-    "metricsRepost": "[data-testid=\"repostBtn\"]",
-    "metricsLike": "[data-testid=\"likeBtn\"], [data-testid=\"unlikeBtn\"]",
-    "postTimestamp": "a[href*=\"/post/\"]",
-    "userDisplayName": "[data-testid=\"profileHeaderDisplayName\"]",
-    "userHandle": "[data-testid=\"profileHeaderHandle\"]",
-    "userAvatar": "div[aria-label*=\"'s avatar\"] img",
-    "userBanner": "div[aria-label=\"View profile banner\"] img",
-    "userBio": "[data-testid=\"profileHeaderDescription\"]",
-    "userFollowers": "[data-testid=\"profileHeaderFollowersButton\"]",
-    "userFollowing": "[data-testid=\"profileHeaderFollowsButton\"]",
-    "observerFilter": {
-      "attributes": false,
-      "childList": true,
-      "subtree": true
-    }
-  },
-  "whatsapp": {
-    "conversationMessages": "[data-testid='conversation-panel-messages']",
-    "postContainer": "[data-testid^='conv-msg-']",
-    "messageContainer": "[data-testid='msg-container']",
-    "copyableText": ".copyable-text[data-pre-plain-text]",
-    "messageText": "[data-testid*='selectable-text']",
-    "mediaImage": "img[src]",
-    "mediaVideo": "video, video source, [data-testid='video-content'] [style*='background-image'], [data-testid='msg-video'] [style*='background-image']",
-    "observerFilter": {
-      "attributes": false,
-      "childList": true,
-      "subtree": true
-    }
-  },
-  "telegram": {
-    "conversationMessages": ".MessageList .messages-container",
-    "postContainer": ".Message",
-    "messageText": ".text-content",
-    "mediaImage": "img.media-photo, img.full-media, canvas.thumbnail.shown",
-    "mediaVideo": "video.full-media, video",
-    "userAvatar": ".Avatar__media",
-    "userDisplayName": ".fullName",
-    "postTimestamp": ".message-time",
-    "observerFilter": {
-      "attributes": false,
-      "childList": true,
-      "subtree": true
-    }
-  },
-  "truthsocial": {
-    "appRoot": "#root",
-    "postContainer": "[data-testid=\"status\"]",
-    "postText": "[data-testid=\"status-content\"] [data-testid=\"markup\"]",
-    "postImage": "img",
-    "videoPlayer": "video",
-    "metricsReply": null,
-    "metricsRepost": null,
-    "metricsLike": null,
-    "postTimestamp": "a[href*=\"/posts/\"] time",
-    "userDisplayName": "[data-testid=\"account\"] p.truncate",
-    "userHandle": "[data-testid=\"account\"] a[href^=\"/@\"]",
-    "userAvatar": "[data-testid=\"account\"] img[alt=\"Avatar\"]",
-    "observerFilter": {
-      "attributes": false,
-      "childList": true,
-      "subtree": true
-    }
-  }
 }

@@ -1,0 +1,52 @@
+{
+  "x": {
+    "shared": {
+      "appRoot": "#doc",
+      "observerFilter": {
+        "attributes": true,
+        "childList": true,
+        "subtree": true,
+        "attributeFilter": [
+          "role"
+        ]
+      }
+    },
+    "account": {
+      "userDisplayName": ".ProfileTweet-fullname",
+      "userHandle": ".ProfileTweet-screenname",
+      "userAvatar": "img.ProfileTweet-avatar",
+      "userProfileAvatar": ".ProfileAvatar-image",
+      "userProfileSchema": "script[data-testid=\"UserProfileSchema-test\"]",
+      "userBanner": null,
+      "userBio": "p.ProfileHeaderCard-bio",
+      "userHeadline": null,
+      "userVerified": ".Icon--verified",
+      "userFollowers": "a[data-nav='followers']",
+      "userFollowing": "a[data-nav='following']",
+      "userConnections": null,
+      "userLocation": ".ProfileHeaderCard-locationText",
+      "userJoinDate": ".ProfileHeaderCard-joinDateText",
+      "userUrl": ".ProfileHeaderCard-urlText a",
+      "userLink": null
+    },
+    "post": {
+      "postContainer": "div.ProfileTweet",
+      "postText": "p.ProfileTweet-text",
+      "postImage": ".TwitterPhoto-mediaSource, .TwitterMultiPhoto-image img",
+      "postVideo": ".card2 iframe",
+      "postTimestamp": "a.ProfileTweet-timestamp > .js-short-timestamp",
+      "postLink": null,
+      "cardWrapper": ".ProfileTweet-contextualLink",
+      "conversationMessages": null,
+      "messageContainer": null,
+      "copyableText": null,
+      "metricsReply": "Reply",
+      "metricsRepost": "Retweet",
+      "metricsLike": "Favorite",
+      "metricsBookmark": null,
+      "metricsViews": null,
+      "metricsQuote": null,
+      "metricsViewsPattern": "views?"
+    }
+  }
+}

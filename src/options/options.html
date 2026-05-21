@@ -6,10 +6,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../dep/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="../dep/easymde.min.css">
   <link rel="stylesheet" href="options.css">
   <script src="../dep/jquery.min.js"></script>
   <script src="../dep/bootstrap.min.js"></script>
   <script src="../dep/analytics.js"></script>
+  <script src="../dep/marked.min.js"></script>
+  <script src="../dep/easymde.min.js"></script>
   <title>Social Annotate · Options</title>
 </head>
 
@@ -44,6 +48,22 @@
             <span class="field-hint">URL for automatic POST requests on submission</span>
           </label>
           <input type="text" class="field-input" id="api-endpoint" placeholder="e.g. http://127.0.0.1:5000/response">
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-title">Informed Consent</div>
+        <div class="field-group">
+          <label class="field-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="consent-enabled" style="width: 18px; height: 18px;"> Enable Informed Consent Popup
+          </label>
+        </div>
+        <div class="field-group" style="margin-top:16px;">
+          <label class="field-label" for="consent-text">
+            Consent Form Text
+            <span class="field-hint">Use <code>{platform}</code> as a placeholder for the platform name. Supports HTML tags.</span>
+          </label>
+          <textarea class="field-textarea" id="consent-text" rows="8" spellcheck="false"></textarea>
         </div>
       </section>
 

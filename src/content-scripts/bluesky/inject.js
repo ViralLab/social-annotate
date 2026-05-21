@@ -328,21 +328,21 @@ function extractPostMetrics(postNode) {
 }
 
 function extractPostDetails(postNode) {
-    // Bluesky post URLs look like: /profile/handle.bsky.social/post/POST_ID
-    // Try to find a link to the post within the node
+    // Tier 1: explicit timestamp/post anchor
     let postLink = postNode.querySelector(SEL_BS.postTimestamp || 'a[href*="/post/"]');
-    if (!postLink || !postLink.href) {
-        return null;
+    if (postLink && postLink.href) {
+        let match = postLink.href.match(/\/profile\/([^/]+)\/post\/([^/?#]+)/);
+        if (match) return { postOwner: match[1], postID: match[2] };
     }
 
-    let href = postLink.href;
-    let match = href.match(/\/profile\/([^/]+)\/post\/([^/?#]+)/);
-    if (!match) return null;
+    // Tier 2: anchor-scan — any link matching /profile/.../post/...
+    let anchors = postNode.querySelectorAll('a[href]');
+    for (let a of anchors) {
+        let match = (a.href || '').match(/\/profile\/([^/]+)\/post\/([^/?#]+)/);
+        if (match) return { postOwner: match[1], postID: match[2] };
+    }
 
-    return {
-        postOwner: match[1],
-        postID: match[2]
-    };
+    return null;
 }
 
 function injectBlueskyPostSurvey(injectNode, postID) {

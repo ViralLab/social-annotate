@@ -583,3 +583,37 @@ html, body {
 }
 .modal-actions { display: flex; gap: 10px; justify-content: center; }
 .modal-actions .btn { min-width: 120px; justify-content: center; }
+
+/* ── EasyMDE Theme Integration ──────────────────────────── */
+.editor-toolbar {
+  background: var(--input-bg) !important;
+  border-color: var(--input-border) !important;
+}
+.editor-toolbar > button {
+  color: var(--text-secondary) !important;
+}
+.editor-toolbar > button:hover,
+.editor-toolbar > button.active {
+  background: var(--card-bg) !important;
+  border-color: var(--card-border) !important;
+  color: var(--text-primary) !important;
+}
+.editor-toolbar i.separator {
+  border-left: 1px solid var(--input-border) !important;
+  border-right: none !important;
+}
+.CodeMirror {
+  background: var(--input-bg) !important;
+  border-color: var(--input-border) !important;
+  color: var(--text-primary) !important;
+}
+.CodeMirror-cursor {
+  border-left: 1px solid var(--text-primary) !important;
+}
+.editor-preview, .editor-preview-side {
+  background: var(--bg) !important;
+  color: var(--text-primary) !important;
+}
+.editor-statusbar {
+  color: var(--text-muted) !important;
+}

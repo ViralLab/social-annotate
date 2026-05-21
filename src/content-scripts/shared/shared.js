@@ -231,13 +231,159 @@ class Context {
             }, '*');
         };
 
-        // If the iframe's onload already fired while we were waiting for storage, send immediately.
-        if (iframe.dataset.loaded === 'true') {
-            sendRenderMsg();
-        } else {
-            // Otherwise wait for it
-            iframe.addEventListener('load', sendRenderMsg);
-        }
+        let platform = this.name.split('-')[0];
+        chrome.storage.local.get(['config', 'consentGiven_' + platform], (res) => {
+            let consentRequired = res && res.config && res.config.informedConsent && res.config.informedConsent.enabled;
+            let consentText = consentRequired ? (res.config.informedConsent.html || res.config.informedConsent.text) : "";
+            consentText = consentText.replace(/{platform}/g, platform.charAt(0).toUpperCase() + platform.slice(1));
+            let hasConsent = res['consentGiven_' + platform];
+
+            let proceed = () => {
+                // If the iframe's onload already fired while we were waiting for storage, send immediately.
+                if (iframe.dataset.loaded === 'true') {
+                    sendRenderMsg();
+                } else {
+                    // Otherwise wait for it
+                    iframe.addEventListener('load', sendRenderMsg);
+                }
+            };
+
+            if (consentRequired && !hasConsent) {
+                if (!document.getElementById('sa-global-consent')) {
+                    let overlay = document.createElement('div');
+                    overlay.id = 'sa-global-consent';
+                    overlay.style.position = 'fixed';
+                    overlay.style.top = '0';
+                    overlay.style.left = '0';
+                    overlay.style.width = '100vw';
+                    overlay.style.height = '100vh';
+                    overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.65)';
+                    overlay.style.backdropFilter = 'blur(10px)';
+                    overlay.style.webkitBackdropFilter = 'blur(10px)';
+                    overlay.style.zIndex = '999999';
+                    overlay.style.display = 'flex';
+                    overlay.style.alignItems = 'center';
+                    overlay.style.justifyContent = 'center';
+                    overlay.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+
+                    if (!document.getElementById('sa-consent-styles')) {
+                        let style = document.createElement('style');
+                        style.id = 'sa-consent-styles';
+                        style.innerHTML = `
+                            .sa-consent-content h1, .sa-consent-content h2, .sa-consent-content h3 {
+                                margin: 0 0 16px 0; font-weight: 700; line-height: 1.3;
+                            }
+                            .sa-consent-content h3 { font-size: 22px; }
+                            .sa-consent-content p { margin: 0 0 16px 0; line-height: 1.6; }
+                            .sa-consent-content b, .sa-consent-content strong { font-weight: 600; }
+                            .sa-consent-checkbox-wrap {
+                                padding: 16px; background: rgba(128, 128, 128, 0.1);
+                                border-radius: 8px; margin-top: 24px; display: flex; align-items: center;
+                                border: 1px solid rgba(128, 128, 128, 0.2);
+                            }
+                            .sa-btn-approve {
+                                padding: 14px 28px; background: #657786; color: #fff; border: none;
+                                border-radius: 9999px; cursor: not-allowed; font-weight: bold;
+                                font-size: 16px; transition: all 0.2s ease;
+                            }
+                            .sa-btn-approve.active {
+                                background: #00BA7C; cursor: pointer; box-shadow: 0 4px 12px rgba(0,186,124,0.3);
+                            }
+                            .sa-btn-approve.active:hover { background: #00a06b; transform: translateY(-1px); }
+                        `;
+                        document.head.appendChild(style);
+                    }
+
+                    let consentDiv = document.createElement('div');
+                    consentDiv.className = 'consent-container';
+                    consentDiv.style.padding = '40px';
+                    consentDiv.style.maxWidth = '640px';
+                    consentDiv.style.maxHeight = '85vh';
+                    consentDiv.style.overflowY = 'auto';
+                    consentDiv.style.textAlign = 'left';
+                    consentDiv.style.color = freshTheme === 'dark' ? '#E7E9EA' : '#0F1419';
+                    consentDiv.style.background = freshTheme === 'dark' ? '#15202B' : '#FFFFFF';
+                    consentDiv.style.border = '1px solid ' + (freshTheme === 'dark' ? '#38444D' : '#EFF3F4');
+                    consentDiv.style.borderRadius = '16px';
+                    consentDiv.style.fontSize = '15px';
+                    consentDiv.style.boxShadow = '0 20px 50px rgba(0,0,0,0.5)';
+
+                    let textP = document.createElement('div');
+                    textP.className = 'sa-consent-content';
+                    textP.innerHTML = consentText;
+                    consentDiv.appendChild(textP);
+
+                    let checkboxDiv = document.createElement('div');
+                    checkboxDiv.className = 'sa-consent-checkbox-wrap';
+                    
+                    let checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.id = 'sa-consent-checkbox';
+                    checkbox.style.margin = '0 12px 0 0';
+                    checkbox.style.width = '20px';
+                    checkbox.style.height = '20px';
+                    checkbox.style.cursor = 'pointer';
+                    checkbox.style.accentColor = '#00BA7C';
+                    checkbox.style.flexShrink = '0';
+
+                    let label = document.createElement('label');
+                    label.htmlFor = 'sa-consent-checkbox';
+                    label.innerText = 'I have read the informed consent and agree to participate.';
+                    label.style.cursor = 'pointer';
+                    label.style.fontWeight = '600';
+                    label.style.fontSize = '14px';
+                    label.style.margin = '0';
+                    label.style.lineHeight = '1.2';
+                    label.style.display = 'block';
+
+                    checkboxDiv.appendChild(checkbox);
+                    checkboxDiv.appendChild(label);
+                    consentDiv.appendChild(checkboxDiv);
+
+                    let actionDiv = document.createElement('div');
+                    actionDiv.style.textAlign = 'center';
+                    actionDiv.style.marginTop = '30px';
+
+                    let approveBtn = document.createElement('button');
+                    approveBtn.innerText = 'Approve';
+                    approveBtn.className = 'sa-btn-approve';
+                    approveBtn.disabled = true;
+
+                    checkbox.addEventListener('change', (e) => {
+                        if (e.target.checked) {
+                            approveBtn.disabled = false;
+                            approveBtn.classList.add('active');
+                        } else {
+                            approveBtn.disabled = true;
+                            approveBtn.classList.remove('active');
+                        }
+                    });
+
+                    approveBtn.onclick = () => {
+                        if (!checkbox.checked) return;
+                        let consentData = {
+                            timestamp: Math.floor(Date.now() / 1000),
+                            userAgent: navigator.userAgent
+                        };
+                        let toSave = {};
+                        toSave['consentGiven_' + platform] = consentData;
+                        chrome.storage.local.set(toSave, () => {
+                            window.location.reload();
+                        });
+                    };
+                    actionDiv.appendChild(approveBtn);
+                    consentDiv.appendChild(actionDiv);
+                    overlay.appendChild(consentDiv);
+
+                    document.body.appendChild(overlay);
+                }
+                
+                // Hide the iframe since consent is not given yet.
+                iframe.style.display = 'none';
+            } else {
+                proceed();
+            }
+        });
 
         // Insert notification container before iframe.
         let nc = notificationContainer.cloneNode(true);

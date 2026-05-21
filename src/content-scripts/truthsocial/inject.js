@@ -243,14 +243,14 @@ function extractPostDetails(postNode) {
     if (!postLink) {
         postLink = postNode.querySelector('a[href*="/posts/"]');
     }
-    
+
     let href = "";
     if (postLink && postLink.href) {
         href = postLink.href;
     } else if (postLink && postLink.closest('a')) {
         href = postLink.closest('a').href;
     }
-    
+
     let postID = "";
     let postOwner = "";
     if (href) {
@@ -260,7 +260,16 @@ function extractPostDetails(postNode) {
             postID = match[2];
         }
     }
-    
+
+    // Tier 2: anchor-scan if specific selectors produced nothing
+    if (!postID) {
+        let anchors = postNode.querySelectorAll('a[href]');
+        for (let a of anchors) {
+            let match = (a.href || '').match(/\/@([^/]+)\/posts\/([^/?#]+)/);
+            if (match) { postOwner = match[1]; postID = match[2]; break; }
+        }
+    }
+
     if (!postID && postNode.id && postNode.id.startsWith("status-")) {
         postID = postNode.id.replace("status-", "");
     }

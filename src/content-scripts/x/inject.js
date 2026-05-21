@@ -474,18 +474,26 @@ function extractTweetMetrics(articleNode) {
 }
 
 function extractTweetDetails(articleNode) {
+    let href = null;
+
+    // Tier 1: timestamp anchor — time element's parent is the permalink
     let timeElement = articleNode.querySelector(SEL.postTimestamp || "time");
-    if (!timeElement || !timeElement.parentNode || !timeElement.parentNode.href) {
-        return null; // Ignore ads, sponsored posts, or unrendered skeleton nodes.
+    if (timeElement && timeElement.parentNode && timeElement.parentNode.href) {
+        href = timeElement.parentNode.href;
     }
 
-    let href = timeElement.parentNode.href;
+    // Tier 2: anchor-scan — any a[href*="/status/"] that wraps a <time> child
+    // (avoids quoted-tweet false matches which lack a nested time element)
+    if (!href) {
+        let anchors = articleNode.querySelectorAll('a[href*="/status/"]');
+        for (let a of anchors) {
+            if (a.querySelector('time')) { href = a.href; break; }
+        }
+    }
+
+    if (!href) return null;
 
     // Prefer explicit status URL parsing, including archive-wrapped links.
-    // Examples handled:
-    // - https://twitter.com/user/status/1234567890
-    // - https://x.com/user/status/1234567890
-    // - https://web.archive.org/.../https://twitter.com/user/status/1234567890
     let statusMatch = href.match(/(?:https?:\/\/)?(?:x|twitter)\.com\/([^\/?#]+)\/status\/(\d+)/i);
     if (statusMatch) {
         return {

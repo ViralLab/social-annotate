@@ -44,6 +44,8 @@ loadPage();
 let cardModes = {};
 // Monotonic counter for unique field IDs
 let fieldIdCounter = 0;
+// Global instance for the Markdown editor
+let consentMDE = null;
 
 // ── Load ──────────────────────────────────────────────────
 function loadPage() {
@@ -55,6 +57,30 @@ function loadPage() {
         }
         const apiEl = document.getElementById('api-endpoint');
         if (apiEl) apiEl.value = result.config.apiEndpoint || '';
+
+        const consentEnabledEl = document.getElementById('consent-enabled');
+        const consentTextEl = document.getElementById('consent-text');
+        if (result.config.informedConsent) {
+            if (consentEnabledEl) consentEnabledEl.checked = !!result.config.informedConsent.enabled;
+            if (consentTextEl) consentTextEl.value = result.config.informedConsent.text || '';
+        }
+        if (!consentMDE && consentTextEl) {
+            consentMDE = new EasyMDE({
+                element: consentTextEl,
+                spellChecker: false,
+                status: false,
+                minHeight: '200px',
+                sideBySideFullscreen: false
+            });
+            // Delay the toggle slightly to ensure the editor is fully rendered
+            setTimeout(() => {
+                if (!consentMDE.isFullscreenActive() && !consentMDE.isSideBySideActive()) {
+                    consentMDE.toggleSideBySide();
+                }
+            }, 50);
+        } else if (consentMDE && result.config.informedConsent) {
+            consentMDE.value(result.config.informedConsent.text || '');
+        }
 
         let html = '';
         for (let key in result.config.surveys) {
@@ -729,6 +755,15 @@ function saveOptionsPage() {
     chrome.storage.local.get(['config'], function (result) {
         let configData = result.config;
         configData.apiEndpoint = document.getElementById('api-endpoint').value;
+
+        const consentEnabledEl = document.getElementById('consent-enabled');
+        if (!configData.informedConsent) configData.informedConsent = {};
+        if (consentEnabledEl) configData.informedConsent.enabled = consentEnabledEl.checked;
+        if (consentMDE) {
+            let mdText = consentMDE.value();
+            configData.informedConsent.text = mdText;
+            configData.informedConsent.html = marked.parse(mdText);
+        }
 
         for (let key in configData.surveys) {
             let survey = configData.surveys[key];

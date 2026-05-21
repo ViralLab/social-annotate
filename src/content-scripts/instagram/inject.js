@@ -133,9 +133,22 @@ function checkUserURL() {
 }
 
 function extractInstagramPostDetails(articleNode) {
+    // Tier 1: specific post link selector
     let postLinkEl = articleNode.querySelector(SEL_IG.postLink || "a[href*='/p/'], a[href*='/reel/']");
+
+    // Tier 2: anchor-scan if specific selector returned nothing
+    if (!postLinkEl) {
+        let anchors = articleNode.querySelectorAll('a[href]');
+        for (let a of anchors) {
+            if (/\/(?:p|reel)\/[^/?#]+/.test(a.getAttribute('href') || '')) {
+                postLinkEl = a;
+                break;
+            }
+        }
+    }
+
     let userLinkEls = articleNode.querySelectorAll(SEL_IG.userLink || "a[href]");
-    
+
     if (!postLinkEl || !userLinkEls || userLinkEls.length === 0) return null;
     
     let postHref = postLinkEl.getAttribute('href') || '';

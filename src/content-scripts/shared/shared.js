@@ -23,7 +23,7 @@ function getCurrentScreenName(platform) {
 }
 
 const metadataSchemes = {
-    "initTimestamp": {
+    "survey_init_timestamp": {
         "type": "number",
         "title": "Initial Timestamp",
         "default": 0
@@ -42,7 +42,7 @@ const metadataSchemes = {
 
 const metadataForms = [
     {
-        "key": "initTimestamp",
+        "key": "survey_init_timestamp",
         "type": "hidden",
         "activeClass": "btn-success"
     },
@@ -151,14 +151,14 @@ class Context {
                 templateCopy.schema[key] = metadataSchemes[key];
             }
         }
-        let hasHidden = templateCopy.form.some(item => item.key === 'initTimestamp');
+        let hasHidden = templateCopy.form.some(item => item.key === 'survey_init_timestamp');
         if (!hasHidden) {
             for (let item of metadataForms) {
                 templateCopy.form.splice(templateCopy.form.length - 1, 0, item);
             }
         }
         // Fill in the metadata field defaults.
-        templateCopy.schema["initTimestamp"].default = Math.floor(Date.now() / 1000);
+        templateCopy.schema["survey_init_timestamp"].default = Math.floor(Date.now() / 1000);
         templateCopy.schema["account_id"].default = userID;
 
         let formName = 'surveyFormContainer';
@@ -272,7 +272,7 @@ failureSpan.style.padding = "5px 15px";
 
 function storeResults(surveyResults, socialMediaPlatform) {
     if (!isExtensionContextValid()) { console.debug('[SocialAnnotate] Extension context invalidated, skipping storeResults.'); return; }
-    surveyResults.postTimestamp = Math.floor(Date.now() / 1000);
+    surveyResults.submission_timestamp = Math.floor(Date.now() / 1000);
 
     let apiSuccess = true;
     try {

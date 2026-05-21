@@ -131,7 +131,7 @@ function parseUserFromPrePlainText(prePlainText) {
 }
 
 function extractMessageText(messageNode) {
-    const textNodes = messageNode.querySelectorAll(SEL_WA.messageText || "[data-testid='selectable-text']");
+    const textNodes = messageNode.querySelectorAll(SEL_WA.postText || "[data-testid='selectable-text']");
     const chunks = [];
     textNodes.forEach(node => {
         const text = (node.textContent || '').trim();
@@ -143,7 +143,7 @@ function extractMessageText(messageNode) {
 function extractMessageMedia(messageNode) {
     const mediaUrls = [];
 
-    const imageSelector = SEL_WA.mediaImage || 'img[src]';
+    const imageSelector = SEL_WA.postImage || 'img[src]';
     messageNode.querySelectorAll(imageSelector).forEach(img => {
         const src = img.getAttribute('src') || '';
         if (!src) return;
@@ -152,7 +152,7 @@ function extractMessageMedia(messageNode) {
     });
 
     let isVideoPost = false;
-    const videoSelector = SEL_WA.mediaVideo || 'video, video source, [data-testid="video-content"] [style*="background-image"], [data-testid="msg-video"] [style*="background-image"]';
+    const videoSelector = SEL_WA.postVideo || 'video, video source, [data-testid="video-content"] [style*="background-image"], [data-testid="msg-video"] [style*="background-image"]';
     messageNode.querySelectorAll(videoSelector).forEach(videoLike => {
         isVideoPost = true;
         let src = videoLike.getAttribute('src') || '';
@@ -191,8 +191,8 @@ function extractWhatsAppMetrics(messageNode) {
         return parseInt(str, 10) || 0;
     };
 
-    if (SEL_WA.metricsReactions) {
-        let el = messageNode.querySelector(SEL_WA.metricsReactions);
+    if (SEL_WA.metricsLike) {
+        let el = messageNode.querySelector(SEL_WA.metricsLike);
         if (el) metrics.like_count = parseShortNumber(el.innerText || el.textContent);
     }
 
@@ -227,7 +227,7 @@ function extractMessageDetails(messageNode) {
         timestamp = m[1];
     } else {
         // Fallback: Look for postAuthorTime (usually just the time, no date)
-        let timeNode = messageNode.querySelector(SEL_WA.postAuthorTime || '[data-testid="msg-meta"] span[dir="auto"]');
+        let timeNode = messageNode.querySelector(SEL_WA.postTimestamp || '[data-testid="msg-meta"] span[dir="auto"]');
         if (timeNode) {
             timestamp = timeNode.innerText || timeNode.textContent || '';
         }
@@ -316,7 +316,8 @@ function enableWhatsAppObserver() {
 
 function initializeSurveys() {
     chrome.storage.local.get(['config', 'isEnabled', 'selectors'], function (result) {
-        SEL_WA = (result.selectors && result.selectors.whatsapp) ? result.selectors.whatsapp : {};
+        const _rawWA = (result.selectors && result.selectors.whatsapp) ? result.selectors.whatsapp : {};
+        SEL_WA = { ...(_rawWA.shared || {}), ...(_rawWA.account || {}), ...(_rawWA.post || {}) };
 
         waMessagesRoot = document.querySelector(SEL_WA.conversationMessages || "[data-testid='conversation-panel-messages']") || document.body;
         waObserverConfig = SEL_WA.observerFilter || { attributes: false, childList: true, subtree: true };

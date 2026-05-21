@@ -129,7 +129,7 @@ window.addEventListener('message', function (event) {
 
         // Check if any text/number/select field has a value
         formEl.find('input[type="text"], input[type="number"], select, textarea').each(function() {
-            // Specifically exclude hidden generated fields like initTimestamp or userID
+            // Specifically exclude hidden generated fields like survey_init_timestamp or account_id
             if ($(this).attr('type') !== 'hidden' && $(this).val() !== '') {
                 hasValue = true;
             }

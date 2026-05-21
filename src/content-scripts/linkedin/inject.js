@@ -173,7 +173,7 @@ function extractPostMedia(postNode) {
         }
     });
 
-    let videos = postNode.querySelectorAll(SEL_LI.videoPlayer || 'video');
+    let videos = postNode.querySelectorAll(SEL_LI.postVideo || 'video');
     videos.forEach(video => {
         let src = null;
         let mp4Source = video.querySelector('source');
@@ -374,7 +374,8 @@ function injectLinkedInPostSurvey(injectNode, postID) {
 function initializeSurveys() {
     if (!isExtensionContextValid()) return;
     chrome.storage.local.get(['config', 'isEnabled', 'activeTargetList', 'clientID', 'isGuided', 'selectors'], function (result) {
-        SEL_LI = (result.selectors && result.selectors.linkedin) ? result.selectors.linkedin : {};
+        const _rawLI = (result.selectors && result.selectors.linkedin) ? result.selectors.linkedin : {};
+        SEL_LI = { ...(_rawLI.shared || {}), ...(_rawLI.account || {}), ...(_rawLI.post || {}) };
 
         liRoot = document.getElementById('root') || document.querySelector(SEL_LI.appRoot || '#root') || document.body;
         obsConfigLI = SEL_LI.observerFilter || { attributes: false, childList: true, subtree: true };

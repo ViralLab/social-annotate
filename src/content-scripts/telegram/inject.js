@@ -81,7 +81,7 @@ function fetchVideoFromMainWorld(url) {
 //   5. __latest__ fallback (last seen src from any message)
 // ---------------------------------------------------------------------------
 function resolveVideoSrcForMessage(messageNode) {
-    const videoSelector = SEL_TG.mediaVideo || 'video.full-media, video';
+    const videoSelector = SEL_TG.postVideo || 'video.full-media, video';
 
     // 1. Live DOM video element — freshest possible source
     for (const vid of messageNode.querySelectorAll(videoSelector)) {
@@ -209,7 +209,7 @@ window.addEventListener('mh:download-request', async function (e) {
 // ---------------------------------------------------------------------------
 function extractMessageImages(messageNode) {
     const urls = [];
-    const imageSelector = SEL_TG.mediaImage || 'img.media-photo, img.full-media, canvas.thumbnail.shown';
+    const imageSelector = SEL_TG.postImage || 'img.media-photo, img.full-media, canvas.thumbnail.shown';
 
     messageNode.querySelectorAll(imageSelector).forEach(el => {
         if (el.tagName.toLowerCase() === 'canvas') {
@@ -245,7 +245,7 @@ function extractMessageMedia(messageNode) {
 }
 
 function extractMessageText(messageNode) {
-    const textNodes = messageNode.querySelectorAll(SEL_TG.messageText || '.text-content');
+    const textNodes = messageNode.querySelectorAll(SEL_TG.postText || '.text-content');
     const chunks = [];
     textNodes.forEach(node => {
         const text = (node.textContent || '').trim();
@@ -270,12 +270,12 @@ function extractTelegramMetrics(messageNode) {
         let el = messageNode.querySelector(SEL_TG.metricsViews);
         if (el) metrics.view_count = parseShortNumber(el.innerText || el.textContent);
     }
-    if (SEL_TG.metricsForwards) {
-        let el = messageNode.querySelector(SEL_TG.metricsForwards);
+    if (SEL_TG.metricsRepost) {
+        let el = messageNode.querySelector(SEL_TG.metricsRepost);
         if (el) metrics.share_count = parseShortNumber(el.innerText || el.textContent);
     }
-    if (SEL_TG.metricsReactions) {
-        let el = messageNode.querySelector(SEL_TG.metricsReactions);
+    if (SEL_TG.metricsLike) {
+        let el = messageNode.querySelector(SEL_TG.metricsLike);
         if (el) metrics.like_count = parseShortNumber(el.innerText || el.textContent);
     }
 
@@ -393,7 +393,8 @@ function enableTelegramObserver() {
 
 function initializeSurveys() {
     chrome.storage.local.get(['config', 'isEnabled', 'selectors'], function (result) {
-        SEL_TG = (result.selectors && result.selectors.telegram) ? result.selectors.telegram : {};
+        const _rawTG = (result.selectors && result.selectors.telegram) ? result.selectors.telegram : {};
+        SEL_TG = { ...(_rawTG.shared || {}), ...(_rawTG.account || {}), ...(_rawTG.post || {}) };
 
         tgMessagesRoot = document.querySelector(
             SEL_TG.conversationMessages || '.MessageList .messages-container'

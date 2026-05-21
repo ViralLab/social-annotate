@@ -74,7 +74,7 @@ function processArticleNode(articleNode) {
                     body: () => extractTweetTextContent(insertElement),
                     media_urls: () => extractTweetMedia(insertElement),
                     post_metrics: () => extractTweetMetrics(insertElement),
-                    created_at: () => { let t = insertElement.querySelector(SEL.tweetTimestamp || 'time'); return t ? (t.getAttribute('datetime') || t.dateTime || null) : null; }
+                    created_at: () => { let t = insertElement.querySelector(SEL.postTimestamp || 'time'); return t ? (t.getAttribute('datetime') || t.dateTime || null) : null; }
                 }
             );
         }
@@ -90,7 +90,7 @@ function createObserver() {
                         if (node.getAttribute('role') === 'article') {
                             processArticleNode(node);
                         } else {
-                            let articles = node.querySelectorAll(SEL.tweetContainer || 'article[role="article"]');
+                            let articles = node.querySelectorAll(SEL.postContainer || 'article[role="article"]');
                             articles.forEach(processArticleNode);
                         }
                     }
@@ -308,14 +308,14 @@ function injectTwitterUserSurvey(injectElement, userID) {
 `;
 
     // Inject the survey before the react root.
-    let fixedBar = document.querySelector(SEL.reactRoot || '#react-root');
+    let fixedBar = document.querySelector(SEL.appRoot || '#react-root');
     if (fixedBar) {
         fixedBar.insertAdjacentElement('beforebegin', surveyContainer);
     }
 }
 
 function enableTweetObserver(injectElement) {
-    document.querySelectorAll(SEL.tweetContainer || 'article[role="article"]').forEach(processArticleNode);
+    document.querySelectorAll(SEL.postContainer || 'article[role="article"]').forEach(processArticleNode);
     if (reactRoot && observer) {
         observer.observe(reactRoot, obsConfig);
     }
@@ -331,13 +331,13 @@ function extractTweetMedia(articleNode) {
     }
 
     // Extract standard high-res image sources
-    let photos = articleNode.querySelectorAll(SEL.tweetPhoto || '[data-testid="tweetPhoto"] img');
+    let photos = articleNode.querySelectorAll(SEL.postImage || '[data-testid="tweetPhoto"] img');
     photos.forEach(img => {
         if (img.src) mediaUrls.push(img.src);
     });
 
     // Extract videos (attempt to grab raw MP4 source first, fallback to thumbnail if stream is encrypted blob)
-    let videos = articleNode.querySelectorAll(SEL.videoPlayer || '[data-testid="videoPlayer"] video');
+    let videos = articleNode.querySelectorAll(SEL.postVideo || '[data-testid="videoPlayer"] video');
     videos.forEach(video => {
         let mp4Source = video.querySelector('source');
         if (mp4Source && mp4Source.src && !mp4Source.src.startsWith('blob:')) {
@@ -356,7 +356,7 @@ function extractTweetTextContent(articleNode) {
     let tweetTextParts = [];
 
     // Grab all tweet text blocks natively
-    let textNodes = articleNode.querySelectorAll(SEL.tweetText || '[data-testid="tweetText"]');
+    let textNodes = articleNode.querySelectorAll(SEL.postText || '[data-testid="tweetText"]');
     textNodes.forEach(node => {
         if (node.innerText) tweetTextParts.push(node.innerText.trim());
     });
@@ -440,7 +440,7 @@ function extractTweetMetrics(articleNode) {
     };
 
     metrics.comment_count = extractFromAria(SEL.metricsReply || 'reply');
-    metrics.share_count = extractFromAria(SEL.metricsRetweet || 'retweet');
+    metrics.share_count = extractFromAria(SEL.metricsRepost || 'retweet');
     metrics.like_count = extractFromAria(SEL.metricsLike || 'like');
     metrics.bookmark_count = extractFromAria(SEL.metricsBookmark || 'bookmark');
     if (SEL.metricsQuote) metrics.quote_count = extractFromAria(SEL.metricsQuote);
@@ -471,7 +471,7 @@ function extractTweetMetrics(articleNode) {
 }
 
 function extractTweetDetails(articleNode) {
-    let timeElement = articleNode.querySelector(SEL.tweetTimestamp || "time");
+    let timeElement = articleNode.querySelector(SEL.postTimestamp || "time");
     if (!timeElement || !timeElement.parentNode || !timeElement.parentNode.href) {
         return null; // Ignore ads, sponsored posts, or unrendered skeleton nodes.
     }
@@ -535,10 +535,11 @@ function initializeSurveys() {
     chrome.storage.local.get(['config', 'isEnabled', 'activeTargetList', 'clientID', 'isGuided', 'selectors'], function (result) {
 
         // Load selectors into the module-level variable
-        SEL = (result.selectors && result.selectors.x) ? result.selectors.x : {};
+        const _rawX = (result.selectors && result.selectors.x) ? result.selectors.x : {};
+        SEL = { ...(_rawX.shared || {}), ...(_rawX.account || {}), ...(_rawX.post || {}) };
 
         // Initialize observer infrastructure now that selectors are available
-        reactRoot = document.querySelector(SEL.reactRoot || '#react-root');
+        reactRoot = document.querySelector(SEL.appRoot || '#react-root');
         obsConfig = SEL.observerFilter || { attributes: true, childList: true, subtree: true, attributeFilter: ['role'] };
         observer = createObserver();
 

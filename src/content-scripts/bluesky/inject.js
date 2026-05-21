@@ -252,7 +252,7 @@ function extractPostMedia(postNode) {
     });
 
     // Extract videos
-    let videos = postNode.querySelectorAll(SEL_BS.videoPlayer || 'video');
+    let videos = postNode.querySelectorAll(SEL_BS.postVideo || 'video');
     videos.forEach(video => {
         let src = null;
         let mp4Source = video.querySelector('source');
@@ -368,7 +368,8 @@ function initializeSurveys() {
     chrome.storage.local.get(['config', 'isEnabled', 'activeTargetList', 'clientID', 'isGuided', 'selectors'], function (result) {
 
         // Load selectors into the module-level variable
-        SEL_BS = (result.selectors && result.selectors.bluesky) ? result.selectors.bluesky : {};
+        const _rawBS = (result.selectors && result.selectors.bluesky) ? result.selectors.bluesky : {};
+        SEL_BS = { ...(_rawBS.shared || {}), ...(_rawBS.account || {}), ...(_rawBS.post || {}) };
 
         // Initialize observer infrastructure now that selectors are available
         bskyRoot = document.getElementById('root') || document.querySelector(SEL_BS.appRoot || '#root');

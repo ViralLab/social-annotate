@@ -108,7 +108,7 @@ function injectInstagramUserSurvey(injectElement, userID) {
     let barElementName = injectElement.name;
     let fixedBar = null;
     if (injectElement.type === "class") {
-        fixedBar = document.querySelector(SEL_IG.reactRoot || '#react-root');
+        fixedBar = document.querySelector(SEL_IG.appRoot || '#react-root');
     } else if (injectElement.type === "id") {
         fixedBar = document.getElementById(barElementName);
     }
@@ -233,12 +233,12 @@ function extractInstagramMetrics(articleNode) {
         let el = articleNode.querySelector(SEL_IG.metricsLike);
         if (el) metrics.like_count = parseShortNumber(el.innerText || el.textContent);
     }
-    if (SEL_IG.metricsComment) {
-        let el = articleNode.querySelector(SEL_IG.metricsComment);
+    if (SEL_IG.metricsReply) {
+        let el = articleNode.querySelector(SEL_IG.metricsReply);
         if (el) metrics.comment_count = parseShortNumber(el.innerText || el.textContent);
     }
-    if (SEL_IG.metricsView) {
-        let el = articleNode.querySelector(SEL_IG.metricsView);
+    if (SEL_IG.metricsViews) {
+        let el = articleNode.querySelector(SEL_IG.metricsViews);
         if (el) metrics.view_count = parseShortNumber(el.innerText || el.textContent);
     }
 
@@ -323,7 +323,8 @@ function initializeSurveys() {
     chrome.storage.local.get(['config', 'isEnabled', 'activeTargetList', 'clientID', 'selectors'], function (result) {
 
         // Load selectors into the module-level variable
-        SEL_IG = (result.selectors && result.selectors.instagram) ? result.selectors.instagram : {};
+        const _rawIG = (result.selectors && result.selectors.instagram) ? result.selectors.instagram : {};
+        SEL_IG = { ...(_rawIG.shared || {}), ...(_rawIG.account || {}), ...(_rawIG.post || {}) };
 
         const currentPlatform = 'instagram';
         for (let index = 0; index < availableContextsInstagram.length; ++index) {
@@ -379,10 +380,7 @@ function initializeSurveys() {
 
         // Start observer only after formTemplate is set — prevents race condition
         // where observer fires renderSurvey before config is loaded.
-        let filter = { childList: true, subtree: true };
-        if (result.selectors && result.selectors.instagram && result.selectors.instagram.observerFilter) {
-            filter = result.selectors.instagram.observerFilter;
-        }
+        let filter = SEL_IG.observerFilter || { childList: true, subtree: true };
         igObserver.observe(observerTarget, filter);
 
         // Process articles already in the DOM

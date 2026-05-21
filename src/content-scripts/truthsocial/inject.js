@@ -96,7 +96,7 @@ function extractPostMedia(postNode) {
         }
     });
 
-    let videos = postNode.querySelectorAll(SEL_TS.videoPlayer || 'video');
+    let videos = postNode.querySelectorAll(SEL_TS.postVideo || 'video');
     videos.forEach(video => {
         let src = null;
         let mp4Source = video.querySelector('source');
@@ -128,13 +128,13 @@ function extractPostMetrics(postNode) {
         return parseInt(str, 10) || 0;
     };
 
-    let replyBtn = postNode.querySelector('button[aria-label="Reply"], button[aria-label="Replies"]');
+    let replyBtn = postNode.querySelector(SEL_TS.metricsReply || 'button[aria-label="Reply"], button[aria-label="Replies"]');
     if (replyBtn && replyBtn.innerText) metrics.comment_count = parseShortNumber(replyBtn.innerText);
 
-    let retruthBtn = postNode.querySelector('button[aria-label="ReTruth"], button[aria-label="ReTruths"]');
+    let retruthBtn = postNode.querySelector(SEL_TS.metricsRepost || 'button[aria-label="ReTruth"], button[aria-label="ReTruths"]');
     if (retruthBtn && retruthBtn.innerText) metrics.share_count = parseShortNumber(retruthBtn.innerText);
 
-    let likeBtn = postNode.querySelector('button[aria-label="Like"], button[aria-label="Likes"]');
+    let likeBtn = postNode.querySelector(SEL_TS.metricsLike || 'button[aria-label="Like"], button[aria-label="Likes"]');
     if (likeBtn && likeBtn.innerText) metrics.like_count = parseShortNumber(likeBtn.innerText);
 
     if (SEL_TS.metricsQuote) {
@@ -297,7 +297,8 @@ function injectTruthSocialPostSurvey(injectNode, postID) {
 
 function initializeSurveys() {
     chrome.storage.local.get(['config', 'isEnabled', 'activeTargetList', 'clientID', 'isGuided', 'selectors'], function (result) {
-        SEL_TS = (result.selectors && result.selectors.truthsocial) ? result.selectors.truthsocial : {};
+        const _rawTS = (result.selectors && result.selectors.truthsocial) ? result.selectors.truthsocial : {};
+        SEL_TS = { ...(_rawTS.shared || {}), ...(_rawTS.account || {}), ...(_rawTS.post || {}) };
 
         tsRoot = document.getElementById('root') || document.querySelector(SEL_TS.appRoot || '#root') || document.body;
         obsConfigTS = SEL_TS.observerFilter || { attributes: false, childList: true, subtree: true };

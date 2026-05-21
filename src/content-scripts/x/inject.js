@@ -319,6 +319,9 @@ function enableTweetObserver(injectElement) {
     if (reactRoot && observer) {
         observer.observe(reactRoot, obsConfig);
     }
+    setTimeout(() => {
+        document.querySelectorAll(SEL.postContainer || 'article[role="article"]').forEach(processArticleNode);
+    }, 1500);
 }
 
 function extractTweetMedia(articleNode) {
@@ -537,9 +540,10 @@ function initializeSurveys() {
         // Load selectors into the module-level variable
         const _rawX = (result.selectors && result.selectors.x) ? result.selectors.x : {};
         SEL = { ...(_rawX.shared || {}), ...(_rawX.account || {}), ...(_rawX.post || {}) };
+        checkSelectorHealth('x', SEL, result.config && result.config.activeSurveys);
 
         // Initialize observer infrastructure now that selectors are available
-        reactRoot = document.querySelector(SEL.appRoot || '#react-root');
+        reactRoot = document.querySelector(SEL.appRoot || '#react-root') || document.body;
         obsConfig = SEL.observerFilter || { attributes: true, childList: true, subtree: true, attributeFilter: ['role'] };
         observer = createObserver();
 

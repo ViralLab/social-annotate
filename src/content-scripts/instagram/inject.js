@@ -325,6 +325,7 @@ function initializeSurveys() {
         // Load selectors into the module-level variable
         const _rawIG = (result.selectors && result.selectors.instagram) ? result.selectors.instagram : {};
         SEL_IG = { ...(_rawIG.shared || {}), ...(_rawIG.account || {}), ...(_rawIG.post || {}) };
+        checkSelectorHealth('instagram', SEL_IG, result.config && result.config.activeSurveys);
 
         const currentPlatform = 'instagram';
         for (let index = 0; index < availableContextsInstagram.length; ++index) {
@@ -385,6 +386,9 @@ function initializeSurveys() {
 
         // Process articles already in the DOM
         document.querySelectorAll(SEL_IG.postContainer || 'article').forEach(processInstagramArticleNode);
+        setTimeout(() => {
+            document.querySelectorAll(SEL_IG.postContainer || 'article').forEach(processInstagramArticleNode);
+        }, 1500);
     });
 }
 

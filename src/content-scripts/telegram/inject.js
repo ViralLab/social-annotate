@@ -389,12 +389,16 @@ function enableTelegramObserver() {
     if (tgMessagesRoot && tgObserver) {
         tgObserver.observe(tgMessagesRoot, tgObserverConfig);
     }
+    setTimeout(() => {
+        document.querySelectorAll(postSelector).forEach(processMessageNode);
+    }, 1500);
 }
 
 function initializeSurveys() {
     chrome.storage.local.get(['config', 'isEnabled', 'selectors'], function (result) {
         const _rawTG = (result.selectors && result.selectors.telegram) ? result.selectors.telegram : {};
         SEL_TG = { ...(_rawTG.shared || {}), ...(_rawTG.account || {}), ...(_rawTG.post || {}) };
+        checkSelectorHealth('telegram', SEL_TG, result.config && result.config.activeSurveys);
 
         tgMessagesRoot = document.querySelector(
             SEL_TG.conversationMessages || '.MessageList .messages-container'

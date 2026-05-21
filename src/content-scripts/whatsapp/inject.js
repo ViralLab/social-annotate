@@ -312,12 +312,16 @@ function enableWhatsAppObserver() {
     if (waMessagesRoot && waObserver) {
         waObserver.observe(waMessagesRoot, waObserverConfig);
     }
+    setTimeout(() => {
+        document.querySelectorAll(postSelector).forEach(processMessageNode);
+    }, 1500);
 }
 
 function initializeSurveys() {
     chrome.storage.local.get(['config', 'isEnabled', 'selectors'], function (result) {
         const _rawWA = (result.selectors && result.selectors.whatsapp) ? result.selectors.whatsapp : {};
         SEL_WA = { ...(_rawWA.shared || {}), ...(_rawWA.account || {}), ...(_rawWA.post || {}) };
+        checkSelectorHealth('whatsapp', SEL_WA, result.config && result.config.activeSurveys);
 
         waMessagesRoot = document.querySelector(SEL_WA.conversationMessages || "[data-testid='conversation-panel-messages']") || document.body;
         waObserverConfig = SEL_WA.observerFilter || { attributes: false, childList: true, subtree: true };

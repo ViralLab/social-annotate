@@ -8,32 +8,91 @@ let tsRoot = null;
 let obsConfigTS = {};
 let observerTS = null;
 
-window.addEventListener('mh:download-request', function(e) {
+// ---------------------------------------------------------------------------
+// TruthSocial Mastodon API cache
+// TruthSocial runs on Mastodon. Public statuses are readable without auth via
+// GET https://truthsocial.com/api/v1/statuses/{id}
+// We fire a fetch as soon as the post ID is known, so results are ready well
+// before the user submits the survey form.
+// ---------------------------------------------------------------------------
+const _tsApiCache = {};
+
+async function fetchTruthSocialPostData(postID) {
+    if (_tsApiCache[postID]) return _tsApiCache[postID];
+    try {
+        // credentials:'include' sends the user's session cookies — required even for public posts
+        const resp = await fetch(`https://truthsocial.com/api/v1/statuses/${postID}`, { credentials: 'include' });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const data = await resp.json();
+        _tsApiCache[postID] = data;
+        return data;
+    } catch (e) {
+        console.warn('[SocialAnnotate] TS API fetch failed for', postID, e.message);
+        return null;
+    }
+}
+
+function _tsStripHtml(html) {
+    if (!html) return '';
+    const d = document.createElement('div');
+    d.innerHTML = html;
+    return (d.textContent || d.innerText || '').trim();
+}
+
+function _tsMediaUrlsFromApi(data) {
+    if (!data || !data.media_attachments) return [];
+    return data.media_attachments
+        .map(att => att.url || att.preview_url)
+        .filter(Boolean);
+}
+
+function _tsMetricsFromApi(data) {
+    let metrics = { like_count: null, share_count: null, comment_count: null, bookmark_count: null, view_count: null, quote_count: null };
+    if (!data) return metrics;
+    if (data.favourites_count != null) metrics.like_count = data.favourites_count;
+    if (data.reblogs_count != null) metrics.share_count = data.reblogs_count;
+    if (data.replies_count != null) metrics.comment_count = data.replies_count;
+    return metrics;
+}
+
+window.addEventListener('mh:download-request', async function(e) {
     let detail = e.detail;
     if (!detail) return;
-    
+
     let initialSurveyType = detail.surveyType || 'truthsocial-post';
     if (initialSurveyType === 'truthsocial-user') return;
-    
+
     if (!detail.postID) return;
-    
+
     let postID = detail.postID;
     let postOwner = detail.userID;
     let postSurveyType = detail.surveyType || 'truthsocial-post';
-    
+
     let containerName = 'surveyFormContainer-' + postID;
     let surveyContainer = document.getElementById(containerName);
     let injectNode = surveyContainer ? (surveyContainer.closest(SEL_TS.postContainer || '[data-testid="status"]') || surveyContainer.parentNode) : null;
-    
-    let urlsToDownload = [];
-    if (injectNode) {
-        urlsToDownload = extractPostMedia(injectNode);
+
+    // If API data isn't cached yet (fire-and-forget from processPostNode may have
+    // failed or not completed), retry now before falling through to DOM scraping
+    if (!_tsApiCache[postID]) {
+        await fetchTruthSocialPostData(postID);
     }
-    
+
+    // Prefer API media URLs — direct CDN URLs, immune to DOM changes
+    const apiData = _tsApiCache[postID];
+    let urlsToDownload = _tsMediaUrlsFromApi(apiData);
+    console.log('[SocialAnnotate] TS download: API urls:', urlsToDownload.length, '| injectNode:', !!injectNode);
+
+    // Fall back to DOM scraping if API data isn't available
+    if (urlsToDownload.length === 0 && injectNode) {
+        urlsToDownload = extractPostMedia(injectNode);
+        console.log('[SocialAnnotate] TS download: DOM fallback urls:', urlsToDownload.length);
+    }
+
     if (urlsToDownload && urlsToDownload.length > 0) {
         chrome.runtime.sendMessage({ action: 'downloadMedia', urls: urlsToDownload, userId: postOwner || 'user', postId: postID, surveyType: postSurveyType });
     } else {
-        console.log("No media found on this post.");
+        console.log('[SocialAnnotate] TS: No media found for postID:', postID);
     }
 });
 
@@ -43,15 +102,36 @@ function processPostNode(postNode) {
         let postDetails = extractPostDetails(postNode);
 
         if (postDetails && postDetails.postID) {
+            // Kick off API fetch immediately — data will be ready long before form submit
+            fetchTruthSocialPostData(postDetails.postID);
+
             injectTruthSocialPostSurvey(insertElement, postDetails.postID);
             availableContextsTruthSocial[0].renderSurvey(
                 postDetails.postOwner,
                 postDetails.postID,
                 {
-                    body: () => extractPostTextContent(postNode),
-                    media_urls: () => extractPostMedia(postNode),
-                    post_metrics: () => extractPostMetrics(postNode),
-                    created_at: () => { let t = postNode.querySelector(SEL_TS.postTimestamp || 'a[href*="/posts/"] time') || postNode.querySelector('time[datetime]'); return t ? (t.getAttribute('datetime') || t.dateTime || null) : null; }
+                    body: () => {
+                        const api = _tsApiCache[postDetails.postID];
+                        if (api && api.content) return _tsStripHtml(api.content);
+                        return extractPostTextContent(postNode);
+                    },
+                    media_urls: () => {
+                        const api = _tsApiCache[postDetails.postID];
+                        const apiUrls = _tsMediaUrlsFromApi(api);
+                        if (apiUrls.length > 0) return apiUrls;
+                        return extractPostMedia(postNode);
+                    },
+                    post_metrics: () => {
+                        const api = _tsApiCache[postDetails.postID];
+                        if (api) return _tsMetricsFromApi(api);
+                        return extractPostMetrics(postNode);
+                    },
+                    created_at: () => {
+                        const api = _tsApiCache[postDetails.postID];
+                        if (api && api.created_at) return api.created_at;
+                        let t = postNode.querySelector(SEL_TS.postTimestamp || 'a[href*="/posts/"] time') || postNode.querySelector('time[datetime]');
+                        return t ? (t.getAttribute('datetime') || t.dateTime || null) : null;
+                    }
                 }
             );
         }
@@ -83,12 +163,25 @@ function enablePostObserver(injectElement) {
     if (tsRoot && observerTS) {
         observerTS.observe(tsRoot, obsConfigTS);
     }
+    setTimeout(() => {
+        document.querySelectorAll(SEL_TS.postContainer || '[data-testid="status"]').forEach(processPostNode);
+    }, 1500);
 }
 
 function extractPostMedia(postNode) {
     if (!postNode) return [];
     let mediaUrls = [];
 
+    // Primary: anchor href on media gallery thumbnails — always present, even when
+    // the <img> src is lazy-not-yet-loaded. The href points to the original CDN file.
+    postNode.querySelectorAll('a[href*="media_attachments"], a[id*="media-gallery"]').forEach(a => {
+        let href = a.getAttribute('href') || '';
+        if (href && href.startsWith('http') && !href.includes('avatar')) {
+            mediaUrls.push(href);
+        }
+    });
+
+    // Fallback: img src (will be populated when the image has entered the viewport)
     let photos = postNode.querySelectorAll(SEL_TS.postImage || 'img');
     photos.forEach(img => {
         if (img.src && !img.src.includes('avatar') && !img.src.includes('icon') && !img.src.includes('missing.png')) {
@@ -299,6 +392,7 @@ function initializeSurveys() {
     chrome.storage.local.get(['config', 'isEnabled', 'activeTargetList', 'clientID', 'isGuided', 'selectors'], function (result) {
         const _rawTS = (result.selectors && result.selectors.truthsocial) ? result.selectors.truthsocial : {};
         SEL_TS = { ...(_rawTS.shared || {}), ...(_rawTS.account || {}), ...(_rawTS.post || {}) };
+        checkSelectorHealth('truthsocial', SEL_TS, result.config && result.config.activeSurveys);
 
         tsRoot = document.getElementById('root') || document.querySelector(SEL_TS.appRoot || '#root') || document.body;
         obsConfigTS = SEL_TS.observerFilter || { attributes: false, childList: true, subtree: true };

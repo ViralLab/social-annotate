@@ -237,6 +237,9 @@ function enablePostObserver(injectElement) {
     if (bskyRoot && observerBS) {
         observerBS.observe(bskyRoot, obsConfigBS);
     }
+    setTimeout(() => {
+        document.querySelectorAll(SEL_BS.postContainer || '[data-testid*="feedItem"], [data-testid*="postThreadItem"]').forEach(processPostNode);
+    }, 1500);
 }
 
 function extractPostMedia(postNode) {
@@ -370,9 +373,10 @@ function initializeSurveys() {
         // Load selectors into the module-level variable
         const _rawBS = (result.selectors && result.selectors.bluesky) ? result.selectors.bluesky : {};
         SEL_BS = { ...(_rawBS.shared || {}), ...(_rawBS.account || {}), ...(_rawBS.post || {}) };
+        checkSelectorHealth('bluesky', SEL_BS, result.config && result.config.activeSurveys);
 
         // Initialize observer infrastructure now that selectors are available
-        bskyRoot = document.getElementById('root') || document.querySelector(SEL_BS.appRoot || '#root');
+        bskyRoot = document.getElementById('root') || document.querySelector(SEL_BS.appRoot || '#root') || document.body;
         obsConfigBS = SEL_BS.observerFilter || { attributes: false, childList: true, subtree: true };
         observerBS = createObserver();
 

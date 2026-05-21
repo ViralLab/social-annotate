@@ -160,6 +160,9 @@ function enablePostObserver(injectElement) {
     if (liRoot && observerLI) {
         observerLI.observe(liRoot, obsConfigLI);
     }
+    setTimeout(() => {
+        document.querySelectorAll(SEL_LI.postContainer || '[data-testid="mainFeed"] [role="listitem"]').forEach(processPostNode);
+    }, 1500);
 }
 
 function extractPostMedia(postNode) {
@@ -376,6 +379,7 @@ function initializeSurveys() {
     chrome.storage.local.get(['config', 'isEnabled', 'activeTargetList', 'clientID', 'isGuided', 'selectors'], function (result) {
         const _rawLI = (result.selectors && result.selectors.linkedin) ? result.selectors.linkedin : {};
         SEL_LI = { ...(_rawLI.shared || {}), ...(_rawLI.account || {}), ...(_rawLI.post || {}) };
+        checkSelectorHealth('linkedin', SEL_LI, result.config && result.config.activeSurveys);
 
         liRoot = document.getElementById('root') || document.querySelector(SEL_LI.appRoot || '#root') || document.body;
         obsConfigLI = SEL_LI.observerFilter || { attributes: false, childList: true, subtree: true };

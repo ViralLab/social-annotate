@@ -270,6 +270,47 @@ failureSpan.style.color = "#F4212E";
 failureSpan.style.fontWeight = "bold";
 failureSpan.style.padding = "5px 15px";
 
+// ---------------------------------------------------------------------------
+// Selector health check — call once per initializeSurveys after SEL is built.
+// Tests only selectors that must be present on page load. Logs a structured
+// warning and fires mh:selector-health so the selector_agent pipeline can react.
+// ---------------------------------------------------------------------------
+function checkSelectorHealth(platform, selectors, activeSurveys) {
+    const candidates = [
+        // appRoot is the only reliable at-init check: it's a static SPA mount point.
+        // postContainer and conversationMessages are excluded because they are
+        // dynamic/lazy-loaded — they won't be in the DOM yet on a feed page at init
+        // time, which would produce false positives on every page load.
+        { key: 'appRoot', alwaysCheck: true }
+    ];
+
+    const failed = [];
+    for (const c of candidates) {
+        const selector = selectors[c.key];
+        if (!selector || typeof selector !== 'string') continue; // null → not applicable
+
+        const surveyActive = !c.requiresSurvey ||
+            (Array.isArray(activeSurveys) && activeSurveys.includes(c.requiresSurvey));
+        if (!c.alwaysCheck && !surveyActive) continue;
+
+        try {
+            if (!document.querySelector(selector)) {
+                failed.push({ key: c.key, selector });
+            }
+        } catch (e) {
+            failed.push({ key: c.key, selector, error: e.message });
+        }
+    }
+
+    if (failed.length > 0) {
+        const details = failed.map(f => `${f.key}: "${f.selector}"`).join(', ');
+        console.warn(`[SocialAnnotate:health] ${platform} — ${failed.length} selector(s) matched nothing at init: ${details}`);
+        document.dispatchEvent(new CustomEvent('mh:selector-health', {
+            detail: { platform, failed, url: location.href }
+        }));
+    }
+}
+
 function storeResults(surveyResults, socialMediaPlatform) {
     if (!isExtensionContextValid()) { console.debug('[SocialAnnotate] Extension context invalidated, skipping storeResults.'); return; }
     surveyResults.submission_timestamp = Math.floor(Date.now() / 1000);

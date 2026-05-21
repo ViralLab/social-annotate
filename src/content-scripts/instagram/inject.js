@@ -207,12 +207,42 @@ function processInstagramArticleNode(articleNode) {
                 postDetails.postOwner,
                 postDetails.postID,
                 {
-                    postContent: () => extractInstagramText(articleNode),
-                    mediaUrls: () => extractInstagramMedia(articleNode).join(',')
+                    body: () => extractInstagramText(articleNode),
+                    media_urls: () => extractInstagramMedia(articleNode),
+                    created_at: () => { let t = articleNode.querySelector('time[datetime]'); return t ? t.getAttribute('datetime') : null; },
+                    post_metrics: () => extractInstagramMetrics(articleNode)
                 }
             );
         }
     }
+}
+
+function extractInstagramMetrics(articleNode) {
+    let metrics = { like_count: null, share_count: null, comment_count: null, bookmark_count: null, view_count: null, quote_count: null };
+    if (!articleNode) return metrics;
+
+    const parseShortNumber = (str) => {
+        if (!str) return 0;
+        str = str.trim().replace(/,/g, '');
+        if (str.match(/K/i)) return parseFloat(str) * 1000;
+        if (str.match(/M/i)) return parseFloat(str) * 1000000;
+        return parseInt(str, 10) || 0;
+    };
+
+    if (SEL_IG.metricsLike) {
+        let el = articleNode.querySelector(SEL_IG.metricsLike);
+        if (el) metrics.like_count = parseShortNumber(el.innerText || el.textContent);
+    }
+    if (SEL_IG.metricsComment) {
+        let el = articleNode.querySelector(SEL_IG.metricsComment);
+        if (el) metrics.comment_count = parseShortNumber(el.innerText || el.textContent);
+    }
+    if (SEL_IG.metricsView) {
+        let el = articleNode.querySelector(SEL_IG.metricsView);
+        if (el) metrics.view_count = parseShortNumber(el.innerText || el.textContent);
+    }
+
+    return metrics;
 }
 
 function extractInstagramText(articleNode) {
@@ -320,14 +350,14 @@ function initializeSurveys() {
                         if (isUserSurvey) {
                             chrome.storage.local.get(['isProfileDownloadEnabled', 'isBannerDownloadEnabled'], function(res) {
                                 if (res.isProfileDownloadEnabled || res.isBannerDownloadEnabled) {
-                                    let evt = new CustomEvent('mh:download-request', { detail: { userID: values.userID, surveyType: currentContext.name } });
+                                    let evt = new CustomEvent('mh:download-request', { detail: { userID: values.account_id, surveyType: currentContext.name } });
                                     window.dispatchEvent(evt);
                                 }
                             });
                         } else {
                             chrome.storage.local.get(['isMediaDownloadEnabled'], function(res) {
                                 if (res.isMediaDownloadEnabled) {
-                                    let evt = new CustomEvent('mh:download-request', { detail: { postID: values.postID, userID: values.userID, surveyType: currentContext.name } });
+                                    let evt = new CustomEvent('mh:download-request', { detail: { postID: values.post_id, userID: values.account_id, surveyType: currentContext.name } });
                                     window.dispatchEvent(evt);
                                 }
                             });

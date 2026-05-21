@@ -85,26 +85,26 @@ function mergeSurveysIntoStorage() {
             if (!ae[key]) { ae[key] = []; changed = true; }
         }
 
-        // 3. Re-sync selectors from selectors.json (picks up new platform selector keys)
-        if (changed) {
-            fetch(chrome.runtime.getURL('selectors.json'))
-                .then(r => r.json())
-                .then(selectors => {
-                    chrome.storage.local.set({
-                        config: stored.config,
-                        resultsArrays: ra,
-                        annotatedElements: ae,
-                        selectors: selectors
-                    });
-                })
-                .catch(() => {
+        // 3. Always re-sync selectors from selectors.json so healer patches are picked up on reload
+        fetch(chrome.runtime.getURL('selectors.json'))
+            .then(r => r.json())
+            .then(selectors => {
+                chrome.storage.local.set({
+                    config: stored.config,
+                    resultsArrays: ra,
+                    annotatedElements: ae,
+                    selectors: selectors
+                });
+            })
+            .catch(() => {
+                if (changed) {
                     chrome.storage.local.set({
                         config: stored.config,
                         resultsArrays: ra,
                         annotatedElements: ae
                     });
-                });
-        }
+                }
+            });
     });
 }
 

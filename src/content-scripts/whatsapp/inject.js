@@ -179,6 +179,26 @@ function extractMessageMedia(messageNode) {
     return Array.from(new Set(mediaUrls));
 }
 
+function extractWhatsAppMetrics(messageNode) {
+    let metrics = { like_count: null, share_count: null, comment_count: null, bookmark_count: null, view_count: null, quote_count: null };
+    if (!messageNode) return metrics;
+
+    const parseShortNumber = (str) => {
+        if (!str) return 0;
+        str = str.trim().replace(/,/g, '');
+        if (str.match(/K/i)) return parseFloat(str) * 1000;
+        if (str.match(/M/i)) return parseFloat(str) * 1000000;
+        return parseInt(str, 10) || 0;
+    };
+
+    if (SEL_WA.metricsReactions) {
+        let el = messageNode.querySelector(SEL_WA.metricsReactions);
+        if (el) metrics.like_count = parseShortNumber(el.innerText || el.textContent);
+    }
+
+    return metrics;
+}
+
 function extractMessageDetails(messageNode) {
     if (!messageNode) return null;
 
@@ -258,9 +278,10 @@ function processMessageNode(messageNode) {
         details.userID,
         details.postID,
         {
-            tweetContent: () => extractMessageText(messageNode),
-            mediaUrls: () => extractMessageMedia(messageNode),
-            postCreationTime: details.postAuthorTime
+            body: () => extractMessageText(messageNode),
+            media_urls: () => extractMessageMedia(messageNode),
+            created_at: details.postAuthorTime,
+            post_metrics: () => extractWhatsAppMetrics(messageNode)
         }
     );
 }
@@ -322,7 +343,7 @@ function initializeSurveys() {
 
                         chrome.storage.local.get(['isMediaDownloadEnabled'], function (res) {
                             if (res.isMediaDownloadEnabled) {
-                                let evt = new CustomEvent('mh:download-request', { detail: { postID: values.postID, userID: values.userID, surveyType: currentContext.name } });
+                                let evt = new CustomEvent('mh:download-request', { detail: { postID: values.post_id, userID: values.account_id, surveyType: currentContext.name } });
                                 window.dispatchEvent(evt);
                             }
                         });

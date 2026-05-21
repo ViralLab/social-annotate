@@ -41,6 +41,9 @@
         "userLink": "a[href]",
         "userAvatar": "header img[alt]",
         "userBanner": null,
+        "metricsLike": null,
+        "metricsComment": null,
+        "metricsView": null,
         "observerFilter": {
             "attributes": false,
             "childList": true,
@@ -78,6 +81,7 @@
         "messageText": "[data-testid*='selectable-text']",
         "mediaImage": "img[src]",
         "mediaVideo": "video, video source, [data-testid='video-content'] [style*='background-image'], [data-testid='msg-video'] [style*='background-image']",
+        "metricsReactions": null,
         "observerFilter": {
             "attributes": false,
             "childList": true,
@@ -93,6 +97,9 @@
         "userAvatar": ".Avatar__media",
         "userDisplayName": ".fullName",
         "postTimestamp": ".message-time",
+        "metricsViews": ".message-views",
+        "metricsForwards": null,
+        "metricsReactions": null,
         "observerFilter": {
             "attributes": false,
             "childList": true,

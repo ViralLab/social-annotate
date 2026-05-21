@@ -104,9 +104,10 @@ function processPostNode(postNode) {
                 postDetails.postOwner,
                 postDetails.postID,
                 {
-                    tweetContent: () => extractPostTextContent(postNode),
-                    mediaUrls: () => extractPostMedia(postNode),
-                    tweetMetrics: () => extractPostMetrics(postNode)
+                    body: () => extractPostTextContent(postNode),
+                    media_urls: () => extractPostMedia(postNode),
+                    post_metrics: () => extractPostMetrics(postNode),
+                    created_at: () => { let t = postNode.querySelector('time[datetime]'); return t ? t.getAttribute('datetime') : null; }
                 }
             );
         }
@@ -284,10 +285,12 @@ function extractPostTextContent(postNode) {
 
 function extractPostMetrics(postNode) {
     let metrics = {
-        replies: 0,
-        reposts: 0,
-        likes: 0,
-        quotes: 0
+        like_count: null,
+        share_count: null,
+        comment_count: null,
+        bookmark_count: null,
+        view_count: null,
+        quote_count: null
     };
 
     if (!postNode) return metrics;
@@ -310,12 +313,13 @@ function extractPostMetrics(postNode) {
             let text = el.textContent.trim();
             return parseShortNumber(text);
         }
-        return 0;
+        return null;
     };
 
-    metrics.replies = extractMetric(SEL_BS.metricsReply || '[data-testid="replyBtn"]');
-    metrics.reposts = extractMetric(SEL_BS.metricsRepost || '[data-testid="repostBtn"]');
-    metrics.likes = extractMetric(SEL_BS.metricsLike || '[data-testid="likeBtn"], [data-testid="unlikeBtn"]');
+    metrics.comment_count = extractMetric(SEL_BS.metricsReply || '[data-testid="replyBtn"]');
+    metrics.share_count = extractMetric(SEL_BS.metricsRepost || '[data-testid="repostBtn"]');
+    metrics.like_count = extractMetric(SEL_BS.metricsLike || '[data-testid="likeBtn"], [data-testid="unlikeBtn"]');
+    if (SEL_BS.metricsQuote) metrics.quote_count = extractMetric(SEL_BS.metricsQuote);
 
     return metrics;
 }
@@ -413,14 +417,14 @@ function initializeSurveys() {
                         if (isUserSurvey) {
                             chrome.storage.local.get(['isProfileDownloadEnabled', 'isBannerDownloadEnabled'], function(res) {
                                 if (res.isProfileDownloadEnabled || res.isBannerDownloadEnabled) {
-                                    let evt = new CustomEvent('mh:download-request', { detail: { userID: values.userID, surveyType: currentContext.name } });
+                                    let evt = new CustomEvent('mh:download-request', { detail: { userID: values.account_id, surveyType: currentContext.name } });
                                     window.dispatchEvent(evt);
                                 }
                             });
                         } else {
                             chrome.storage.local.get(['isMediaDownloadEnabled'], function(res) {
                                 if (res.isMediaDownloadEnabled) {
-                                    let evt = new CustomEvent('mh:download-request', { detail: { postID: values.postID, userID: values.userID, surveyType: currentContext.name } });
+                                    let evt = new CustomEvent('mh:download-request', { detail: { postID: values.post_id, userID: values.account_id, surveyType: currentContext.name } });
                                     window.dispatchEvent(evt);
                                 }
                             });
@@ -436,7 +440,7 @@ function initializeSurveys() {
                 if (currentContext.name === 'bluesky-user') {
                     let surveyID = crawlUserName();
                     currentContext.renderSurvey(surveyID, null, {
-                        userProfile: () => extractUserProfile()
+                        user_profile: () => extractUserProfile()
                     });
                 }
             }

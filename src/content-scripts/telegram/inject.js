@@ -254,6 +254,34 @@ function extractMessageText(messageNode) {
     return chunks.join('\n');
 }
 
+function extractTelegramMetrics(messageNode) {
+    let metrics = { like_count: null, share_count: null, comment_count: null, bookmark_count: null, view_count: null, quote_count: null };
+    if (!messageNode) return metrics;
+
+    const parseShortNumber = (str) => {
+        if (!str) return 0;
+        str = str.trim().replace(/,/g, '');
+        if (str.match(/K/i)) return parseFloat(str) * 1000;
+        if (str.match(/M/i)) return parseFloat(str) * 1000000;
+        return parseInt(str, 10) || 0;
+    };
+
+    if (SEL_TG.metricsViews) {
+        let el = messageNode.querySelector(SEL_TG.metricsViews);
+        if (el) metrics.view_count = parseShortNumber(el.innerText || el.textContent);
+    }
+    if (SEL_TG.metricsForwards) {
+        let el = messageNode.querySelector(SEL_TG.metricsForwards);
+        if (el) metrics.share_count = parseShortNumber(el.innerText || el.textContent);
+    }
+    if (SEL_TG.metricsReactions) {
+        let el = messageNode.querySelector(SEL_TG.metricsReactions);
+        if (el) metrics.like_count = parseShortNumber(el.innerText || el.textContent);
+    }
+
+    return metrics;
+}
+
 function extractMessageDetails(messageNode) {
     if (!messageNode) return null;
 
@@ -327,9 +355,10 @@ function processMessageNode(messageNode) {
         details.userID,
         details.postID,
         {
-            tweetContent: () => extractMessageText(messageNode),
-            mediaUrls: () => extractMessageMedia(messageNode),
-            postCreationTime: details.postAuthorTime
+            body: () => extractMessageText(messageNode),
+            media_urls: () => extractMessageMedia(messageNode),
+            created_at: details.postAuthorTime,
+            post_metrics: () => extractTelegramMetrics(messageNode)
         }
     );
 }
@@ -395,8 +424,8 @@ function initializeSurveys() {
                             if (res.isMediaDownloadEnabled) {
                                 const evt = new CustomEvent('mh:download-request', {
                                     detail: {
-                                        postID:     values.postID,
-                                        userID:     values.userID,
+                                        postID:     values.post_id,
+                                        userID:     values.account_id,
                                         surveyType: currentContext.name
                                     }
                                 });

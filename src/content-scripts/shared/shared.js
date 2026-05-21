@@ -28,14 +28,14 @@ const metadataSchemes = {
         "title": "Initial Timestamp",
         "default": 0
     },
-    "userID": {
+    "account_id": {
         "type": "string",
-        "title": "User ID",
+        "title": "Account ID",
         "default": "hohe"
     },
-    "postID": {
+    "post_id": {
         "type": "string",
-        "title": "Post(tweet) ID",
+        "title": "Post ID",
         "default": "hahi"
     }
 };
@@ -47,12 +47,12 @@ const metadataForms = [
         "activeClass": "btn-success"
     },
     {
-        "key": "userID",
+        "key": "account_id",
         "type": "hidden",
         "activeClass": "btn-success"
     },
     {
-        "key": "postID",
+        "key": "post_id",
         "type": "hidden",
         "activeClass": "btn-success"
     }
@@ -159,11 +159,11 @@ class Context {
         }
         // Fill in the metadata field defaults.
         templateCopy.schema["initTimestamp"].default = Math.floor(Date.now() / 1000);
-        templateCopy.schema["userID"].default = userID;
+        templateCopy.schema["account_id"].default = userID;
 
         let formName = 'surveyFormContainer';
         if (postID != null) {
-            templateCopy.schema["postID"].default = postID;
+            templateCopy.schema["post_id"].default = postID;
             formName = formName + '-' + postID.toString()
         }
 
@@ -185,8 +185,8 @@ class Context {
 
                 if (data.type === 'submit') {
                     if (ctxData && ctxData.context && ctxData.context.submitAction) {
-                        data.values.userID = ctxData.userID;
-                        if (ctxData.postID !== null) data.values.postID = ctxData.postID;
+                        data.values.account_id = ctxData.userID;
+                        if (ctxData.postID !== null) data.values.post_id = ctxData.postID;
                         if (ctxData.extras) {
                             for (let k in ctxData.extras) {
                                 if (typeof ctxData.extras[k] === 'function') {
@@ -322,25 +322,25 @@ function storeResults(surveyResults, socialMediaPlatform) {
 
             let insertKey = null;
             if (surveyType === 'x-user') {
-                insertKey = surveyResults.userID;
+                insertKey = surveyResults.account_id;
             } else if (surveyType === 'x-post') {
-                insertKey = surveyResults.postID;
+                insertKey = surveyResults.post_id;
             } else if (surveyType === 'instagram-user') {
-                insertKey = surveyResults.userID;
+                insertKey = surveyResults.account_id;
             } else if (surveyType === 'instagram-post') {
-                insertKey = surveyResults.postID;
+                insertKey = surveyResults.post_id;
             } else if (surveyType === 'bluesky-user') {
-                insertKey = surveyResults.userID;
+                insertKey = surveyResults.account_id;
             } else if (surveyType === 'bluesky-post') {
-                insertKey = surveyResults.postID;
+                insertKey = surveyResults.post_id;
             } else if (surveyType === 'whatsapp-post') {
-                insertKey = surveyResults.postID;
+                insertKey = surveyResults.post_id;
             } else if (surveyType === 'telegram-post') {
-                insertKey = surveyResults.postID;
+                insertKey = surveyResults.post_id;
             } else if (surveyType === 'truthsocial-post') {
-                insertKey = surveyResults.postID;
+                insertKey = surveyResults.post_id;
             } else if (surveyType === 'linkedin-post') {
-                insertKey = surveyResults.postID;
+                insertKey = surveyResults.post_id;
             }
 
             let insertIndex = annotatedElements[surveyType].indexOf(insertKey);
@@ -395,7 +395,7 @@ function storeResults(surveyResults, socialMediaPlatform) {
                     // @TODO: endpoint error handling isn't done properly; all API-related paths need full exception handling.
                     let divName = "surveyFormContainer";
                     if (surveyResults.surveyType === "x-post" || surveyResults.surveyType === "instagram-post" || surveyResults.surveyType === "bluesky-post" || surveyResults.surveyType === "whatsapp-post" || surveyResults.surveyType === "telegram-post" || surveyResults.surveyType === "truthsocial-post" || surveyResults.surveyType === "linkedin-post") {
-                        divName += '-' + surveyResults.postID.toString();
+                        divName += '-' + surveyResults.post_id.toString();
                     }
 
                     let ss = successSpan.cloneNode(true);  // @TODO: Have this blink for back-to-back submissions.

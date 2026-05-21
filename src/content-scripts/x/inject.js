@@ -71,9 +71,10 @@ function processArticleNode(articleNode) {
                 tweetDetails.tweetOwner,
                 tweetDetails.tweetID,
                 {
-                    tweetContent: () => extractTweetTextContent(insertElement),
-                    mediaUrls: () => extractTweetMedia(insertElement),
-                    tweetMetrics: () => extractTweetMetrics(insertElement)
+                    body: () => extractTweetTextContent(insertElement),
+                    media_urls: () => extractTweetMedia(insertElement),
+                    post_metrics: () => extractTweetMetrics(insertElement),
+                    created_at: () => { let t = insertElement.querySelector(SEL.tweetTimestamp || 'time'); return t ? (t.getAttribute('datetime') || t.dateTime || null) : null; }
                 }
             );
         }
@@ -374,11 +375,12 @@ function extractTweetTextContent(articleNode) {
 
 function extractTweetMetrics(articleNode) {
     let metrics = {
-        replies: 0,
-        retweets: 0,
-        likes: 0,
-        views: 0,
-        bookmarks: 0
+        like_count: null,
+        share_count: null,
+        comment_count: null,
+        bookmark_count: null,
+        view_count: null,
+        quote_count: null
     };
 
     if (!articleNode) return metrics;
@@ -434,13 +436,14 @@ function extractTweetMetrics(articleNode) {
 
             return parseShortNumber(el.innerText);
         }
-        return 0;
+        return null;
     };
 
-    metrics.replies = extractFromAria(SEL.metricsReply || 'reply');
-    metrics.retweets = extractFromAria(SEL.metricsRetweet || 'retweet');
-    metrics.likes = extractFromAria(SEL.metricsLike || 'like');
-    metrics.bookmarks = extractFromAria(SEL.metricsBookmark || 'bookmark');
+    metrics.comment_count = extractFromAria(SEL.metricsReply || 'reply');
+    metrics.share_count = extractFromAria(SEL.metricsRetweet || 'retweet');
+    metrics.like_count = extractFromAria(SEL.metricsLike || 'like');
+    metrics.bookmark_count = extractFromAria(SEL.metricsBookmark || 'bookmark');
+    if (SEL.metricsQuote) metrics.quote_count = extractFromAria(SEL.metricsQuote);
 
     // Attempt to grab views from the analytics label
     let viewsWord = SEL.metricsViewsPattern || 'views?';
@@ -458,9 +461,9 @@ function extractTweetMetrics(articleNode) {
         let aria = viewEl.getAttribute('aria-label') || '';
         let match = aria.match(viewsRegex);
         if (match) {
-            metrics.views = parseShortNumber(match[1]);
+            metrics.view_count = parseShortNumber(match[1]);
         } else {
-            metrics.views = parseShortNumber(viewEl.innerText);
+            metrics.view_count = parseShortNumber(viewEl.innerText);
         }
     }
 
@@ -590,7 +593,7 @@ function initializeSurveys() {
                             if (bannerEl && bannerEl.src) {
                                 capturedBannerUrl = bannerEl.src;
                             }
-                            let capturedUserID = values.userID;
+                            let capturedUserID = values.account_id;
                             let capturedSurveyType = currentContext.name;
 
                             // Send download messages BEFORE storeResults to avoid the navigation race.
@@ -605,7 +608,7 @@ function initializeSurveys() {
                         } else {
                             chrome.storage.local.get(['isMediaDownloadEnabled'], function (res) {
                                 if (res.isMediaDownloadEnabled) {
-                                    let evt = new CustomEvent('mh:download-request', { detail: { postID: values.postID, userID: values.userID, surveyType: currentContext.name } });
+                                    let evt = new CustomEvent('mh:download-request', { detail: { postID: values.post_id, userID: values.account_id, surveyType: currentContext.name } });
                                     window.dispatchEvent(evt);
                                 }
                             });
@@ -625,7 +628,7 @@ function initializeSurveys() {
                 if (currentContext.name !== 'x-post') {
                     let surveyID = crawlUserName();
                     currentContext.renderSurvey(surveyID, null, {
-                        userProfile: () => extractUserProfile()
+                        user_profile: () => extractUserProfile()
                     });
                 }
             }

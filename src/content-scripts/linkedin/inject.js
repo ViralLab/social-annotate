@@ -125,9 +125,10 @@ function processPostNode(postNode) {
                 postDetails.postOwner,
                 postDetails.postID,
                 {
-                    tweetContent: () => extractPostTextContent(postNode),
-                    mediaUrls: () => extractPostMedia(postNode),
-                    tweetMetrics: () => extractPostMetrics(postNode)
+                    body: () => extractPostTextContent(postNode),
+                    media_urls: () => extractPostMedia(postNode),
+                    post_metrics: () => extractPostMetrics(postNode),
+                    created_at: () => { let t = postNode.querySelector('time[datetime]'); return t ? t.getAttribute('datetime') : null; }
                 }
             );
         }
@@ -194,7 +195,7 @@ function extractPostTextContent(postNode) {
 }
 
 function extractPostMetrics(postNode) {
-    let metrics = { replies: 0, reposts: 0, likes: 0, quotes: 0 };
+    let metrics = { like_count: null, share_count: null, comment_count: null, bookmark_count: null, view_count: null, quote_count: null };
     return metrics;
 }
 
@@ -419,7 +420,7 @@ function initializeSurveys() {
 
                         if (isUserSurvey) {
                             let profile = extractLinkedInUserProfile();
-                            let capturedUserId = values.userID;
+                            let capturedUserId = values.account_id;
                             let capturedSurveyType = currentContext.name;
                             chrome.storage.local.get(['isProfileDownloadEnabled', 'isBannerDownloadEnabled'], function(res) {
                                 function downloadUrl(url, postId) {
@@ -445,7 +446,7 @@ function initializeSurveys() {
                         } else {
                             chrome.storage.local.get(['isMediaDownloadEnabled'], function(res) {
                                 if (res.isMediaDownloadEnabled) {
-                                    let evt = new CustomEvent('mh:download-request', { detail: { postID: values.postID, userID: values.userID, surveyType: currentContext.name } });
+                                    let evt = new CustomEvent('mh:download-request', { detail: { postID: values.post_id, userID: values.account_id, surveyType: currentContext.name } });
                                     window.dispatchEvent(evt);
                                 }
                             });
@@ -463,7 +464,7 @@ function initializeSurveys() {
                 if (isUserSurvey) {
                     let userID = crawlLinkedInUsername();
                     currentContext.renderSurvey(userID, null, {
-                        userProfile: () => extractLinkedInUserProfile()
+                        user_profile: () => extractLinkedInUserProfile()
                     });
                 }
             }

@@ -48,9 +48,10 @@ function processPostNode(postNode) {
                 postDetails.postOwner,
                 postDetails.postID,
                 {
-                    tweetContent: () => extractPostTextContent(postNode),
-                    mediaUrls: () => extractPostMedia(postNode),
-                    tweetMetrics: () => extractPostMetrics(postNode)
+                    body: () => extractPostTextContent(postNode),
+                    media_urls: () => extractPostMedia(postNode),
+                    post_metrics: () => extractPostMetrics(postNode),
+                    created_at: () => { let t = postNode.querySelector(SEL_TS.postTimestamp || 'a[href*="/posts/"] time') || postNode.querySelector('time[datetime]'); return t ? (t.getAttribute('datetime') || t.dateTime || null) : null; }
                 }
             );
         }
@@ -117,8 +118,8 @@ function extractPostTextContent(postNode) {
 }
 
 function extractPostMetrics(postNode) {
-    let metrics = { replies: 0, reposts: 0, likes: 0, quotes: 0 };
-    
+    let metrics = { like_count: null, share_count: null, comment_count: null, bookmark_count: null, view_count: null, quote_count: null };
+
     const parseShortNumber = (str) => {
         if (!str) return 0;
         str = str.trim().replace(/,/g, '');
@@ -128,13 +129,18 @@ function extractPostMetrics(postNode) {
     };
 
     let replyBtn = postNode.querySelector('button[aria-label="Reply"], button[aria-label="Replies"]');
-    if (replyBtn && replyBtn.innerText) metrics.replies = parseShortNumber(replyBtn.innerText);
+    if (replyBtn && replyBtn.innerText) metrics.comment_count = parseShortNumber(replyBtn.innerText);
 
     let retruthBtn = postNode.querySelector('button[aria-label="ReTruth"], button[aria-label="ReTruths"]');
-    if (retruthBtn && retruthBtn.innerText) metrics.reposts = parseShortNumber(retruthBtn.innerText);
+    if (retruthBtn && retruthBtn.innerText) metrics.share_count = parseShortNumber(retruthBtn.innerText);
 
     let likeBtn = postNode.querySelector('button[aria-label="Like"], button[aria-label="Likes"]');
-    if (likeBtn && likeBtn.innerText) metrics.likes = parseShortNumber(likeBtn.innerText);
+    if (likeBtn && likeBtn.innerText) metrics.like_count = parseShortNumber(likeBtn.innerText);
+
+    if (SEL_TS.metricsQuote) {
+        let quoteBtn = postNode.querySelector(SEL_TS.metricsQuote);
+        if (quoteBtn && quoteBtn.innerText) metrics.quote_count = parseShortNumber(quoteBtn.innerText);
+    }
 
     return metrics;
 }
@@ -339,7 +345,7 @@ function initializeSurveys() {
                             if (profile.avatarUrl) capturedAvatarUrl = profile.avatarUrl;
                             if (profile.bannerUrl) capturedBannerUrl = profile.bannerUrl;
                             
-                            let capturedUserID = values.userID;
+                            let capturedUserID = values.account_id;
                             let capturedSurveyType = currentContext.name;
 
                             chrome.storage.local.get(['isProfileDownloadEnabled', 'isBannerDownloadEnabled'], function (res) {
@@ -353,7 +359,7 @@ function initializeSurveys() {
                         } else {
                             chrome.storage.local.get(['isMediaDownloadEnabled'], function(res) {
                                 if (res.isMediaDownloadEnabled) {
-                                    let evt = new CustomEvent('mh:download-request', { detail: { postID: values.postID, userID: values.userID, surveyType: currentContext.name } });
+                                    let evt = new CustomEvent('mh:download-request', { detail: { postID: values.post_id, userID: values.account_id, surveyType: currentContext.name } });
                                     window.dispatchEvent(evt);
                                 }
                             });
@@ -371,7 +377,7 @@ function initializeSurveys() {
                 if (currentContext.name !== 'truthsocial-post') {
                     let surveyID = crawlUserName();
                     currentContext.renderSurvey(surveyID, null, {
-                        userProfile: () => extractUserProfile()
+                        user_profile: () => extractUserProfile()
                     });
                 }
             }

@@ -1,9 +1,9 @@
+var DEFAULT_CONSENT = {
+    "enabled": false,
+    "text": "### Informed Consent for Research Participation\n\nBy continuing to use this annotation tool on **{platform}**, you agree to participate in our research study.\n\n**Purpose:** The purpose of this study is to understand social media interactions and content. You will be asked to annotate posts and profiles that appear in your feed.\n\n**Data Collection:** Your annotations, along with timestamps, your anonymized browser ID, and metadata related to the annotated posts will be collected and securely stored.\n\n**Voluntary Participation:** Your participation is strictly voluntary. You may stop participating at any time by simply disabling or uninstalling the extension. There are no risks or direct benefits associated with your participation.\n\n**Confidentiality:** All collected data will be kept strictly confidential and will only be used for academic and research purposes.\n\nBy checking the box below and clicking 'Approve', you acknowledge that you have read and understood this information, that you are 18 years of age or older, and that you voluntarily consent to participate."
+};
+
 var config = {
-    "informedConsent": {
-        "enabled": true,
-        "text": "### Informed Consent for Research Participation\n\nBy continuing to use this annotation tool on **{platform}**, you agree to participate in our research study.\n\n**Purpose:** The purpose of this study is to understand social media interactions and content. You will be asked to annotate posts and profiles that appear in your feed.\n\n**Data Collection:** Your annotations, along with timestamps, your anonymized browser ID, and metadata related to the annotated posts will be collected and securely stored.\n\n**Voluntary Participation:** Your participation is strictly voluntary. You may stop participating at any time by simply disabling or uninstalling the extension. There are no risks or direct benefits associated with your participation.\n\n**Confidentiality:** All collected data will be kept strictly confidential and will only be used for academic and research purposes.\n\nBy checking the box below and clicking 'Approve', you acknowledge that you have read and understood this information, that you are 18 years of age or older, and that you voluntarily consent to participate.",
-        "html": "<h3>Informed Consent for Research Participation</h3><br>By continuing to use this annotation tool on <b>{platform}</b>, you agree to participate in our research study.<br><br><b>Purpose:</b> The purpose of this study is to understand social media interactions and content. You will be asked to annotate posts and profiles that appear in your feed.<br><br><b>Data Collection:</b> Your annotations, along with timestamps, your anonymized browser ID, and metadata related to the annotated posts will be collected and securely stored.<br><br><b>Voluntary Participation:</b> Your participation is strictly voluntary. You may stop participating at any time by simply disabling or uninstalling the extension. There are no risks or direct benefits associated with your participation.<br><br><b>Confidentiality:</b> All collected data will be kept strictly confidential and will only be used for academic and research purposes.<br><br>By checking the box below and clicking 'Approve', you acknowledge that you have read and understood this information, that you are 18 years of age or older, and that you voluntarily consent to participate."
-    },
     "exportFormat": "jsonl",
     "apiEndpoint": "",  // e.g. http://127.0.0.1:5000/response
     "downloadFolder": "",  // replaces SocialAnnotateExports/ as root folder when set
@@ -14,6 +14,8 @@ var config = {
             "injectElement": {},  // tweets are detected dynamically via MutationObserver, not a fixed element
             "studyID": "kokone",
             "mediaDownloadFolder": "",
+            "theme": "light",
+            "informedConsent": DEFAULT_CONSENT,
             "screenNameList": [],
             "surveyFormSchema": {
                 "schema": {
@@ -46,6 +48,8 @@ var config = {
             },
             "studyID": "maruko",
             "mediaDownloadFolder": "",
+            "theme": "light",
+            "informedConsent": DEFAULT_CONSENT,
             "screenNameList": [],
             "surveyFormSchema": {
                 "schema": {
@@ -91,6 +95,8 @@ var config = {
             },
             "studyID": "maruko",
             "mediaDownloadFolder": "",
+            "theme": "light",
+            "informedConsent": DEFAULT_CONSENT,
             "screenNameList": [],
             "surveyFormSchema": {
                 "schema": {
@@ -131,6 +137,8 @@ var config = {
             "injectElement": {},
             "studyID": "kokone",
             "mediaDownloadFolder": "",
+            "theme": "light",
+            "informedConsent": DEFAULT_CONSENT,
             "screenNameList": [],
             "surveyFormSchema": {
                 "schema": {
@@ -159,6 +167,8 @@ var config = {
             "injectElement": {},
             "studyID": "kokone",
             "mediaDownloadFolder": "",
+            "theme": "light",
+            "informedConsent": DEFAULT_CONSENT,
             "screenNameList": [],
             "surveyFormSchema": {
                 "schema": {
@@ -191,6 +201,8 @@ var config = {
             },
             "studyID": "maruko",
             "mediaDownloadFolder": "",
+            "theme": "light",
+            "informedConsent": DEFAULT_CONSENT,
             "screenNameList": [],
             "surveyFormSchema": {
                 "schema": {
@@ -232,6 +244,8 @@ var config = {
             "injectElement": {},
             "studyID": "kokone",
             "mediaDownloadFolder": "",
+            "theme": "light",
+            "informedConsent": DEFAULT_CONSENT,
             "screenNameList": [],
             "surveyFormSchema": {
                 "schema": {
@@ -260,6 +274,8 @@ var config = {
             "injectElement": {},
             "studyID": "kokone",
             "mediaDownloadFolder": "",
+            "theme": "light",
+            "informedConsent": DEFAULT_CONSENT,
             "screenNameList": [],
             "surveyFormSchema": {
                 "schema": {
@@ -288,6 +304,8 @@ var config = {
             "injectElement": {},
             "studyID": "kokone",
             "mediaDownloadFolder": "",
+            "theme": "light",
+            "informedConsent": DEFAULT_CONSENT,
             "screenNameList": [],
             "surveyFormSchema": {
                 "schema": {
@@ -320,6 +338,8 @@ var config = {
             },
             "studyID": "maruko",
             "mediaDownloadFolder": "",
+            "theme": "light",
+            "informedConsent": DEFAULT_CONSENT,
             "screenNameList": [],
             "surveyFormSchema": {
                 "schema": {
@@ -361,6 +381,8 @@ var config = {
             "injectElement": {},
             "studyID": "kokone",
             "mediaDownloadFolder": "",
+            "theme": "light",
+            "informedConsent": DEFAULT_CONSENT,
             "screenNameList": [],
             "surveyFormSchema": {
                 "schema": {
@@ -389,6 +411,8 @@ var config = {
             "injectElement": {},
             "studyID": "kokone",
             "mediaDownloadFolder": "",
+            "theme": "light",
+            "informedConsent": DEFAULT_CONSENT,
             "screenNameList": [],
             "surveyFormSchema": {
                 "schema": {

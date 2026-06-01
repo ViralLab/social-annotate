@@ -33,17 +33,17 @@
 [data-theme="light"] {
   --bg:              #f4f6fb;
   --card-bg:         rgba(0,0,0,0.03);
-  --card-border:     rgba(0,0,0,0.10);
+  --card-border:     rgba(0,0,0,0.13);
   --card-hover:      rgba(59,127,245,0.25);
   --accent:          #3b7ff5;
   --accent-2:        #6c3ff5;
   --accent-grad:     linear-gradient(135deg, #3b7ff5, #6c3ff5);
   --accent-glow:     rgba(59,127,245,0.18);
-  --text-primary:    #1a202c;
-  --text-secondary:  #4a5568;
-  --text-muted:      #a0aec0;
-  --input-bg:        rgba(0,0,0,0.04);
-  --input-border:    rgba(0,0,0,0.12);
+  --text-primary:    #111827;
+  --text-secondary:  #374151;
+  --text-muted:      #6b7280;
+  --input-bg:        rgba(0,0,0,0.05);
+  --input-border:    rgba(0,0,0,0.15);
   --input-focus:     rgba(59,127,245,0.45);
   --success:         #12a87a;
   --error:           #e53e3e;
@@ -206,8 +206,35 @@ html, body {
 }
 .survey-card.expanded .card-toggle { transform: rotate(180deg); }
 
-.card-body { padding: 20px; display: none; }
+.card-body { display: none; }
 .survey-card.expanded .card-body { display: block; }
+
+/* ── Card-level tabs ────────────────────────────────────── */
+.card-tabs {
+  display: flex; gap: 0;
+  background: var(--input-bg);
+  border-bottom: 2px solid var(--card-border);
+  padding: 0 16px;
+}
+.card-tab-btn {
+  background: none; border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  font-family: var(--font); font-size: 12px; font-weight: 600;
+  padding: 10px 16px 8px;
+  cursor: pointer; transition: all var(--ease);
+  margin-bottom: -2px;
+}
+.card-tab-btn:hover { color: var(--text-primary); }
+.card-tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.card-tab-pane { display: none; padding: 20px; }
+.card-tab-pane.active { display: block; }
+
+.card-body > .card-actions {
+  margin: 0; padding: 12px 20px 16px;
+  border-top: 1px solid var(--card-border);
+}
 
 /* ── Preview Button ─────────────────────────────────────── */
 .card-actions {

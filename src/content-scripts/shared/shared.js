@@ -119,7 +119,7 @@ class Context {
 
         chrome.storage.local.get(['config'], (result) => {
             let freshTemplate = this.formTemplate;
-            let freshTheme = this.theme || 'dark';
+            let freshTheme = this.theme || 'light';
             
             if (!chrome.runtime.lastError && result && result.config && result.config.surveys && result.config.surveys[this.name]) {
                 let config = result.config.surveys[this.name];
@@ -233,8 +233,9 @@ class Context {
 
         let platform = this.name.split('-')[0];
         chrome.storage.local.get(['config', 'consentGiven_' + platform], (res) => {
-            let consentRequired = res && res.config && res.config.informedConsent && res.config.informedConsent.enabled;
-            let consentText = consentRequired ? (res.config.informedConsent.html || res.config.informedConsent.text) : "";
+            let surveyConf = res && res.config && res.config.surveys && res.config.surveys[this.name];
+            let consentRequired = surveyConf && surveyConf.informedConsent && surveyConf.informedConsent.enabled;
+            let consentText = consentRequired ? (surveyConf.informedConsent.html || surveyConf.informedConsent.text) : "";
             consentText = consentText.replace(/{platform}/g, platform.charAt(0).toUpperCase() + platform.slice(1));
             let hasConsent = res['consentGiven_' + platform];
 

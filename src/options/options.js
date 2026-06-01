@@ -23,12 +23,23 @@ if (themeToggleEl) {
 // ── Tab navigation ────────────────────────────────────────
 document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', function () {
+        let target = document.getElementById('tab-' + this.dataset.tab);
+        if (!target) return;
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
         this.classList.add('active');
-        document.getElementById('tab-' + this.dataset.tab).classList.add('active');
+        target.classList.add('active');
     });
 });
+
+// ── About modal ───────────────────────────────────────────
+(function () {
+    let modal = document.getElementById('about-modal');
+    document.getElementById('about-btn').addEventListener('click', () => modal.classList.add('visible'));
+    document.getElementById('about-close').addEventListener('click', () => modal.classList.remove('visible'));
+    modal.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('visible'); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') modal.classList.remove('visible'); });
+})();
 
 // ── Page init ─────────────────────────────────────────────
 $('#save-button').click(saveOptionsPage);
@@ -44,8 +55,42 @@ loadPage();
 let cardModes = {};
 // Monotonic counter for unique field IDs
 let fieldIdCounter = 0;
-// Global instance for the Markdown editor
-let consentMDE = null;
+// EasyMDE instances keyed by survey key — initialized lazily on card expand
+let consentEditors = {};
+
+function wireCardTabs(key) {
+    let card = document.getElementById('card_' + key);
+    if (!card) return;
+    card.querySelectorAll('.card-tab-btn').forEach(btn => {
+        btn.addEventListener('click', function () {
+            card.querySelectorAll('.card-tab-btn').forEach(b => b.classList.remove('active'));
+            card.querySelectorAll('.card-tab-pane').forEach(p => p.classList.remove('active'));
+            this.classList.add('active');
+            let pane = document.getElementById(this.dataset.cardTab);
+            if (pane) pane.classList.add('active');
+            if (this.dataset.cardTab === key + '_tab_consent') initConsentEditor(key);
+        });
+    });
+}
+
+function initConsentEditor(key) {
+    if (consentEditors[key]) return;
+    let el = document.getElementById(key + '_consent-text');
+    if (!el) return;
+    consentEditors[key] = new EasyMDE({
+        element: el,
+        spellChecker: false,
+        status: false,
+        minHeight: '140px',
+        sideBySideFullscreen: false,
+        toolbar: ['bold', 'italic', 'heading', '|', 'unordered-list', 'ordered-list', '|', 'preview', 'side-by-side']
+    });
+    setTimeout(() => {
+        if (!consentEditors[key].isSideBySideActive()) {
+            consentEditors[key].toggleSideBySide();
+        }
+    }, 50);
+}
 
 // ── Load ──────────────────────────────────────────────────
 function loadPage() {
@@ -60,30 +105,6 @@ function loadPage() {
 
         const downloadFolderEl = document.getElementById('download-folder');
         if (downloadFolderEl) downloadFolderEl.value = result.config.downloadFolder || '';
-
-        const consentEnabledEl = document.getElementById('consent-enabled');
-        const consentTextEl = document.getElementById('consent-text');
-        if (result.config.informedConsent) {
-            if (consentEnabledEl) consentEnabledEl.checked = !!result.config.informedConsent.enabled;
-            if (consentTextEl) consentTextEl.value = result.config.informedConsent.text || '';
-        }
-        if (!consentMDE && consentTextEl) {
-            consentMDE = new EasyMDE({
-                element: consentTextEl,
-                spellChecker: false,
-                status: false,
-                minHeight: '200px',
-                sideBySideFullscreen: false
-            });
-            // Delay the toggle slightly to ensure the editor is fully rendered
-            setTimeout(() => {
-                if (!consentMDE.isFullscreenActive() && !consentMDE.isSideBySideActive()) {
-                    consentMDE.toggleSideBySide();
-                }
-            }, 50);
-        } else if (consentMDE && result.config.informedConsent) {
-            consentMDE.value(result.config.informedConsent.text || '');
-        }
 
         let html = '';
         for (let key in result.config.surveys) {
@@ -125,9 +146,18 @@ function loadPage() {
                 let annEl = document.getElementById(key + '_annotation-list');
                 if (annEl) annEl.value = listArr.join(',\n');
             }
+            let consentEnabledEl = document.getElementById(key + '_consent-enabled');
+            if (consentEnabledEl) consentEnabledEl.checked = !!(survey.informedConsent && survey.informedConsent.enabled);
+            let consentText = (survey.informedConsent && survey.informedConsent.text) || '';
+            let consentTextEl = document.getElementById(key + '_consent-text');
+            if (consentEditors[key]) {
+                consentEditors[key].value(consentText);
+            } else if (consentTextEl) {
+                consentTextEl.value = consentText;
+            }
             let themeEl = document.getElementById(key + '_theme');
             if (themeEl) {
-                themeEl.value = survey.theme || 'dark';
+                themeEl.value = survey.theme || 'light';
             }
             if (survey.hasOwnProperty('surveyFormSchema')) {
                 let jsonStr = JSON.stringify(survey.surveyFormSchema, null, '\t');
@@ -137,6 +167,8 @@ function loadPage() {
                 jsonToBuilder(key, survey.surveyFormSchema);
             }
 
+            // Wire card-level tabs
+            wireCardTabs(key);
             // Wire mode toggle buttons
             wireModeTabs(key);
             // Wire add field button
@@ -250,90 +282,121 @@ function wireAnnotationUpload(key) {
 
 // ── Build survey card HTML ────────────────────────────────
 function buildSurveyCard(key, survey) {
-        let platform = survey.socialMediaPlatform || (key.startsWith('truthsocial') ? 'truthsocial' : (key.startsWith('instagram') ? 'instagram' : (key.startsWith('bluesky') ? 'bluesky' : (key.startsWith('whatsapp') ? 'whatsapp' : (key.startsWith('telegram') ? 'telegram' : (key.startsWith('linkedin') ? 'linkedin' : 'x'))))));
-        let safeKey = escapeHtml(key);
-        let safePlatform = escapeHtml(platform);
-        return `
-                <div class="survey-card" id="card_${key}">
-      <div class="card-header">
-        <div class="card-header-left">
-                    <img src="../images/${safePlatform}.png" class="platform-icon" alt="${safePlatform}">
-                    <span class="survey-name">${safeKey}</span>
-                    <span class="platform-badge">${safePlatform}</span>
-        </div>
-        <span class="card-toggle">▾</span>
-      </div>
-      <div class="card-body">
-        <div class="field-group">
-                                        <label class="field-label" for="${key}_insert-location">Insert Location</label>
-                                        <input type="text" class="field-input" id="${key}_insert-location" placeholder="HTML element name">
-        </div>
-        <div class="field-group" style="margin-top:16px;">
-            <label class="field-label" for="${key}_annotation-list">
-            Annotation List
-            <span class="field-hint">Comma-separated usernames or tweet IDs</span>
-          </label>
-                        <div class="annotation-upload-row">
-                                                <input type="file" id="${key}_annotation-file" class="file-input" accept=".txt,.csv">
-                                                <label for="${key}_annotation-file" class="btn-upload-list">📄 Load from file</label>
-                                                <button class="btn-clear-list" data-key="${key}">✕ Clear</button>
-                    </div>
-                                        <textarea id="${key}_annotation-list" class="field-textarea field-textarea--short" rows="2" spellcheck="false"></textarea>
-        </div>
+    let platform = survey.socialMediaPlatform || (key.startsWith('truthsocial') ? 'truthsocial' : (key.startsWith('instagram') ? 'instagram' : (key.startsWith('bluesky') ? 'bluesky' : (key.startsWith('whatsapp') ? 'whatsapp' : (key.startsWith('telegram') ? 'telegram' : (key.startsWith('linkedin') ? 'linkedin' : 'x'))))));
+    let safeKey = escapeHtml(key);
+    let safePlatform = escapeHtml(platform);
+    const annotationHints = {
+        'x-post':            'Tweet IDs',
+        'x-user':            'X/Twitter usernames (screen names)',
+        'instagram-post':    'Instagram post shortcodes or URLs',
+        'instagram-user':    'Instagram usernames',
+        'bluesky-post':      'Bluesky post URLs',
+        'bluesky-user':      'Bluesky handles (e.g. user.bsky.social)',
+        'whatsapp-post':     'WhatsApp message identifiers',
+        'telegram-post':     'Telegram message IDs',
+        'linkedin-post':     'LinkedIn post URLs',
+        'linkedin-user':     'LinkedIn profile usernames',
+        'truthsocial-post':  'Truth Social post IDs',
+        'truthsocial-user':  'Truth Social usernames',
+    };
+    let annotationHint = annotationHints[key] || 'Comma-separated identifiers';
+    return `
+<div class="survey-card" id="card_${key}">
+  <div class="card-header">
+    <div class="card-header-left">
+      <img src="../images/${safePlatform}.png" class="platform-icon" alt="${safePlatform}">
+      <span class="survey-name">${safeKey}</span>
+      <span class="platform-badge">${safePlatform}</span>
+    </div>
+    <span class="card-toggle">▾</span>
+  </div>
+  <div class="card-body">
+    <div class="card-tabs">
+      <button class="card-tab-btn active" data-card-tab="${key}_tab_basic">Basic</button>
+      <button class="card-tab-btn" data-card-tab="${key}_tab_consent">Consent</button>
+      <button class="card-tab-btn" data-card-tab="${key}_tab_form">Form</button>
+    </div>
 
-        <div class="field-group" style="margin-top:16px;">
-          <label class="field-label" for="${key}_theme">
-            Survey Theme
-            <span class="field-hint">Choose between dark (glassmorphism) and light themes</span>
-          </label>
-                                        <select class="field-input" id="${key}_theme">
-            <option value="dark">Dark</option>
-            <option value="light">Light</option>
+    <!-- Basic -->
+    <div class="card-tab-pane active" id="${key}_tab_basic">
+      <div class="field-group">
+        <label class="field-label" for="${key}_insert-location">Insert Location</label>
+        <input type="text" class="field-input" id="${key}_insert-location" placeholder="HTML element name">
+      </div>
+      <div class="field-group" style="margin-top:16px;">
+        <label class="field-label" for="${key}_annotation-list">
+          Annotation List
+          <span class="field-hint">${annotationHint}</span>
+        </label>
+        <div class="annotation-upload-row">
+          <input type="file" id="${key}_annotation-file" class="file-input" accept=".txt,.csv">
+          <label for="${key}_annotation-file" class="btn-upload-list">📄 Load from file</label>
+          <button class="btn-clear-list" data-key="${key}">✕ Clear</button>
+        </div>
+        <textarea id="${key}_annotation-list" class="field-textarea field-textarea--short" rows="2" spellcheck="false"></textarea>
+      </div>
+      <div class="field-group" style="margin-top:16px;">
+        <label class="field-label" for="${key}_theme">
+          Survey Theme
+          <span class="field-hint">Dark (glassmorphism) or light</span>
+        </label>
+        <select class="field-input" id="${key}_theme">
+          <option value="dark">Dark</option>
+          <option value="light">Light</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Consent -->
+    <div class="card-tab-pane" id="${key}_tab_consent">
+      <div class="field-group">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:14px;">
+          <input type="checkbox" id="${key}_consent-enabled" style="width:15px;height:15px;"> Enable Consent Popup
+        </label>
+        <textarea id="${key}_consent-text" class="field-textarea" rows="6" spellcheck="false"
+          placeholder="Consent text… Supports Markdown. Use {platform} as a placeholder."></textarea>
+      </div>
+    </div>
+
+    <!-- Form -->
+    <div class="card-tab-pane" id="${key}_tab_form">
+      <div class="mode-toggle-row">
+        <label class="field-label" style="margin-bottom:0;">Form Template</label>
+        <div class="mode-toggle">
+          <button class="mode-toggle-btn active" data-mode="visual">⚡ Visual</button>
+          <button class="mode-toggle-btn" data-mode="json">{ } JSON</button>
+        </div>
+      </div>
+      <div id="${key}_builder-view">
+        <div class="builder-toolbar">
+          <select class="add-field-select">
+            <option value="radiobuttons">Radio Buttons</option>
+            <option value="range">Range / Slider</option>
+            <option value="text">Text Input</option>
+            <option value="checkbox">Checkbox</option>
           </select>
+          <button class="btn-add-field">+ Add Field</button>
         </div>
-
-        <!-- Mode toggle -->
-        <div class="mode-toggle-row">
-          <label class="field-label" style="margin-bottom:0;">Form Template</label>
-          <div class="mode-toggle">
-            <button class="mode-toggle-btn active" data-mode="visual">⚡ Visual</button>
-            <button class="mode-toggle-btn" data-mode="json">{ } JSON</button>
-          </div>
-        </div>
-
-        <!-- Visual Builder -->
-                <div id="${key}_builder-view">
-          <div class="builder-toolbar">
-            <select class="add-field-select">
-              <option value="radiobuttons">Radio Buttons</option>
-              <option value="range">Range / Slider</option>
-              <option value="text">Text Input</option>
-              <option value="checkbox">Checkbox</option>
-            </select>
-            <button class="btn-add-field">+ Add Field</button>
-          </div>
-                                        <div class="builder-fields" id="${key}_builder-fields"></div>
-        </div>
-
-        <!-- JSON Editor (hidden by default) -->
-                <div id="${key}_json-view" style="display:none;">
-                    <textarea id="${key}_form-template" class="field-textarea" rows="10" spellcheck="false"></textarea>
-                    <div class="json-error" id="${key}_json-error"></div>
-        </div>
-        <div class="card-actions">
-                                        <button class="btn-preview" data-key="${key}">▶ Preview Survey</button>
-        </div>
+        <div class="builder-fields" id="${key}_builder-fields"></div>
       </div>
-            <div class="preview-panel" id="${key}_preview-panel" style="display:none;">
-        <div class="preview-panel-header">
-          <span class="preview-panel-title">
-            <span class="preview-dot"></span> Live Preview
-          </span>
-                                        <button class="btn-close-preview" data-key="${key}">✕ Close</button>
-        </div>
-                                <div class="preview-body" id="${key}_preview-body"></div>
+      <div id="${key}_json-view" style="display:none;">
+        <textarea id="${key}_form-template" class="field-textarea" rows="10" spellcheck="false"></textarea>
+        <div class="json-error" id="${key}_json-error"></div>
       </div>
-    </div>`;
+    </div>
+
+    <div class="card-actions">
+      <button class="btn-preview" data-key="${key}">▶ Preview Survey</button>
+    </div>
+  </div>
+  <div class="preview-panel" id="${key}_preview-panel" style="display:none;">
+    <div class="preview-panel-header">
+      <span class="preview-panel-title"><span class="preview-dot"></span> Live Preview</span>
+      <button class="btn-close-preview" data-key="${key}">✕ Close</button>
+    </div>
+    <div class="preview-body" id="${key}_preview-body"></div>
+  </div>
+</div>`;
 }
 
 
@@ -695,7 +758,7 @@ function previewSurvey(key) {
     let cssUrl = chrome.runtime.getURL('content-scripts/' + platform + '/inject.css');
 
     let themeEl = document.getElementById(key + '_theme');
-    let themeVal = themeEl ? themeEl.value : 'dark';
+    let themeVal = themeEl ? themeEl.value : 'light';
 
     iframe.onload = function () {
         console.debug('[Options] preview iframe loaded for', key);
@@ -748,15 +811,6 @@ function saveOptionsPage() {
         configData.apiEndpoint = document.getElementById('api-endpoint').value;
         configData.downloadFolder = document.getElementById('download-folder').value.trim();
 
-        const consentEnabledEl = document.getElementById('consent-enabled');
-        if (!configData.informedConsent) configData.informedConsent = {};
-        if (consentEnabledEl) configData.informedConsent.enabled = consentEnabledEl.checked;
-        if (consentMDE) {
-            let mdText = consentMDE.value();
-            configData.informedConsent.text = mdText;
-            configData.informedConsent.html = marked.parse(mdText);
-        }
-
         for (let key in configData.surveys) {
             let survey = configData.surveys[key];
             if (survey.hasOwnProperty('injectElement')) {
@@ -769,6 +823,18 @@ function saveOptionsPage() {
             let themeEl = document.getElementById(key + '_theme');
             if (themeEl) {
                 configData.surveys[key].theme = themeEl.value;
+            }
+            let consentEnabledEl = document.getElementById(key + '_consent-enabled');
+            if (consentEnabledEl) {
+                let consentTextEl = document.getElementById(key + '_consent-text');
+                let mdText = consentEditors[key]
+                    ? consentEditors[key].value()
+                    : (consentTextEl ? consentTextEl.value : '');
+                configData.surveys[key].informedConsent = {
+                    enabled: consentEnabledEl.checked,
+                    text: mdText,
+                    html: mdText ? marked.parse(mdText) : ''
+                };
             }
             // Read from visual builder or JSON textarea depending on mode
             try {

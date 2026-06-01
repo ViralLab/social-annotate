@@ -28,49 +28,37 @@
       </div>
     </div>
     <nav class="tab-nav">
-      <button class="tab-btn active" data-tab="options">⚙ Options</button>
-      <button class="tab-btn" data-tab="about">ℹ About</button>
+      <button class="tab-btn active" data-tab="surveys">📋 Surveys</button>
     </nav>
-    <button class="theme-toggle-btn" id="theme-toggle" title="Toggle light/dark theme" aria-label="Toggle light/dark theme">
-      <span id="theme-icon">☀️</span>
-    </button>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <button class="theme-toggle-btn" id="about-btn" title="About" aria-label="About">ℹ</button>
+      <button class="theme-toggle-btn" id="theme-toggle" title="Toggle light/dark theme" aria-label="Toggle light/dark theme">
+        <span id="theme-icon">☀️</span>
+      </button>
+    </div>
   </header>
 
-  <!-- Options Tab -->
-  <main class="tab-content active" id="tab-options">
+  <!-- Surveys Tab -->
+  <main class="tab-content active" id="tab-surveys">
     <div class="page-container">
 
       <section class="section">
-        <div class="section-title">API Configuration</div>
-        <div class="field-group">
-          <label class="field-label" for="api-endpoint">
-            API Endpoint
-            <span class="field-hint">URL for automatic POST requests on submission</span>
-          </label>
-          <input type="text" class="field-input" id="api-endpoint" placeholder="e.g. http://127.0.0.1:5000/response">
-        </div>
-        <div class="field-group" style="margin-top:16px;">
-          <label class="field-label" for="download-folder">
-            Downloads Folder
-            <span class="field-hint">Replaces <code>SocialAnnotateExports/</code> as the root for all exports and media downloads</span>
-          </label>
-          <input type="text" class="field-input" id="download-folder" placeholder="SocialAnnotateExports/">
-        </div>
-      </section>
-
-      <section class="section">
-        <div class="section-title">Informed Consent</div>
-        <div class="field-group">
-          <label class="field-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-            <input type="checkbox" id="consent-enabled" style="width: 18px; height: 18px;"> Enable Informed Consent Popup
-          </label>
-        </div>
-        <div class="field-group" style="margin-top:16px;">
-          <label class="field-label" for="consent-text">
-            Consent Form Text
-            <span class="field-hint">Use <code>{platform}</code> as a placeholder for the platform name. Supports HTML tags.</span>
-          </label>
-          <textarea class="field-textarea" id="consent-text" rows="8" spellcheck="false"></textarea>
+        <div class="section-title">Global Settings</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div class="field-group" style="margin:0;">
+            <label class="field-label" for="api-endpoint">
+              API Endpoint
+              <span class="field-hint">URL for POST requests on submission</span>
+            </label>
+            <input type="text" class="field-input" id="api-endpoint" placeholder="e.g. http://127.0.0.1:5000/response">
+          </div>
+          <div class="field-group" style="margin:0;">
+            <label class="field-label" for="download-folder">
+              Downloads Folder
+              <span class="field-hint">Replaces <code>SocialAnnotateExports/</code> as root</span>
+            </label>
+            <input type="text" class="field-input" id="download-folder" placeholder="SocialAnnotateExports/">
+          </div>
         </div>
       </section>
 
@@ -82,49 +70,33 @@
     </div>
   </main>
 
-  <!-- About Tab -->
-  <main class="tab-content" id="tab-about">
-    <div class="page-container">
-      <section class="section">
-        <div class="section-title">About This Tool</div>
-        <p class="about-text">Human annotated data is a crucial component in the analysis of online systems. Most
-          research efforts go through cumbersome data collection phases where they either build complicated annotation
-          pipelines for online data or annotate offline data shared on spreadsheets. We aim to develop a tool that can
-          easily adapt to different tasks and extend to most online platforms.</p>
-        <p class="about-text">This tool allows collection of data directly on the online platform by injecting surveys
-          into webpages on the browser. Annotations can be exported as files or sent to API endpoints.</p>
+  <!-- About Modal -->
+  <div class="modal-overlay" id="about-modal">
+    <div class="modal-card" style="max-width:560px;text-align:left;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div class="modal-title" style="margin:0;">About Social Annotate</div>
+        <button class="btn btn-secondary" id="about-close" style="padding:4px 12px;">✕</button>
+      </div>
+      <p class="about-text">Human annotated data is a crucial component in the analysis of online systems. This tool allows collection of data directly on the online platform by injecting surveys into webpages on the browser. Annotations can be exported as files or sent to API endpoints.</p>
 
-        <div class="section-title" style="margin-top:28px;">How to Modify Options</div>
-        <p class="about-text">Each survey is listed under "Surveys" in the Options tab. Form objects follow the
-          <em>jsonform</em> schema format — use the "Preview Survey" button to see your changes rendered live before
-          saving.
-        </p>
+      <div class="section-title" style="margin-top:20px;">How to Cite</div>
+      <div class="citation-card">
+        Uluturk, Ismail and Varol, Onur. "Social-Annotate: Browser Extension to Annotate and Collect Social Media
+        Data." Journal of Open Source Software X.XX (2020): XXXX.
+        <br><br>
+        <a href="" target="_blank" class="citation-link">Journal</a>
+        <span class="citation-sep">|</span>
+        <a href="" target="_blank" class="citation-link">PDF</a>
+      </div>
 
-        <div class="section-title" style="margin-top:28px;">How to Cite</div>
-        <div class="citation-card">
-          Uluturk, Ismail and Varol, Onur. "Social-Annotate: Browser Extension to Annotate and Collect Social Media
-          Data." Journal of Open Source Software X.XX (2020): XXXX.
-          <br><br>
-          <a href="" target="_blank" class="citation-link">Journal</a>
-          <span class="citation-sep">|</span>
-          <a href="" target="_blank" class="citation-link">PDF</a>
-        </div>
-
-        <div class="section-title" style="margin-top:28px;">Contact</div>
-        <ul class="contact-list">
-          <li><strong>Ali Najafi</strong> — <a href="https://najafi-ali.com/" target="_blank"
-              class="about-link">Website</a> | <a href="https://x.com/najafialiai" target="_blank"
-              class="about-link">X</a></li>
-          <li><strong>Ismail Uluturk</strong> — <a href="https://uluturki.github.io/" target="_blank"
-              class="about-link">Website</a> | <a href="https://x.com/strictlynofun" target="_blank"
-              class="about-link">X</a></li>
-          <li><strong>Onur Varol</strong> — <a href="http://www.onurvarol.com/" target="_blank"
-              class="about-link">Website</a> | <a href="https://x.com/onurvarol" target="_blank"
-              class="about-link">X</a></li>
-        </ul>
-      </section>
+      <div class="section-title" style="margin-top:20px;">Contact</div>
+      <ul class="contact-list">
+        <li><strong>Ali Najafi</strong> — <a href="https://najafi-ali.com/" target="_blank" class="about-link">Website</a> | <a href="https://x.com/najafialiai" target="_blank" class="about-link">X</a></li>
+        <li><strong>Ismail Uluturk</strong> — <a href="https://uluturki.github.io/" target="_blank" class="about-link">Website</a> | <a href="https://x.com/strictlynofun" target="_blank" class="about-link">X</a></li>
+        <li><strong>Onur Varol</strong> — <a href="http://www.onurvarol.com/" target="_blank" class="about-link">Website</a> | <a href="https://x.com/onurvarol" target="_blank" class="about-link">X</a></li>
+      </ul>
     </div>
-  </main>
+  </div>
 
   <!-- Factory Reset Confirmation Modal -->
   <div class="modal-overlay" id="reset-modal">

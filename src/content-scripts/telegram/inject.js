@@ -12,7 +12,9 @@ let tgObserverConfig = { attributes: false, childList: true, subtree: true };
 let manipConfig_TG  = {};
 let manipMap_TG     = {};
 let manipMapId_TG   = '';
-let manipApplied_TG = {};
+let manipApplied_TG     = {};
+let _processedCount     = 0;
+registerHealthCounter(function () { return _processedCount; });
 
 // ---------------------------------------------------------------------------
 // Video src capture bridge
@@ -352,6 +354,7 @@ function injectTelegramPostSurvey(messageNode, postID) {
 }
 
 function processMessageNode(messageNode) {
+    _processedCount++;
     if (!messageNode || !messageNode.querySelector) return;
 
     const details = extractMessageDetails(messageNode);
@@ -444,7 +447,7 @@ function initializeSurveys() {
     chrome.storage.local.get(['config', 'isEnabled', 'selectors', 'manipulationMaps'], function (result) {
         const _rawTG = (result.selectors && result.selectors.telegram) ? result.selectors.telegram : {};
         SEL_TG = { ...(_rawTG.shared || {}), ...(_rawTG.account || {}), ...(_rawTG.post || {}) };
-        checkSelectorHealth('telegram', SEL_TG, result.config && result.config.activeSurveys);
+        watchPostCounter('telegram', function () { return _processedCount; });
 
         // Load manipulation map for telegram-post
         const _postConfTG = result.config && result.config.surveys && result.config.surveys['telegram-post'];

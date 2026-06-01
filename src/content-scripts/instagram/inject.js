@@ -14,7 +14,9 @@ if (!window.__socialAnnotate__.instagramApiMediaMap) window.__socialAnnotate__.i
 let manipConfig_IG  = {};
 let manipMap_IG     = {};
 let manipMapId_IG   = '';
-let manipApplied_IG = {};
+let manipApplied_IG     = {};
+let _processedCount     = 0;
+registerHealthCounter(function () { return _processedCount; });
 document.addEventListener('mh:media-response-ig', function(e) {
     if (e.detail) {
         Object.keys(e.detail).forEach(k => {
@@ -203,6 +205,7 @@ function injectInstagramPostSurvey(injectNode, postID, postOwner) {
 }
 
 function processInstagramArticleNode(articleNode) {
+    _processedCount++;
     // Automatically try to expand the description
     try {
         let clickTargets = articleNode.querySelectorAll('div[role="button"], span');
@@ -386,7 +389,7 @@ function initializeSurveys() {
         // Load selectors into the module-level variable
         const _rawIG = (result.selectors && result.selectors.instagram) ? result.selectors.instagram : {};
         SEL_IG = { ...(_rawIG.shared || {}), ...(_rawIG.account || {}), ...(_rawIG.post || {}) };
-        checkSelectorHealth('instagram', SEL_IG, result.config && result.config.activeSurveys);
+        watchPostCounter('instagram', function () { return _processedCount; });
 
         // Load manipulation map for instagram-post
         const _postConfIG = result.config && result.config.surveys && result.config.surveys['instagram-post'];
@@ -455,6 +458,7 @@ function initializeSurveys() {
 
                 currentContext.injectSurvey(config.injectElement);
                 if (currentContext.name === 'instagram-user') {
+                    _processedCount++;
                     let surveyID = crawlUserName();
                     currentContext.renderSurvey(surveyID);
                 }

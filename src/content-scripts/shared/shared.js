@@ -432,45 +432,31 @@ failureSpan.style.fontWeight = "bold";
 failureSpan.style.padding = "5px 15px";
 
 // ---------------------------------------------------------------------------
-// Selector health check — call once per initializeSurveys after SEL is built.
-// Tests only selectors that must be present on page load. Logs a structured
-// warning and fires mh:selector-health so the selector_agent pipeline can react.
+// Post counter watch — call once after initializeSurveys.
+// Fires a single console.debug after `delay` ms if no posts were processed.
+// Uses debug level intentionally: zero posts is normal on non-feed pages.
 // ---------------------------------------------------------------------------
-function checkSelectorHealth(platform, selectors, activeSurveys) {
-    const candidates = [
-        // appRoot is the only reliable at-init check: it's a static SPA mount point.
-        // postContainer and conversationMessages are excluded because they are
-        // dynamic/lazy-loaded — they won't be in the DOM yet on a feed page at init
-        // time, which would produce false positives on every page load.
-        { key: 'appRoot', alwaysCheck: true }
-    ];
-
-    const failed = [];
-    for (const c of candidates) {
-        const selector = selectors[c.key];
-        if (!selector || typeof selector !== 'string') continue; // null → not applicable
-
-        const surveyActive = !c.requiresSurvey ||
-            (Array.isArray(activeSurveys) && activeSurveys.includes(c.requiresSurvey));
-        if (!c.alwaysCheck && !surveyActive) continue;
-
-        try {
-            if (!document.querySelector(selector)) {
-                failed.push({ key: c.key, selector });
-            }
-        } catch (e) {
-            failed.push({ key: c.key, selector, error: e.message });
+function watchPostCounter(platform, getCount, delay) {
+    delay = delay || 8000;
+    setTimeout(function () {
+        if (getCount() === 0) {
+            console.debug('[SocialAnnotate] ' + platform + ' — 0 items processed after ' + (delay / 1000) + 's (non-feed/profile page, or selector may be broken)');
         }
-    }
-
-    if (failed.length > 0) {
-        const details = failed.map(f => `${f.key}: "${f.selector}"`).join(', ');
-        console.warn(`[SocialAnnotate:health] ${platform} — ${failed.length} selector(s) matched nothing at init: ${details}`);
-        document.dispatchEvent(new CustomEvent('mh:selector-health', {
-            detail: { platform, failed, url: location.href }
-        }));
-    }
+    }, delay);
 }
+
+// ---------------------------------------------------------------------------
+// Health stats — lets the popup query the active tab for processed item count.
+// ---------------------------------------------------------------------------
+let _healthGetCount = null;
+function registerHealthCounter(fn) { _healthGetCount = fn; }
+
+chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
+    if (msg.action === 'getHealthStats') {
+        sendResponse({ processedCount: _healthGetCount ? _healthGetCount() : 0 });
+        return true;
+    }
+});
 
 function storeResults(surveyResults, socialMediaPlatform) {
     if (!isExtensionContextValid()) { console.debug('[SocialAnnotate] Extension context invalidated, skipping storeResults.'); return; }

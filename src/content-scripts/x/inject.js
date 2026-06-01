@@ -18,7 +18,9 @@ if (!window.__socialAnnotate__.twitterApiMediaMap) window.__socialAnnotate__.twi
 let manipConfig  = {};  // { enabled, mode, logOriginal }
 let manipMap     = {};  // { post_id: { rewritten_text, original_text, prompt_label, ... } }
 let manipMapId   = '';  // _meta.map_id from the imported map
-let manipApplied = {};  // { tweetID: { applied, label, map_id, original_text? } }
+let manipApplied      = {};  // { tweetID: { applied, label, map_id, original_text? } }
+let _processedCount   = 0;
+registerHealthCounter(function () { return _processedCount; });
 document.addEventListener('mh:media-response', function (e) {
     if (e.detail) {
         Object.assign(window.__socialAnnotate__.twitterApiMediaMap, e.detail);
@@ -67,6 +69,7 @@ window.addEventListener('mh:download-request', function (e) {
 });
 
 function processArticleNode(articleNode) {
+    _processedCount++;
     let insertElement = articleNode.parentNode;
     if (insertElement && insertElement.getElementsByClassName('survey-container-tweet').length === 0) {
         let tweetDetails = extractTweetDetails(insertElement);
@@ -106,6 +109,20 @@ function processArticleNode(articleNode) {
                     let meta = { applied: true, label: entry.prompt_label || '', map_id: manipMapId };
                     if (manipConfig.logOriginal) meta.original_text = originalText;
                     manipApplied[tweetDetails.tweetID] = meta;
+                }
+                if (entry.replacement_image) {
+                    let avatarContainer = articleNode.querySelector('[data-testid="Tweet-User-Avatar"]');
+                    if (avatarContainer && !avatarContainer.querySelector('[data-sa-avatar]')) {
+                        let overlay = document.createElement('div');
+                        overlay.setAttribute('data-sa-avatar', '1');
+                        overlay.style.cssText = [
+                            'position:absolute', 'inset:0', 'border-radius:50%',
+                            'background:url("' + entry.replacement_image + '") center/cover no-repeat',
+                            'z-index:2', 'pointer-events:none'
+                        ].join(';');
+                        avatarContainer.style.position = 'relative';
+                        avatarContainer.appendChild(overlay);
+                    }
                 }
             }
             // ─────────────────────────────────────────────────────
@@ -593,7 +610,7 @@ function initializeSurveys() {
         // Load selectors into the module-level variable
         const _rawX = (result.selectors && result.selectors.x) ? result.selectors.x : {};
         SEL = { ...(_rawX.shared || {}), ...(_rawX.account || {}), ...(_rawX.post || {}) };
-        checkSelectorHealth('x', SEL, result.config && result.config.activeSurveys);
+        watchPostCounter('x', function () { return _processedCount; });
 
         // Load manipulation map for x-post
         const _postConf = result.config && result.config.surveys && result.config.surveys['x-post'];
@@ -706,6 +723,7 @@ function initializeSurveys() {
                 currentContext.injectSurvey(config.injectElement);
 
                 if (currentContext.name !== 'x-post') {
+                    _processedCount++;
                     let surveyID = crawlUserName();
                     currentContext.renderSurvey(surveyID, null, {
                         user_profile: () => extractUserProfile()

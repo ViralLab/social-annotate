@@ -20,7 +20,9 @@ if (!window.__socialAnnotate__.bskyInterceptedVideos) window.__socialAnnotate__.
 let manipConfig_BS  = {};
 let manipMap_BS     = {};
 let manipMapId_BS   = '';
-let manipApplied_BS = {};
+let manipApplied_BS     = {};
+let _processedCount     = 0;
+registerHealthCounter(function () { return _processedCount; });
 
 document.addEventListener('mh:bsky-video-found', function(e) {
     if (e.detail && e.detail.cid && e.detail.did) {
@@ -100,6 +102,7 @@ window.addEventListener('mh:download-request', function(e) {
 });
 
 function processPostNode(postNode) {
+    _processedCount++;
     let insertElement = postNode.parentNode;
     if (insertElement && insertElement.getElementsByClassName('survey-container-post').length === 0) {
         let postDetails = extractPostDetails(postNode);
@@ -139,6 +142,10 @@ function processPostNode(postNode) {
                     let meta = { applied: true, label: entry.prompt_label || '', map_id: manipMapId_BS };
                     if (manipConfig_BS.logOriginal) meta.original_text = originalText;
                     manipApplied_BS[postDetails.postID] = meta;
+                }
+                if (entry.replacement_image) {
+                    let avatarImg = postNode.querySelector('img[src*="avatar"]');
+                    if (avatarImg) { avatarImg.src = entry.replacement_image; avatarImg.srcset = ''; }
                 }
             }
             // ─────────────────────────────────────────────────────
@@ -418,7 +425,7 @@ function initializeSurveys() {
         // Load selectors into the module-level variable
         const _rawBS = (result.selectors && result.selectors.bluesky) ? result.selectors.bluesky : {};
         SEL_BS = { ...(_rawBS.shared || {}), ...(_rawBS.account || {}), ...(_rawBS.post || {}) };
-        checkSelectorHealth('bluesky', SEL_BS, result.config && result.config.activeSurveys);
+        watchPostCounter('bluesky', function () { return _processedCount; });
 
         // Load manipulation map for bluesky-post
         const _postConfBS = result.config && result.config.surveys && result.config.surveys['bluesky-post'];
@@ -509,6 +516,7 @@ function initializeSurveys() {
                 currentContext.injectSurvey(config.injectElement);
 
                 if (currentContext.name === 'bluesky-user') {
+                    _processedCount++;
                     let surveyID = crawlUserName();
                     currentContext.renderSurvey(surveyID, null, {
                         user_profile: () => extractUserProfile()

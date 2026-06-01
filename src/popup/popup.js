@@ -51,6 +51,25 @@ document.addEventListener('click', function (e) {
     }
 });
 
+// ── Feed health ───────────────────────────────────────────
+function updateHealthStats() {
+    let dot = document.getElementById('health-dot');
+    let val = document.getElementById('health-value');
+    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+        if (!tabs[0]) return;
+        chrome.tabs.sendMessage(tabs[0].id, { action: 'getHealthStats' }, function (resp) {
+            if (chrome.runtime.lastError || !resp) {
+                dot.className = 'health-dot health-dot--off';
+                val.textContent = 'n/a';
+                return;
+            }
+            let n = resp.processedCount || 0;
+            dot.className = 'health-dot ' + (n > 0 ? 'health-dot--ok' : 'health-dot--idle');
+            val.textContent = n > 0 ? n + ' seen' : 'idle';
+        });
+    });
+}
+
 // ── Annotation count ──────────────────────────────────────
 function updateAnnotationCount() {
     chrome.storage.local.get(['config', 'annotatedElements'], function (data) {
@@ -243,6 +262,7 @@ chrome.storage.local.get('config', function (data) {
     updateAnnotationCount();
     updateGuidedPanel();
     updateMediaToggles(activeSurvey);
+    updateHealthStats();
 });
 
 // ── Enable/Disable toggle ─────────────────────────────────

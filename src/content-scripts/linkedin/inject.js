@@ -13,7 +13,9 @@ let observerLI = null;
 let manipConfig_LI  = {};
 let manipMap_LI     = {};
 let manipMapId_LI   = '';
-let manipApplied_LI = {};
+let manipApplied_LI     = {};
+let _processedCount     = 0;
+registerHealthCounter(function () { return _processedCount; });
 
 // Cache of CDN video URLs captured by inject-api.js (MAIN world)
 // Maps postKey → last CDN video URL seen for that post
@@ -126,6 +128,7 @@ window.addEventListener('mh:download-request', function(e) {
 });
 
 function processPostNode(postNode) {
+    _processedCount++;
     if (!isExtensionContextValid()) return;
     let insertElement = postNode;
     if (insertElement && insertElement.getElementsByClassName('survey-container-post').length === 0) {
@@ -166,6 +169,11 @@ function processPostNode(postNode) {
                     let meta = { applied: true, label: entry.prompt_label || '', map_id: manipMapId_LI };
                     if (manipConfig_LI.logOriginal) meta.original_text = originalText;
                     manipApplied_LI[postDetails.postID] = meta;
+                }
+                if (entry.replacement_image) {
+                    let avatarImg = postNode.querySelector('.update-components-actor img')
+                                   || postNode.querySelector('img[src*="profile"]');
+                    if (avatarImg) { avatarImg.src = entry.replacement_image; avatarImg.srcset = ''; }
                 }
             }
             // ─────────────────────────────────────────────────────
@@ -450,7 +458,7 @@ function initializeSurveys() {
     chrome.storage.local.get(['config', 'isEnabled', 'activeTargetList', 'clientID', 'isGuided', 'selectors', 'manipulationMaps'], function (result) {
         const _rawLI = (result.selectors && result.selectors.linkedin) ? result.selectors.linkedin : {};
         SEL_LI = { ...(_rawLI.shared || {}), ...(_rawLI.account || {}), ...(_rawLI.post || {}) };
-        checkSelectorHealth('linkedin', SEL_LI, result.config && result.config.activeSurveys);
+        watchPostCounter('linkedin', function () { return _processedCount; });
 
         // Load manipulation map for linkedin-post
         const _postConfLI = result.config && result.config.surveys && result.config.surveys['linkedin-post'];

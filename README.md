@@ -256,6 +256,63 @@ The `shared.js` `Context` class handles all the common logic: consent overlay, f
 
 ---
 
+## Self-Healing Selector Agent
+
+Social media platforms frequently change their HTML structure, which can silently break injection. The self-healing agent is a Python pipeline that detects broken CSS selectors and proposes replacements — automatically, using an LLM.
+
+### How it works
+
+The agent runs an 11-step pipeline:
+
+1. Validates the HTML fixture offline (BeautifulSoup post count, missing asset warnings)
+2. Sends the HTML to an LLM (Claude or Gemini) to extract new CSS selectors
+3. Opens the fixture in a real Chromium instance with the extension loaded
+4. Waits for injection and scrolls to trigger the `MutationObserver`
+5. Takes a screenshot to visually confirm injection
+6. Verifies injection by counting survey containers and shadow DOM iframes
+7. Checks that survey forms are accessible inside the sandbox frames
+8. Fills and submits the first available form option
+9. Validates the submission (checks for the "Done!" button state)
+10. Writes the proposed selectors to a temp JSON file (never touches `src/selectors.json` directly)
+11. Presents a diff against the current selectors for review
+
+### Prerequisites
+
+```bash
+pip install anthropic playwright beautifulsoup4
+playwright install chromium
+```
+
+Set your API key in the environment:
+
+```bash
+export ANTHROPIC_API_KEY=sk-...   # Claude (checked first)
+# or
+export GEMINI_API_KEY=...         # Gemini (fallback)
+```
+
+### Usage
+
+Point the agent at a saved HTML fixture of the target platform:
+
+```bash
+# Inspect proposed selectors without applying them
+python run_healer.py --file test_fixtures/x_twitter/x.html
+
+# Retry LLM extraction up to 5 times
+python run_healer.py --file test_fixtures/x_twitter/x.html --retries 5
+
+# Apply the proposed selectors to src/selectors.json automatically
+python run_healer.py --file test_fixtures/x_twitter/x.html --apply
+
+# Skip the browser step — LLM extraction only (fast, offline)
+python run_healer.py --file test_fixtures/x_twitter/x.html --llm-only
+```
+
+Platform is auto-detected from the filename. Override with `--platform x` if needed.
+
+---
+
 ## Architecture
 
 ```
@@ -296,9 +353,16 @@ All persistent state lives in `chrome.storage.local`. The sandbox iframe is serv
 
 If you use Social Annotate in your research, please cite:
 
-```
-Uluturk, Ismail and Varol, Onur. "Social-Annotate: Browser Extension to Annotate
-and Collect Social Media Data." Journal of Open Source Software X.XX (2020): XXXX.
+```bibtex
+@article{najafi2026socialannotate,
+  title   = {Social-Annotate: Self-Healing Browser Extension to Annotate and Collect Social Media Data},
+  author  = {Najafi, Ali and Varol, Onur and Uluturk, Ismail},
+  journal = {Journal of Open Source Software},
+  volume  = {X},
+  number  = {XX},
+  pages   = {XXXX},
+  year    = {2026}
+}
 ```
 
 ---

@@ -362,12 +362,26 @@ class Context {
 
                     approveBtn.onclick = () => {
                         if (!checkbox.checked) return;
+                        let nowUnix = Math.floor(Date.now() / 1000);
                         let consentData = {
-                            timestamp: Math.floor(Date.now() / 1000),
+                            timestamp: nowUnix,
                             userAgent: navigator.userAgent
                         };
                         let toSave = {};
                         toSave['consentGiven_' + platform] = consentData;
+
+                        chrome.runtime.sendMessage({
+                            action: 'saveConsentRecord',
+                            platform: platform,
+                            surveyType: this.name,
+                            studyID: surveyConf ? surveyConf.studyID : '',
+                            consentTextMarkdown: surveyConf && surveyConf.informedConsent ? surveyConf.informedConsent.text : '',
+                            consentTextHtml: consentText,
+                            timestampUnix: nowUnix,
+                            timestampIso: new Date(nowUnix * 1000).toISOString(),
+                            userAgent: navigator.userAgent
+                        });
+
                         chrome.storage.local.set(toSave, () => {
                             window.location.reload();
                         });

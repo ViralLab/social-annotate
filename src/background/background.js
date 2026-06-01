@@ -280,6 +280,43 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             sendResponse({ status: "started" });
         });
     }
+    else if (message.action === 'saveConsentRecord') {
+        chrome.storage.local.get(['config', 'clientID'], function(result) {
+            let baseRoot = (result.config && result.config.downloadFolder && result.config.downloadFolder.trim())
+                ? result.config.downloadFolder.trim().replace(/\\/g, '/')
+                : 'SocialAnnotateExports';
+            if (!baseRoot.endsWith('/')) baseRoot += '/';
+
+            let manifest = chrome.runtime.getManifest();
+            let record = {
+                event: 'consent_given',
+                timestamp_iso: message.timestampIso,
+                timestamp_unix: message.timestampUnix,
+                platform: message.platform,
+                survey_type: message.surveyType,
+                study_id: message.studyID || '',
+                client_id: result.clientID || '',
+                consent_text_markdown: message.consentTextMarkdown || '',
+                consent_text_html: message.consentTextHtml || '',
+                user_agent: message.userAgent || '',
+                extension_version: manifest.version
+            };
+
+            let safeType = String(message.surveyType).replace(/[^a-zA-Z0-9_-]/g, '_');
+            let filename = `${baseRoot}consent_records/${message.platform}_${safeType}_${message.timestampUnix}.json`;
+            let key = Math.random().toString(36).substr(2, 9);
+            pendingFilenames[key] = filename;
+            let url = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(record, null, 2)) + '#sa_fn=' + key;
+            chrome.downloads.download({ url }, function(downloadId) {
+                if (chrome.runtime.lastError) {
+                    console.error('[SA] Consent record download failed:', chrome.runtime.lastError.message);
+                    delete pendingFilenames[key];
+                } else {
+                    console.log('[SA] Consent record saved:', filename);
+                }
+            });
+        });
+    }
     else if (message.action === 'exportAnnotations') {
         let key = Math.random().toString(36).substr(2, 9);
         pendingFilenames[key] = message.filename;

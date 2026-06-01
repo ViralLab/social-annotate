@@ -137,6 +137,8 @@ function loadPage() {
         // Populate field values and initialize builders
         for (let key in result.config.surveys) {
             let survey = result.config.surveys[key];
+            let studyIdEl = document.getElementById(key + '_study-id');
+            if (studyIdEl) studyIdEl.value = survey.studyID || '';
             if (survey.hasOwnProperty('injectElement')) {
                 let insertEl = document.getElementById(key + '_insert-location');
                 if (insertEl) insertEl.value = survey.injectElement.name || '';
@@ -319,9 +321,18 @@ function buildSurveyCard(key, survey) {
 
     <!-- Basic -->
     <div class="card-tab-pane active" id="${key}_tab_basic">
-      <div class="field-group">
-        <label class="field-label" for="${key}_insert-location">Insert Location</label>
-        <input type="text" class="field-input" id="${key}_insert-location" placeholder="HTML element name">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div class="field-group" style="margin:0;">
+          <label class="field-label" for="${key}_study-id">
+            Study ID
+            <span class="field-hint">Identifier for this study</span>
+          </label>
+          <input type="text" class="field-input" id="${key}_study-id" placeholder="e.g. kokone">
+        </div>
+        <div class="field-group" style="margin:0;">
+          <label class="field-label" for="${key}_insert-location">Insert Location</label>
+          <input type="text" class="field-input" id="${key}_insert-location" placeholder="HTML element name">
+        </div>
       </div>
       <div class="field-group" style="margin-top:16px;">
         <label class="field-label" for="${key}_annotation-list">
@@ -813,6 +824,8 @@ function saveOptionsPage() {
 
         for (let key in configData.surveys) {
             let survey = configData.surveys[key];
+            let studyIdInput = document.getElementById(key + '_study-id');
+            if (studyIdInput) configData.surveys[key].studyID = studyIdInput.value.trim();
             if (survey.hasOwnProperty('injectElement')) {
                 configData.surveys[key].injectElement.name = document.getElementById(key + '_insert-location').value;
             }

@@ -6,6 +6,11 @@
 
 importScripts('../config.js');
 
+// Keyed by random key embedded in download URL fragment (#sa_fn=KEY).
+// Lets onDeterminingFilename set the path reliably, bypassing Chrome's
+// silent rejection of subdirectory paths in the downloads.download filename param.
+const pendingFilenames = {};
+
 chrome.runtime.onInstalled.addListener(function () {
 
     // Pseudo-unique client ID: collision requires same millisecond install + matching 5-char random suffix.
@@ -32,6 +37,7 @@ chrome.runtime.onInstalled.addListener(function () {
         }, // @TODO pull these from a supported types list somewhere.
         "clientID": clientID,
         "config": config,
+        "theme": "light",
         "isEnabled": true,
         "isGuided": false,
         "isMediaDownloadEnabled": false,
@@ -115,8 +121,28 @@ chrome.runtime.onStartup.addListener(mergeSurveysIntoStorage);
 chrome.webNavigation.onHistoryStateUpdated.addListener(function (details) {
 });
 
-// Intercept native downloads triggered by the content script (e.g., Telegram SW streams)
+// Intercept downloads to apply our folder/filename scheme reliably.
+// Using onDeterminingFilename instead of the filename param in downloads.download
+// because Chrome silently drops subdirectory paths in the filename param on some
+// versions/OS combinations, falling back to the URL-derived name.
 chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
+    // Our downloads (media + export) embed a key in the URL fragment: #sa_fn=KEY
+    if (item.url) {
+        let idx = item.url.lastIndexOf('#sa_fn=');
+        if (idx !== -1) {
+            let key = item.url.substring(idx + 7);
+            if (pendingFilenames[key]) {
+                let filename = pendingFilenames[key];
+                delete pendingFilenames[key];
+                suggest({ filename });
+            } else {
+                suggest();
+            }
+            return; // suggest called synchronously
+        }
+    }
+
+    // Telegram stream downloads embed metadata in the URL hash (#sa_post=...)
     if (item.url && item.url.includes('#sa_post=')) {
         try {
             let urlObj = new URL(item.url);
@@ -130,22 +156,18 @@ chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
             let safePostId = String(postId).replace(/[^a-zA-Z0-9._-]/g, '_');
 
             chrome.storage.local.get(['config'], function (result) {
-                let rootFolder = "SocialAnnotateMedia/" + surveyType + "/";
-                if (surveyType && result.config && result.config.surveys && result.config.surveys[surveyType] && result.config.surveys[surveyType].mediaDownloadFolder) {
-                    let customFolder = result.config.surveys[surveyType].mediaDownloadFolder.trim().replace(/\\/g, '/');
-                    if (customFolder) {
-                        rootFolder = "SocialAnnotateMedia/" + customFolder;
-                        if (!rootFolder.endsWith('/')) rootFolder += '/';
-                    }
-                }
-                
-                let filename = `${rootFolder}videos/${safeUserId}_${safePostId}_video.${format}`;
-                suggest({ filename: filename });
+                let platform = surveyType.substring(0, surveyType.lastIndexOf('-')) || surveyType;
+                let baseRoot = (result.config && result.config.downloadFolder && result.config.downloadFolder.trim())
+                    ? result.config.downloadFolder.trim().replace(/\\/g, '/')
+                    : 'SocialAnnotateExports';
+                if (!baseRoot.endsWith('/')) baseRoot += '/';
+                let rootFolder = `${baseRoot}${platform}/${surveyType}/media/`;
+                suggest({ filename: `${rootFolder}videos/${safeUserId}_${safePostId}_video.${format}` });
             });
-            return true; // indicates asynchronous suggest
+            return true; // async suggest
         } catch (e) {
             console.error('[Social Annotate] Error renaming intercepted download:', e);
-            suggest(); // fallback to default
+            suggest();
         }
     } else {
         suggest();
@@ -161,14 +183,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const surveyType = message.surveyType || 'x-post';
 
         chrome.storage.local.get(['config'], function (result) {
-            let rootFolder = "SocialAnnotateMedia/" + surveyType + "/";
-            if (surveyType && result.config && result.config.surveys && result.config.surveys[surveyType] && result.config.surveys[surveyType].mediaDownloadFolder) {
-                let customFolder = result.config.surveys[surveyType].mediaDownloadFolder.trim().replace(/\\/g, '/');
-                if (customFolder) {
-                    rootFolder = "SocialAnnotateMedia/" + customFolder;
-                    if (!rootFolder.endsWith('/')) rootFolder += '/';
-                }
-            }
+            let platform = surveyType.substring(0, surveyType.lastIndexOf('-')) || surveyType;
+            let baseRoot = (result.config && result.config.downloadFolder && result.config.downloadFolder.trim())
+                ? result.config.downloadFolder.trim().replace(/\\/g, '/')
+                : 'SocialAnnotateExports';
+            if (!baseRoot.endsWith('/')) baseRoot += '/';
+            let rootFolder = `${baseRoot}${platform}/${surveyType}/media/`;
 
             urls.forEach((url, index) => {
                 let format = 'jpg';
@@ -234,24 +254,43 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     }
                 }
 
-                // Keep filenames content-linkable: user + post + media token.
+                // Keep filenames content-linkable: user + post + index/token.
+                // For multi-media posts always enumerate (1, 2, …) so filenames are clean.
+                // For single-media posts keep the CDN token for traceability.
                 let safeUserId = String(userId).replace(/[^a-zA-Z0-9._-]/g, '_');
                 let safePostId = String(postId).replace(/[^a-zA-Z0-9._-]/g, '_');
-                let safeToken = mediaToken ? String(mediaToken).replace(/[^a-zA-Z0-9._-]/g, '_') : String(index + 1);
+                let safeToken = (urls.length > 1)
+                    ? String(index + 1)
+                    : (mediaToken ? String(mediaToken).replace(/[^a-zA-Z0-9._-]/g, '_') : '1');
                 const filename = `${rootFolder}${typeSubfolder}${safeUserId}_${safePostId}_${safeToken}.${format}`;
-                chrome.downloads.download({
-                    url: url,
-                    filename: filename
-                }, function(downloadId) {
+
+                // Embed a key in the URL fragment so onDeterminingFilename can set the path.
+                let key = Math.random().toString(36).substr(2, 9);
+                pendingFilenames[key] = filename;
+                let dlUrl = url + (url.includes('#') ? '&sa_fn=' : '#sa_fn=') + key;
+                chrome.downloads.download({ url: dlUrl }, function(downloadId) {
                     if (chrome.runtime.lastError) {
                         console.error('Download failed:', chrome.runtime.lastError.message, url);
+                        delete pendingFilenames[key];
                     } else {
-                        console.log('Download started, id=', downloadId, url);
+                        console.log('Download started, id=', downloadId, 'file:', filename);
                     }
                 });
             });
             sendResponse({ status: "started" });
         });
+    }
+    else if (message.action === 'exportAnnotations') {
+        let key = Math.random().toString(36).substr(2, 9);
+        pendingFilenames[key] = message.filename;
+        let url = 'data:text/plain;charset=utf-8,' + encodeURIComponent(message.data) + '#sa_fn=' + key;
+        chrome.downloads.download({ url }, function(downloadId) {
+            if (chrome.runtime.lastError) {
+                console.error('Export failed:', chrome.runtime.lastError.message);
+                delete pendingFilenames[key];
+            }
+        });
+        sendResponse({ status: 'started' });
     }
     else if (message.action === 'postApi') {
         // Proxy an API POST through the background service worker so we can handle CORS and report status.

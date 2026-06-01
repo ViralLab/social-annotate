@@ -6,13 +6,13 @@ function applyTheme(theme) {
 }
 
 chrome.storage.local.get(['theme'], function (data) {
-    applyTheme(data.theme || 'dark');
+    applyTheme(data.theme || 'light');
 });
 
 const themeToggleEl = document.getElementById('theme-toggle');
 if (themeToggleEl) {
     themeToggleEl.addEventListener('click', function () {
-        let current = document.documentElement.getAttribute('data-theme') || 'dark';
+        let current = document.documentElement.getAttribute('data-theme') || 'light';
         let next = current === 'dark' ? 'light' : 'dark';
         chrome.storage.local.set({ theme: next }, function () {
             applyTheme(next);
@@ -57,6 +57,9 @@ function loadPage() {
         }
         const apiEl = document.getElementById('api-endpoint');
         if (apiEl) apiEl.value = result.config.apiEndpoint || '';
+
+        const downloadFolderEl = document.getElementById('download-folder');
+        if (downloadFolderEl) downloadFolderEl.value = result.config.downloadFolder || '';
 
         const consentEnabledEl = document.getElementById('consent-enabled');
         const consentTextEl = document.getElementById('consent-text');
@@ -116,10 +119,6 @@ function loadPage() {
             if (survey.hasOwnProperty('injectElement')) {
                 let insertEl = document.getElementById(key + '_insert-location');
                 if (insertEl) insertEl.value = survey.injectElement.name || '';
-            }
-            if (survey.hasOwnProperty('mediaDownloadFolder') || true) {
-                let folderEl = document.getElementById(key + '_media-download-folder');
-                if (folderEl) folderEl.value = survey.mediaDownloadFolder || '';
             }
             if (survey.hasOwnProperty('screenNameList')) {
                 let listArr = Array.isArray(survey.screenNameList) ? survey.screenNameList : [];
@@ -269,14 +268,6 @@ function buildSurveyCard(key, survey) {
                                         <label class="field-label" for="${key}_insert-location">Insert Location</label>
                                         <input type="text" class="field-input" id="${key}_insert-location" placeholder="HTML element name">
         </div>
-        <div class="field-group">
-          <label class="field-label" for="${key}_media-download-folder">
-            Media Download Folder
-            <span class="field-hint">e.g. 'twitter_media/' (optional subfolder)</span>
-          </label>
-          <input type="text" class="field-input" id="${key}_media-download-folder" placeholder="Default Downloads folder">
-        </div>
-
         <div class="field-group" style="margin-top:16px;">
             <label class="field-label" for="${key}_annotation-list">
             Annotation List
@@ -755,6 +746,7 @@ function saveOptionsPage() {
     chrome.storage.local.get(['config'], function (result) {
         let configData = result.config;
         configData.apiEndpoint = document.getElementById('api-endpoint').value;
+        configData.downloadFolder = document.getElementById('download-folder').value.trim();
 
         const consentEnabledEl = document.getElementById('consent-enabled');
         if (!configData.informedConsent) configData.informedConsent = {};
@@ -769,10 +761,6 @@ function saveOptionsPage() {
             let survey = configData.surveys[key];
             if (survey.hasOwnProperty('injectElement')) {
                 configData.surveys[key].injectElement.name = document.getElementById(key + '_insert-location').value;
-            }
-            let folderEl = document.getElementById(key + '_media-download-folder');
-            if (folderEl) {
-                configData.surveys[key].mediaDownloadFolder = folderEl.value.trim();
             }
             if (survey.hasOwnProperty('screenNameList')) {
                 let valStr = document.getElementById(key + '_annotation-list').value;
@@ -914,6 +902,7 @@ function escapeAttr(str) {
             },
             "clientID": clientID,
             "config": config,  // default config from config.js
+            "theme": "light",
             "isEnabled": true,
             "isGuided": false,
             "isMediaDownloadEnabled": false,

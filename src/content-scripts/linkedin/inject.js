@@ -69,8 +69,14 @@ window.addEventListener('mh:download-request', function(e) {
     // ── Videos: use the CDN URL captured by inject-api.js (MAIN world) ───
     // LinkedIn MSE videos can't be fetched as a blob URL — we need the
     // underlying dms.licdn.com CDN URL captured by the fetch() interceptor.
-    let cdnVideoUrl = window.__socialAnnotate__ && window.__socialAnnotate__.liLastCdnUrl;
     let hasVideoEl = injectNode && injectNode.querySelector('video');
+
+    // Only use the globally-cached CDN URL if THIS post actually has a video element.
+    // liLastCdnUrl is set by scrolling past any post's video — without this guard,
+    // annotating a non-video post would download the wrong video.
+    let cdnVideoUrl = hasVideoEl
+        ? (window.__socialAnnotate__ && window.__socialAnnotate__.liLastCdnUrl)
+        : null;
 
     if (!cdnVideoUrl && hasVideoEl) {
         // Fallback: try video.currentSrc (works if not MSE)

@@ -8,11 +8,11 @@ function applyTheme(theme) {
 }
 
 chrome.storage.local.get(['theme'], function (data) {
-    applyTheme(data.theme || 'dark');
+    applyTheme(data.theme || 'light');
 });
 
 document.getElementById('theme-toggle').addEventListener('click', function () {
-    let current = document.documentElement.getAttribute('data-theme') || 'dark';
+    let current = document.documentElement.getAttribute('data-theme') || 'light';
     let next = current === 'dark' ? 'light' : 'dark';
     chrome.storage.local.set({ theme: next }, function () {
         applyTheme(next);
@@ -315,22 +315,30 @@ document.getElementById('exportLink').addEventListener('click', function () {
         if (data.resultsArrays && data.resultsArrays[activeSurvey]) {
             let filteredResults = {};
             filteredResults[activeSurvey] = data.resultsArrays[activeSurvey];
-            exportStoredResults(filteredResults);
+            exportStoredResults(filteredResults, data.config);
         }
     });
 });
 
-function exportStoredResults(resultArrays) {
+function exportDatetime() {
+    let d = new Date();
+    let pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}`;
+}
+
+function exportStoredResults(resultArrays, config) {
+    let dt = exportDatetime();
+    let baseRoot = (config && config.downloadFolder && config.downloadFolder.trim())
+        ? config.downloadFolder.trim().replace(/\\/g, '/')
+        : 'SocialAnnotateExports';
+    if (!baseRoot.endsWith('/')) baseRoot += '/';
     for (let surveyType in resultArrays) {
         if (resultArrays.hasOwnProperty(surveyType)) {
             let filedata = objectList2jsonl(resultArrays[surveyType]);
-            let fileName = 'annotations-' + surveyType + '.jsonl';
-            fileName = fileName.replace(/-/g, '_');
-            let url = 'data:text/plain;charset=utf-8,' + encodeURIComponent(filedata);
-            chrome.downloads.download({
-                url: url,
-                filename: fileName
-            });
+            let platform = surveyType.substring(0, surveyType.lastIndexOf('-')) || surveyType;
+            let safeSurveyType = surveyType.replace(/-/g, '_');
+            let filename = `${baseRoot}${platform}/${surveyType}/annotations_${safeSurveyType}_${dt}.jsonl`;
+            chrome.runtime.sendMessage({ action: 'exportAnnotations', data: filedata, filename });
         }
     }
 }

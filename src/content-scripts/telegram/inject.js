@@ -111,11 +111,16 @@ function resolveVideoSrcForMessage(messageNode) {
         }
     }
 
-    // 3. __latest__ fallback (last seen globally — only if recent)
-    const latest = _tgMsgVideoSrcMap.get('__latest__');
-    if (latest && latest.src && (Date.now() - latest.timestamp < 5 * 60 * 1000)) {
-        console.log('[Social Annotate] TG: resolved video src from __latest__ cache (best-effort)');
-        return latest.src;
+    // 3. __latest__ fallback — ONLY if this message node actually contains a video element.
+    // Without this guard, scrolling past other posts loads their video into __latest__ and
+    // it gets wrongly attached to a non-video post when the user submits.
+    const hasVideoInNode = messageNode.querySelectorAll(videoSelector).length > 0;
+    if (hasVideoInNode) {
+        const latest = _tgMsgVideoSrcMap.get('__latest__');
+        if (latest && latest.src && (Date.now() - latest.timestamp < 5 * 60 * 1000)) {
+            console.log('[Social Annotate] TG: resolved video src from __latest__ cache (best-effort)');
+            return latest.src;
+        }
     }
 
     return null;

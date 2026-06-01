@@ -74,7 +74,7 @@ function processArticleNode(articleNode) {
                     body: () => extractTweetTextContent(insertElement),
                     media_urls: () => extractTweetMedia(insertElement),
                     post_metrics: () => extractTweetMetrics(insertElement),
-                    created_at: () => { let t = insertElement.querySelector(SEL.postTimestamp || 'time'); return t ? (t.getAttribute('datetime') || t.dateTime || null) : null; }
+                    created_at: () => { let t = insertElement.querySelector(SEL.postTimestamp || 'time'); if (!t) return null; let dt = t.getAttribute('datetime') || t.dateTime; if (dt) return dt; let unix = t.getAttribute('data-time'); return unix ? new Date(parseInt(unix, 10) * 1000).toISOString() : null; }
                 }
             );
         }
@@ -534,10 +534,11 @@ function injectTwitterTweetSurvey(injectNode, tweetID, tweetOwner) {
 }
 
 function checkUserURL() {
-    // On local file:// URLs (saved HTML testing), always allow injection
+    // On local file:// and http://127.0.0.1 URLs (saved HTML testing), always allow injection.
+    // The global crawlUserName() may be overwritten by another platform's content script in
+    // the shared isolated world, so bypass it for local testing URLs.
     if (window.location.protocol === 'file:') return true;
-    // Content script won't be loaded if not on Twitter, so we only need to exclude
-    // the home/root page. Settings are excluded via manifest.
+    if (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') return true;
     let uname = crawlUserName();
     return !(uname === '' || uname === 'home');
 }

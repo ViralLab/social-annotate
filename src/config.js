@@ -6,6 +6,7 @@ var config = {
     },
     "exportFormat": "jsonl",
     "apiEndpoint": "",  // e.g. http://127.0.0.1:5000/response
+    "downloadFolder": "",  // replaces SocialAnnotateExports/ as root folder when set
     "activeSurveys": ["x-post"], // default to only x-post to prevent dual rendering
     "surveys": {
         "x-post": {

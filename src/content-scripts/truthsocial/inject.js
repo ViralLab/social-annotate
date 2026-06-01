@@ -8,6 +8,12 @@ let tsRoot = null;
 let obsConfigTS = {};
 let observerTS = null;
 
+// ── Manipulation state ────────────────────────────────────
+let manipConfig_TS  = {};
+let manipMap_TS     = {};
+let manipMapId_TS   = '';
+let manipApplied_TS = {};
+
 // ---------------------------------------------------------------------------
 // TruthSocial Mastodon API cache
 // TruthSocial runs on Mastodon. Public statuses are readable without auth via
@@ -105,6 +111,42 @@ function processPostNode(postNode) {
             // Kick off API fetch immediately — data will be ready long before form submit
             fetchTruthSocialPostData(postDetails.postID);
 
+            // ── Manipulation DOM patch ────────────────────────────
+            if (manipConfig_TS.enabled && manipMap_TS[postDetails.postID]) {
+                let entry   = manipMap_TS[postDetails.postID];
+                let textEl  = postNode.querySelector(SEL_TS.postText || '[data-testid="status-content"] [data-testid="markup"]');
+                if (textEl) {
+                    let rewrittenText = entry.rewritten_text;
+                    let originalText  = entry.original_text || '';
+                    textEl.textContent = rewrittenText;
+                    if (manipConfig_TS.mode === 'aware') {
+                        let isOriginal = false;
+                        let toggleBtn  = document.createElement('button');
+                        toggleBtn.textContent = '👁 Show original';
+                        toggleBtn.setAttribute('data-sa-manip-toggle', '1');
+                        toggleBtn.style.cssText = [
+                            'display:block','margin-left:auto','margin-bottom:4px',
+                            'padding:2px 10px','font-size:11px','line-height:1.6',
+                            'cursor:pointer','border-radius:4px',
+                            'background:rgba(29,155,240,0.08)','color:rgb(29,155,240)',
+                            'border:1px solid rgba(29,155,240,0.25)',
+                            'font-family:-apple-system,BlinkMacSystemFont,sans-serif',
+                        ].join(';');
+                        toggleBtn.addEventListener('click', function (e) {
+                            e.stopPropagation();
+                            isOriginal = !isOriginal;
+                            textEl.textContent = isOriginal ? originalText : rewrittenText;
+                            toggleBtn.textContent = isOriginal ? '✏ Show rewritten' : '👁 Show original';
+                        });
+                        textEl.parentNode.insertBefore(toggleBtn, textEl);
+                    }
+                    let meta = { applied: true, label: entry.prompt_label || '', map_id: manipMapId_TS };
+                    if (manipConfig_TS.logOriginal) meta.original_text = originalText;
+                    manipApplied_TS[postDetails.postID] = meta;
+                }
+            }
+            // ─────────────────────────────────────────────────────
+
             injectTruthSocialPostSurvey(insertElement, postDetails.postID);
             availableContextsTruthSocial[0].renderSurvey(
                 postDetails.postOwner,
@@ -138,6 +180,69 @@ function processPostNode(postNode) {
     }
 }
 
+// On the thread/detail page the focal post uses a "detailed status" component that is
+// NOT wrapped in [data-testid="status"]. Find it by locating a [data-testid="status-content"]
+// that has no [data-testid="status"] ancestor — that's always the focal/expanded post.
+function applyManipToFocalPost() {
+    let m = window.location.pathname.match(/\/@[^/]+\/posts\/([^/?#]+)/);
+    if (!m) return;
+    let focalId = m[1];
+    if (!manipConfig_TS.enabled || !manipMap_TS[focalId] || manipApplied_TS[focalId]) return;
+
+    // Strategy 1: id="status-FOCALID" (feed-style render on detail page)
+    let textEl = null;
+    let byId = document.getElementById('status-' + focalId);
+    if (byId) {
+        textEl = byId.querySelector('[data-testid="status-content"] [data-testid="markup"]')
+                 || byId.querySelector('[data-testid="markup"]');
+    }
+
+    // Strategy 2: first [data-testid="status-content"] NOT inside [data-testid="status"]
+    // This is the "detailed status" component Truth Social uses for the focal post.
+    if (!textEl) {
+        let allContents = document.querySelectorAll('[data-testid="status-content"]');
+        for (let el of allContents) {
+            if (!el.closest('[data-testid="status"]')) {
+                textEl = el.querySelector('[data-testid="markup"]') || el;
+                break;
+            }
+        }
+    }
+
+    if (!textEl) return;
+
+    let entry = manipMap_TS[focalId];
+    let rewrittenText = entry.rewritten_text;
+    let originalText  = entry.original_text || '';
+    textEl.textContent = rewrittenText;
+
+    if (manipConfig_TS.mode === 'aware') {
+        let isOriginal = false;
+        let toggleBtn  = document.createElement('button');
+        toggleBtn.textContent = '👁 Show original';
+        toggleBtn.setAttribute('data-sa-manip-toggle', '1');
+        toggleBtn.style.cssText = [
+            'display:block','margin-left:auto','margin-bottom:4px',
+            'padding:2px 10px','font-size:11px','line-height:1.6',
+            'cursor:pointer','border-radius:4px',
+            'background:rgba(29,155,240,0.08)','color:rgb(29,155,240)',
+            'border:1px solid rgba(29,155,240,0.25)',
+            'font-family:-apple-system,BlinkMacSystemFont,sans-serif',
+        ].join(';');
+        toggleBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            isOriginal = !isOriginal;
+            textEl.textContent = isOriginal ? originalText : rewrittenText;
+            toggleBtn.textContent = isOriginal ? '✏ Show rewritten' : '👁 Show original';
+        });
+        textEl.parentNode.insertBefore(toggleBtn, textEl);
+    }
+
+    let meta = { applied: true, label: entry.prompt_label || '', map_id: manipMapId_TS };
+    if (manipConfig_TS.logOriginal) meta.original_text = originalText;
+    manipApplied_TS[focalId] = meta;
+}
+
 function createObserver() {
     const observerCallback = function (mutationsList, obs) {
         for (let mutation of mutationsList) {
@@ -150,6 +255,9 @@ function createObserver() {
                         if (node.matches && node.matches(SEL_TS.postContainer || '[data-testid="status"]')) {
                             processPostNode(node);
                         }
+
+                        // Focal post on detail page (different component, found by id)
+                        applyManipToFocalPost();
                     }
                 });
             }
@@ -160,11 +268,13 @@ function createObserver() {
 
 function enablePostObserver(injectElement) {
     document.querySelectorAll(SEL_TS.postContainer || '[data-testid="status"]').forEach(processPostNode);
+    applyManipToFocalPost();
     if (tsRoot && observerTS) {
         observerTS.observe(tsRoot, obsConfigTS);
     }
     setTimeout(() => {
         document.querySelectorAll(SEL_TS.postContainer || '[data-testid="status"]').forEach(processPostNode);
+        applyManipToFocalPost();
     }, 1500);
 }
 
@@ -398,10 +508,19 @@ function injectTruthSocialPostSurvey(injectNode, postID) {
 }
 
 function initializeSurveys() {
-    chrome.storage.local.get(['config', 'isEnabled', 'activeTargetList', 'clientID', 'isGuided', 'selectors'], function (result) {
+    chrome.storage.local.get(['config', 'isEnabled', 'activeTargetList', 'clientID', 'isGuided', 'selectors', 'manipulationMaps'], function (result) {
         const _rawTS = (result.selectors && result.selectors.truthsocial) ? result.selectors.truthsocial : {};
         SEL_TS = { ...(_rawTS.shared || {}), ...(_rawTS.account || {}), ...(_rawTS.post || {}) };
         checkSelectorHealth('truthsocial', SEL_TS, result.config && result.config.activeSurveys);
+
+        // Load manipulation map for truthsocial-post
+        const _postConfTS = result.config && result.config.surveys && result.config.surveys['truthsocial-post'];
+        manipConfig_TS = (_postConfTS && _postConfTS.manipulation) || {};
+        if (manipConfig_TS.enabled && result.manipulationMaps && result.manipulationMaps['truthsocial-post']) {
+            let fullMap = result.manipulationMaps['truthsocial-post'];
+            manipMapId_TS = (fullMap._meta && fullMap._meta.map_id) || '';
+            for (let k in fullMap) { if (k !== '_meta') manipMap_TS[k] = fullMap[k]; }
+        }
 
         tsRoot = document.getElementById('root') || document.querySelector(SEL_TS.appRoot || '#root') || document.body;
         obsConfigTS = SEL_TS.observerFilter || { attributes: false, childList: true, subtree: true };
@@ -467,6 +586,17 @@ function initializeSurveys() {
                                     window.dispatchEvent(evt);
                                 }
                             });
+                        }
+
+                        // Attach manipulation metadata
+                        let _ma = manipApplied_TS[values.post_id];
+                        if (_ma) {
+                            values.manipulation_applied = true;
+                            values.manipulation_label   = _ma.label;
+                            values.manipulation_map_id  = _ma.map_id;
+                            if (_ma.original_text !== undefined) values.original_text = _ma.original_text;
+                        } else {
+                            values.manipulation_applied = false;
                         }
 
                         storeResults(values, currentPlatform);

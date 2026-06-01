@@ -6,7 +6,9 @@
                 "attributes": true,
                 "childList": true,
                 "subtree": true,
-                "attributeFilter": ["role"]
+                "attributeFilter": [
+                    "role"
+                ]
             }
         },
         "account": {
@@ -310,7 +312,7 @@
             "userLink": null
         },
         "post": {
-            "postContainer": "[data-testid=\"mainFeed\"] [role=\"listitem\"]",
+            "postContainer": "[data-testid=\"mainFeed\"] [role=\"listitem\"], [role=\"main\"] [role=\"listitem\"], .feed-shared-update-v2",
             "postText": "[data-testid=\"expandable-text-box\"]",
             "postImage": "img[alt=\"View image\"]",
             "postVideo": "video",

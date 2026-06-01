@@ -94,7 +94,7 @@ function initConsentEditor(key) {
 
 // ── Load ──────────────────────────────────────────────────
 function loadPage() {
-    chrome.storage.local.get(['config', 'isEnabled', 'clientID'], function (result) {
+    chrome.storage.local.get(['config', 'isEnabled', 'clientID', 'manipulationMaps'], function (result) {
         if (!result || !result.config) {
             const sc = document.getElementById('survey-container');
             if (sc) sc.textContent = 'No configuration found.';
@@ -169,6 +169,26 @@ function loadPage() {
                 jsonToBuilder(key, survey.surveyFormSchema);
             }
 
+            // Manipulation settings
+            let manip = survey.manipulation || {};
+            let manipEnabledEl = document.getElementById(key + '_manip-enabled');
+            if (manipEnabledEl) manipEnabledEl.checked = !!manip.enabled;
+            let manipModeEl = document.getElementById(key + '_manip-mode');
+            if (manipModeEl) {
+                let mode = manip.mode || 'blind';
+                manipModeEl.value = mode;
+                let card = document.getElementById('card_' + key);
+                if (card) {
+                    card.querySelectorAll('.manip-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.value === mode));
+                    let descEl = document.getElementById(key + '_manip-mode-desc');
+                    if (descEl) descEl.textContent = mode === 'aware' ? 'Annotator can toggle to see original text' : 'Annotator sees rewritten text only';
+                }
+            }
+            let manipLogEl = document.getElementById(key + '_manip-log-original');
+            if (manipLogEl) manipLogEl.checked = !!manip.logOriginal;
+            let loadedMap = result.manipulationMaps && result.manipulationMaps[key];
+            showManipMapStatus(key, loadedMap || null);
+
             // Wire card-level tabs
             wireCardTabs(key);
             // Wire mode toggle buttons
@@ -177,6 +197,10 @@ function loadPage() {
             wireAddField(key);
             // Wire annotation list file upload
             wireAnnotationUpload(key);
+            // Wire manipulation map upload
+            wireManipulationUpload(key);
+            // Wire manip mode pill buttons
+            wireManipModeToggle(key);
         }
     });
 }
@@ -282,6 +306,92 @@ function wireAnnotationUpload(key) {
     }
 }
 
+// ── Wire manipulation map upload ──────────────────────────
+function wireManipulationUpload(key) {
+    let fileInput = document.getElementById(key + '_manip-file');
+    if (!fileInput) return;
+
+    fileInput.addEventListener('change', function (e) {
+        let file = e.target.files[0];
+        if (!file) return;
+        let reader = new FileReader();
+        reader.onload = function (evt) {
+            let map;
+            try {
+                map = JSON.parse(evt.target.result);
+            } catch (err) {
+                alert('Invalid JSON: ' + err.message);
+                return;
+            }
+            let entries = Object.keys(map).filter(k => k !== '_meta');
+            if (entries.length === 0) {
+                alert('No post entries found in map (expected at least one non-_meta key).');
+                return;
+            }
+            chrome.storage.local.get(['manipulationMaps'], function (stored) {
+                let maps = stored.manipulationMaps || {};
+                maps[key] = map;
+                chrome.storage.local.set({ manipulationMaps: maps }, function () {
+                    showManipMapStatus(key, map);
+                    fileInput.value = '';
+                });
+            });
+        };
+        reader.onerror = function () { alert('Error reading file'); };
+        reader.readAsText(file);
+    });
+
+    let card = document.getElementById('card_' + key);
+    if (!card) return;
+    let clearBtn = card.querySelector('.btn-clear-map');
+    if (clearBtn) {
+        clearBtn.addEventListener('click', function () {
+            chrome.storage.local.get(['manipulationMaps'], function (stored) {
+                let maps = stored.manipulationMaps || {};
+                delete maps[key];
+                chrome.storage.local.set({ manipulationMaps: maps }, function () {
+                    showManipMapStatus(key, null);
+                });
+            });
+        });
+    }
+}
+
+function wireManipModeToggle(key) {
+    let card = document.getElementById('card_' + key);
+    if (!card) return;
+    let modeDescriptions = { blind: 'Annotator sees rewritten text only', aware: 'Annotator can toggle to see original text' };
+    card.querySelectorAll('.manip-mode-btn').forEach(btn => {
+        btn.addEventListener('click', function () {
+            let val = this.dataset.value;
+            let hiddenEl = document.getElementById(key + '_manip-mode');
+            if (hiddenEl) hiddenEl.value = val;
+            card.querySelectorAll('.manip-mode-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            let descEl = document.getElementById(key + '_manip-mode-desc');
+            if (descEl) descEl.textContent = modeDescriptions[val] || '';
+        });
+    });
+}
+
+function showManipMapStatus(key, map) {
+    let statusEl = document.getElementById(key + '_manip-status');
+    if (!statusEl) return;
+    if (!map) {
+        statusEl.textContent = 'No map loaded.';
+        statusEl.className = 'manip-map-status';
+        return;
+    }
+    let entries = Object.keys(map).filter(k => k !== '_meta');
+    let meta = map._meta || {};
+    let parts = [entries.length + ' posts'];
+    if (meta.map_id)      parts.push('id: ' + meta.map_id);
+    if (meta.prompt_label) parts.push('preset: ' + meta.prompt_label);
+    if (meta.model)       parts.push('model: ' + meta.model);
+    statusEl.textContent = '✓ ' + parts.join(' · ');
+    statusEl.className = 'manip-map-status manip-map-status--loaded';
+}
+
 // ── Build survey card HTML ────────────────────────────────
 function buildSurveyCard(key, survey) {
     let platform = survey.socialMediaPlatform || (key.startsWith('truthsocial') ? 'truthsocial' : (key.startsWith('instagram') ? 'instagram' : (key.startsWith('bluesky') ? 'bluesky' : (key.startsWith('whatsapp') ? 'whatsapp' : (key.startsWith('telegram') ? 'telegram' : (key.startsWith('linkedin') ? 'linkedin' : 'x'))))));
@@ -317,6 +427,7 @@ function buildSurveyCard(key, survey) {
       <button class="card-tab-btn active" data-card-tab="${key}_tab_basic">Basic</button>
       <button class="card-tab-btn" data-card-tab="${key}_tab_consent">Consent</button>
       <button class="card-tab-btn" data-card-tab="${key}_tab_form">Form</button>
+      <button class="card-tab-btn" data-card-tab="${key}_tab_manipulation">Manipulation</button>
     </div>
 
     <!-- Basic -->
@@ -361,8 +472,8 @@ function buildSurveyCard(key, survey) {
     <!-- Consent -->
     <div class="card-tab-pane" id="${key}_tab_consent">
       <div class="field-group">
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:14px;">
-          <input type="checkbox" id="${key}_consent-enabled" style="width:15px;height:15px;"> Enable Consent Popup
+        <label class="toggle-label" style="margin-bottom:14px;">
+          <input type="checkbox" id="${key}_consent-enabled"> Enable Consent Popup
         </label>
         <textarea id="${key}_consent-text" class="field-textarea" rows="6" spellcheck="false"
           placeholder="Consent text… Supports Markdown. Use {platform} as a placeholder."></textarea>
@@ -393,6 +504,40 @@ function buildSurveyCard(key, survey) {
       <div id="${key}_json-view" style="display:none;">
         <textarea id="${key}_form-template" class="field-textarea" rows="10" spellcheck="false"></textarea>
         <div class="json-error" id="${key}_json-error"></div>
+      </div>
+    </div>
+
+    <!-- Manipulation -->
+    <div class="card-tab-pane" id="${key}_tab_manipulation">
+      <div class="field-group">
+        <label class="manip-toggle-label" style="margin-bottom:16px;">
+          <input type="checkbox" id="${key}_manip-enabled"> Enable Manipulation
+        </label>
+        <div class="manip-settings-row">
+          <div class="field-group" style="margin:0;">
+            <label class="field-label">Study Mode</label>
+            <input type="hidden" id="${key}_manip-mode" value="blind">
+            <div class="manip-mode-toggle" data-key="${key}">
+              <button type="button" class="manip-mode-btn active" data-value="blind">🙈 Blind</button>
+              <button type="button" class="manip-mode-btn" data-value="aware">👁 Aware</button>
+            </div>
+            <div class="manip-mode-desc" id="${key}_manip-mode-desc">Annotator sees rewritten text only</div>
+          </div>
+          <div class="field-group" style="margin:0;display:flex;align-items:center;padding-top:24px;">
+            <label class="manip-toggle-label">
+              <input type="checkbox" id="${key}_manip-log-original"> Log original text in annotations
+            </label>
+          </div>
+        </div>
+        <label class="field-label" style="margin-top:16px;">Manipulation Map
+          <span class="field-hint">JSON from manipulation/rewriter.py or any external tool</span>
+        </label>
+        <div class="annotation-upload-row">
+          <input type="file" id="${key}_manip-file" class="file-input" accept=".json">
+          <label for="${key}_manip-file" class="btn-upload-list">📂 Load map</label>
+          <button class="btn-clear-map" data-key="${key}">✕ Clear</button>
+        </div>
+        <div class="manip-map-status" id="${key}_manip-status">No map loaded.</div>
       </div>
     </div>
 
@@ -849,6 +994,18 @@ function saveOptionsPage() {
                     html: mdText ? marked.parse(mdText) : ''
                 };
             }
+            // Manipulation settings
+            let manipEnabledSave = document.getElementById(key + '_manip-enabled');
+            let manipModeSave    = document.getElementById(key + '_manip-mode');
+            let manipLogSave     = document.getElementById(key + '_manip-log-original');
+            if (manipEnabledSave) {
+                configData.surveys[key].manipulation = {
+                    enabled:     manipEnabledSave.checked,
+                    mode:        manipModeSave ? manipModeSave.value : 'blind',
+                    logOriginal: manipLogSave ? manipLogSave.checked : false,
+                };
+            }
+
             // Read from visual builder or JSON textarea depending on mode
             try {
                 configData.surveys[key].surveyFormSchema = getFormJson(key);

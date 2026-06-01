@@ -13,6 +13,12 @@ let observer = null;
 
 if (!window.__socialAnnotate__) window.__socialAnnotate__ = {};
 if (!window.__socialAnnotate__.twitterApiMediaMap) window.__socialAnnotate__.twitterApiMediaMap = {};
+
+// ── Manipulation state (loaded once at startup) ──────────
+let manipConfig  = {};  // { enabled, mode, logOriginal }
+let manipMap     = {};  // { post_id: { rewritten_text, original_text, prompt_label, ... } }
+let manipMapId   = '';  // _meta.map_id from the imported map
+let manipApplied = {};  // { tweetID: { applied, label, map_id, original_text? } }
 document.addEventListener('mh:media-response', function (e) {
     if (e.detail) {
         Object.assign(window.__socialAnnotate__.twitterApiMediaMap, e.detail);
@@ -66,6 +72,44 @@ function processArticleNode(articleNode) {
         let tweetDetails = extractTweetDetails(insertElement);
 
         if (tweetDetails) {
+            // ── Manipulation DOM patch ────────────────────────────
+            if (manipConfig.enabled && manipMap[tweetDetails.tweetID]) {
+                let entry   = manipMap[tweetDetails.tweetID];
+                let textEl  = articleNode.querySelector(SEL.postText || '[data-testid="tweetText"]');
+                if (textEl) {
+                    let rewrittenText = entry.rewritten_text;
+                    let originalText  = entry.original_text || '';
+                    textEl.textContent = rewrittenText;
+
+                    if (manipConfig.mode === 'aware') {
+                        let isOriginal = false;
+                        let toggleBtn  = document.createElement('button');
+                        toggleBtn.textContent = '👁 Show original';
+                        toggleBtn.setAttribute('data-sa-manip-toggle', '1');
+                        toggleBtn.style.cssText = [
+                            'display:block', 'margin-left:auto', 'margin-bottom:4px',
+                            'padding:2px 10px', 'font-size:11px', 'line-height:1.6',
+                            'cursor:pointer', 'border-radius:4px',
+                            'background:rgba(29,155,240,0.08)', 'color:rgb(29,155,240)',
+                            'border:1px solid rgba(29,155,240,0.25)',
+                            'font-family:-apple-system,BlinkMacSystemFont,sans-serif',
+                        ].join(';');
+                        toggleBtn.addEventListener('click', function (e) {
+                            e.stopPropagation();
+                            isOriginal = !isOriginal;
+                            textEl.textContent = isOriginal ? originalText : rewrittenText;
+                            toggleBtn.textContent = isOriginal ? '✏ Show rewritten' : '👁 Show original';
+                        });
+                        textEl.parentNode.insertBefore(toggleBtn, textEl);
+                    }
+
+                    let meta = { applied: true, label: entry.prompt_label || '', map_id: manipMapId };
+                    if (manipConfig.logOriginal) meta.original_text = originalText;
+                    manipApplied[tweetDetails.tweetID] = meta;
+                }
+            }
+            // ─────────────────────────────────────────────────────
+
             injectTwitterTweetSurvey(insertElement, tweetDetails.tweetID, tweetDetails.tweetOwner);
             availableContextsTwitter[1].renderSurvey(
                 tweetDetails.tweetOwner,
@@ -544,12 +588,23 @@ function checkUserURL() {
 }
 
 function initializeSurveys() {
-    chrome.storage.local.get(['config', 'isEnabled', 'activeTargetList', 'clientID', 'isGuided', 'selectors'], function (result) {
+    chrome.storage.local.get(['config', 'isEnabled', 'activeTargetList', 'clientID', 'isGuided', 'selectors', 'manipulationMaps'], function (result) {
 
         // Load selectors into the module-level variable
         const _rawX = (result.selectors && result.selectors.x) ? result.selectors.x : {};
         SEL = { ...(_rawX.shared || {}), ...(_rawX.account || {}), ...(_rawX.post || {}) };
         checkSelectorHealth('x', SEL, result.config && result.config.activeSurveys);
+
+        // Load manipulation map for x-post
+        const _postConf = result.config && result.config.surveys && result.config.surveys['x-post'];
+        manipConfig = (_postConf && _postConf.manipulation) || {};
+        if (manipConfig.enabled && result.manipulationMaps && result.manipulationMaps['x-post']) {
+            let fullMap = result.manipulationMaps['x-post'];
+            manipMapId = (fullMap._meta && fullMap._meta.map_id) || '';
+            for (let k in fullMap) {
+                if (k !== '_meta') manipMap[k] = fullMap[k];
+            }
+        }
 
         // Initialize observer infrastructure now that selectors are available
         reactRoot = document.querySelector(SEL.appRoot || '#react-root') || document.body;
@@ -626,6 +681,17 @@ function initializeSurveys() {
                                     window.dispatchEvent(evt);
                                 }
                             });
+                        }
+
+                        // Attach manipulation metadata
+                        let _ma = manipApplied[values.post_id];
+                        if (_ma) {
+                            values.manipulation_applied = true;
+                            values.manipulation_label   = _ma.label;
+                            values.manipulation_map_id  = _ma.map_id;
+                            if (_ma.original_text !== undefined) values.original_text = _ma.original_text;
+                        } else {
+                            values.manipulation_applied = false;
                         }
 
                         // Call storeResults AFTER capturing media URLs.

@@ -16,6 +16,12 @@ let observerBS = null;
 if (!window.__socialAnnotate__) window.__socialAnnotate__ = {};
 if (!window.__socialAnnotate__.bskyInterceptedVideos) window.__socialAnnotate__.bskyInterceptedVideos = {};
 
+// ── Manipulation state ────────────────────────────────────
+let manipConfig_BS  = {};
+let manipMap_BS     = {};
+let manipMapId_BS   = '';
+let manipApplied_BS = {};
+
 document.addEventListener('mh:bsky-video-found', function(e) {
     if (e.detail && e.detail.cid && e.detail.did) {
         window.__socialAnnotate__.bskyInterceptedVideos[e.detail.cid] = e.detail;
@@ -99,6 +105,44 @@ function processPostNode(postNode) {
         let postDetails = extractPostDetails(postNode);
 
         if (postDetails) {
+            // ── Manipulation DOM patch ────────────────────────────
+            if (manipConfig_BS.enabled && manipMap_BS[postDetails.postID]) {
+                let entry   = manipMap_BS[postDetails.postID];
+                // Feed posts use [data-testid="postText"]; expanded thread posts use [data-word-wrap="1"]
+                let textEl  = postNode.querySelector(SEL_BS.postText || '[data-testid="postText"]')
+                              || postNode.querySelector('[data-word-wrap="1"]');
+                if (textEl) {
+                    let rewrittenText = entry.rewritten_text;
+                    let originalText  = entry.original_text || '';
+                    textEl.textContent = rewrittenText;
+                    if (manipConfig_BS.mode === 'aware') {
+                        let isOriginal = false;
+                        let toggleBtn  = document.createElement('button');
+                        toggleBtn.textContent = '👁 Show original';
+                        toggleBtn.setAttribute('data-sa-manip-toggle', '1');
+                        toggleBtn.style.cssText = [
+                            'display:block','margin-left:auto','margin-bottom:4px',
+                            'padding:2px 10px','font-size:11px','line-height:1.6',
+                            'cursor:pointer','border-radius:4px',
+                            'background:rgba(29,155,240,0.08)','color:rgb(29,155,240)',
+                            'border:1px solid rgba(29,155,240,0.25)',
+                            'font-family:-apple-system,BlinkMacSystemFont,sans-serif',
+                        ].join(';');
+                        toggleBtn.addEventListener('click', function (e) {
+                            e.stopPropagation();
+                            isOriginal = !isOriginal;
+                            textEl.textContent = isOriginal ? originalText : rewrittenText;
+                            toggleBtn.textContent = isOriginal ? '✏ Show rewritten' : '👁 Show original';
+                        });
+                        textEl.parentNode.insertBefore(toggleBtn, textEl);
+                    }
+                    let meta = { applied: true, label: entry.prompt_label || '', map_id: manipMapId_BS };
+                    if (manipConfig_BS.logOriginal) meta.original_text = originalText;
+                    manipApplied_BS[postDetails.postID] = meta;
+                }
+            }
+            // ─────────────────────────────────────────────────────
+
             injectBlueskyPostSurvey(insertElement, postDetails.postID);
             availableContextsBluesky[1].renderSurvey(
                 postDetails.postOwner,
@@ -129,6 +173,7 @@ function createObserver() {
                         if (node.matches && node.matches(SEL_BS.postContainer || '[data-testid*="feedItem"], [data-testid*="postThreadItem"]')) {
                             processPostNode(node);
                         }
+
                     }
                 });
             }
@@ -368,12 +413,21 @@ function checkUserURL() {
 }
 
 function initializeSurveys() {
-    chrome.storage.local.get(['config', 'isEnabled', 'activeTargetList', 'clientID', 'isGuided', 'selectors'], function (result) {
+    chrome.storage.local.get(['config', 'isEnabled', 'activeTargetList', 'clientID', 'isGuided', 'selectors', 'manipulationMaps'], function (result) {
 
         // Load selectors into the module-level variable
         const _rawBS = (result.selectors && result.selectors.bluesky) ? result.selectors.bluesky : {};
         SEL_BS = { ...(_rawBS.shared || {}), ...(_rawBS.account || {}), ...(_rawBS.post || {}) };
         checkSelectorHealth('bluesky', SEL_BS, result.config && result.config.activeSurveys);
+
+        // Load manipulation map for bluesky-post
+        const _postConfBS = result.config && result.config.surveys && result.config.surveys['bluesky-post'];
+        manipConfig_BS = (_postConfBS && _postConfBS.manipulation) || {};
+        if (manipConfig_BS.enabled && result.manipulationMaps && result.manipulationMaps['bluesky-post']) {
+            let fullMap = result.manipulationMaps['bluesky-post'];
+            manipMapId_BS = (fullMap._meta && fullMap._meta.map_id) || '';
+            for (let k in fullMap) { if (k !== '_meta') manipMap_BS[k] = fullMap[k]; }
+        }
 
         // Initialize observer infrastructure now that selectors are available
         bskyRoot = document.getElementById('root') || document.querySelector(SEL_BS.appRoot || '#root') || document.body;
@@ -416,6 +470,18 @@ function initializeSurveys() {
                     if (!errors) {
                         values.surveyType = currentContext.name;
                         values.studyID = studyID;
+
+                        // Attach manipulation metadata
+                        let _ma = manipApplied_BS[values.post_id];
+                        if (_ma) {
+                            values.manipulation_applied = true;
+                            values.manipulation_label   = _ma.label;
+                            values.manipulation_map_id  = _ma.map_id;
+                            if (_ma.original_text !== undefined) values.original_text = _ma.original_text;
+                        } else {
+                            values.manipulation_applied = false;
+                        }
+
                         storeResults(values, currentPlatform);
 
                         let isUserSurvey = currentContext.name.endsWith('-user');

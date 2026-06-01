@@ -2,6 +2,38 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* ── Global toggle switch (all checkboxes) ──────────────── */
+input[type="checkbox"] {
+  appearance: none; -webkit-appearance: none;
+  flex-shrink: 0;
+  width: 36px; height: 20px;
+  background: var(--card-border, rgba(255,255,255,0.12));
+  border-radius: 10px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  vertical-align: middle;
+}
+input[type="checkbox"]::before {
+  content: '';
+  position: absolute;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  top: 3px; left: 3px;
+  transition: transform 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+input[type="checkbox"]:checked { background: var(--accent); }
+input[type="checkbox"]:checked::before { transform: translateX(16px); }
+
+/* Shared label wrapper for toggle rows */
+.toggle-label {
+  display: flex; align-items: center; gap: 10px;
+  cursor: pointer; font-size: 13px; color: var(--text-secondary);
+  user-select: none;
+}
+
 :root {
   --bg:              #0d0f14;
   --card-bg:         rgba(255,255,255,0.04);
@@ -432,7 +464,13 @@ html, body {
   font-size: 11px; color: var(--text-muted); cursor: pointer; flex-shrink: 0;
 }
 .builder-required-toggle input[type="checkbox"] {
-  accent-color: var(--accent); cursor: pointer;
+  width: 28px; height: 16px; border-radius: 8px;
+}
+.builder-required-toggle input[type="checkbox"]::before {
+  width: 10px; height: 10px; top: 3px; left: 3px;
+}
+.builder-required-toggle input[type="checkbox"]:checked::before {
+  transform: translateX(12px);
 }
 .btn-delete-field {
   background: none; border: none; color: var(--text-muted);
@@ -521,13 +559,18 @@ html, body {
   cursor: pointer; transition: all var(--ease);
 }
 .btn-upload-list:hover { background: var(--card-bg); border-color: var(--accent); }
-.btn-clear-list {
-  background: none; border: 1px solid var(--card-border);
-  color: var(--text-muted); font-family: var(--font); font-size: 12px;
-  padding: 6px 10px; border-radius: var(--r-sm); cursor: pointer;
-  transition: all var(--ease);
+.btn-clear-list, .btn-clear-map {
+  background: none; border: 1px solid rgba(244,33,46,0.25);
+  color: rgba(244,33,46,0.65); font-family: var(--font); font-size: 12px;
+  font-weight: 500; padding: 6px 12px; border-radius: var(--r-sm);
+  cursor: pointer; transition: all var(--ease);
+  display: inline-flex; align-items: center; gap: 4px;
+  letter-spacing: 0.01em;
 }
-.btn-clear-list:hover { color: var(--error); border-color: rgba(244,33,46,0.3); }
+.btn-clear-list:hover, .btn-clear-map:hover {
+  background: rgba(244,33,46,0.07);
+  color: var(--error); border-color: rgba(244,33,46,0.55);
+}
 
 /* ── Danger Buttons ─────────────────────────────────────── */
 .btn-danger {
@@ -641,6 +684,37 @@ html, body {
   background: var(--bg) !important;
   color: var(--text-primary) !important;
 }
+/* ── Manipulation Settings ──────────────────────────────── */
+.manip-settings-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;
+}
+.manip-mode-toggle {
+  display: inline-flex; gap: 2px;
+  background: var(--input-bg); border: 1px solid var(--card-border);
+  border-radius: var(--r-sm); padding: 3px;
+  margin-top: 8px;
+}
+.manip-mode-btn {
+  background: none; border: none; color: var(--text-muted);
+  font-family: var(--font); font-size: 12px; font-weight: 500;
+  padding: 5px 16px; border-radius: 4px; cursor: pointer;
+  transition: all var(--ease); white-space: nowrap;
+}
+.manip-mode-btn:hover { color: var(--text-secondary); }
+.manip-mode-btn.active { background: var(--accent); color: #fff; }
+.manip-mode-desc {
+  margin-top: 6px; font-size: 11px; color: var(--text-muted); font-style: italic;
+}
+.manip-toggle-label { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; color: var(--text-secondary); user-select: none; }
+
+/* ── Manipulation map status ────────────────────────────── */
+.manip-map-status {
+  margin-top: 8px; font-size: 12px; color: var(--text-muted);
+}
+.manip-map-status--loaded {
+  color: var(--success);
+}
+
 .editor-statusbar {
   color: var(--text-muted) !important;
 }

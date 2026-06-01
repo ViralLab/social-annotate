@@ -8,6 +8,12 @@ let tgMessagesRoot = null;
 let tgObserver = null;
 let tgObserverConfig = { attributes: false, childList: true, subtree: true };
 
+// ── Manipulation state ────────────────────────────────────
+let manipConfig_TG  = {};
+let manipMap_TG     = {};
+let manipMapId_TG   = '';
+let manipApplied_TG = {};
+
 // ---------------------------------------------------------------------------
 // Video src capture bridge
 // The MAIN-world inject-api.js populates window.__tgMediaSrcMap.
@@ -353,6 +359,41 @@ function processMessageNode(messageNode) {
 
     const existingContainer = document.getElementById('surveyFormContainer-' + details.postID);
     if (!existingContainer) {
+        // ── Manipulation DOM patch ────────────────────────────
+        if (manipConfig_TG.enabled && manipMap_TG[details.postID]) {
+            let entry   = manipMap_TG[details.postID];
+            let textEl  = messageNode.querySelector(SEL_TG.postText || '.text-content');
+            if (textEl) {
+                let rewrittenText = entry.rewritten_text;
+                let originalText  = entry.original_text || '';
+                textEl.textContent = rewrittenText;
+                if (manipConfig_TG.mode === 'aware') {
+                    let isOriginal = false;
+                    let toggleBtn  = document.createElement('button');
+                    toggleBtn.textContent = '👁 Show original';
+                    toggleBtn.setAttribute('data-sa-manip-toggle', '1');
+                    toggleBtn.style.cssText = [
+                        'display:block','margin-left:auto','margin-bottom:4px',
+                        'padding:2px 10px','font-size:11px','line-height:1.6',
+                        'cursor:pointer','border-radius:4px',
+                        'background:rgba(29,155,240,0.08)','color:rgb(29,155,240)',
+                        'border:1px solid rgba(29,155,240,0.25)',
+                        'font-family:-apple-system,BlinkMacSystemFont,sans-serif',
+                    ].join(';');
+                    toggleBtn.addEventListener('click', function (e) {
+                        e.stopPropagation();
+                        isOriginal = !isOriginal;
+                        textEl.textContent = isOriginal ? originalText : rewrittenText;
+                        toggleBtn.textContent = isOriginal ? '✏ Show rewritten' : '👁 Show original';
+                    });
+                    textEl.parentNode.insertBefore(toggleBtn, textEl);
+                }
+                let meta = { applied: true, label: entry.prompt_label || '', map_id: manipMapId_TG };
+                if (manipConfig_TG.logOriginal) meta.original_text = originalText;
+                manipApplied_TG[details.postID] = meta;
+            }
+        }
+        // ─────────────────────────────────────────────────────
         injectTelegramPostSurvey(messageNode, details.postID);
     }
 
@@ -400,10 +441,19 @@ function enableTelegramObserver() {
 }
 
 function initializeSurveys() {
-    chrome.storage.local.get(['config', 'isEnabled', 'selectors'], function (result) {
+    chrome.storage.local.get(['config', 'isEnabled', 'selectors', 'manipulationMaps'], function (result) {
         const _rawTG = (result.selectors && result.selectors.telegram) ? result.selectors.telegram : {};
         SEL_TG = { ...(_rawTG.shared || {}), ...(_rawTG.account || {}), ...(_rawTG.post || {}) };
         checkSelectorHealth('telegram', SEL_TG, result.config && result.config.activeSurveys);
+
+        // Load manipulation map for telegram-post
+        const _postConfTG = result.config && result.config.surveys && result.config.surveys['telegram-post'];
+        manipConfig_TG = (_postConfTG && _postConfTG.manipulation) || {};
+        if (manipConfig_TG.enabled && result.manipulationMaps && result.manipulationMaps['telegram-post']) {
+            let fullMap = result.manipulationMaps['telegram-post'];
+            manipMapId_TG = (fullMap._meta && fullMap._meta.map_id) || '';
+            for (let k in fullMap) { if (k !== '_meta') manipMap_TG[k] = fullMap[k]; }
+        }
 
         tgMessagesRoot = document.querySelector(
             SEL_TG.conversationMessages || '.MessageList .messages-container'
@@ -442,6 +492,17 @@ function initializeSurveys() {
                                 window.dispatchEvent(evt);
                             }
                         });
+
+                        // Attach manipulation metadata
+                        let _ma = manipApplied_TG[values.post_id];
+                        if (_ma) {
+                            values.manipulation_applied = true;
+                            values.manipulation_label   = _ma.label;
+                            values.manipulation_map_id  = _ma.map_id;
+                            if (_ma.original_text !== undefined) values.original_text = _ma.original_text;
+                        } else {
+                            values.manipulation_applied = false;
+                        }
 
                         storeResults(values, currentPlatform);
                     }

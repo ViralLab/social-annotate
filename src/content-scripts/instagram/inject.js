@@ -9,6 +9,12 @@ let SEL_IG = {};
 
 if (!window.__socialAnnotate__) window.__socialAnnotate__ = {};
 if (!window.__socialAnnotate__.instagramApiMediaMap) window.__socialAnnotate__.instagramApiMediaMap = {};
+
+// ── Manipulation state ────────────────────────────────────
+let manipConfig_IG  = {};
+let manipMap_IG     = {};
+let manipMapId_IG   = '';
+let manipApplied_IG = {};
 document.addEventListener('mh:media-response-ig', function(e) {
     if (e.detail) {
         Object.keys(e.detail).forEach(k => {
@@ -215,6 +221,48 @@ function processInstagramArticleNode(articleNode) {
             let postCtx = availableContextsInstagram.find(c => c.name === 'instagram-post');
             if (!postCtx || !postCtx.formTemplate) return; // survey not active or config not yet loaded
 
+            // ── Manipulation DOM patch ────────────────────────────
+            if (manipConfig_IG.enabled && manipMap_IG[postDetails.postID]) {
+                let entry   = manipMap_IG[postDetails.postID];
+                // Find the longest text element — mirrors extractInstagramText logic
+                let textEl  = null;
+                let longest = 0;
+                articleNode.querySelectorAll(SEL_IG.postText || "h1[dir='auto'], span[dir='auto']").forEach(el => {
+                    let len = (el.innerText || el.textContent || '').length;
+                    if (len > longest) { longest = len; textEl = el; }
+                });
+                if (textEl) {
+                    let rewrittenText = entry.rewritten_text;
+                    let originalText  = entry.original_text || '';
+                    textEl.textContent = rewrittenText;
+                    if (manipConfig_IG.mode === 'aware') {
+                        let isOriginal = false;
+                        let toggleBtn  = document.createElement('button');
+                        toggleBtn.textContent = '👁 Show original';
+                        toggleBtn.setAttribute('data-sa-manip-toggle', '1');
+                        toggleBtn.style.cssText = [
+                            'display:block','margin-left:auto','margin-bottom:4px',
+                            'padding:2px 10px','font-size:11px','line-height:1.6',
+                            'cursor:pointer','border-radius:4px',
+                            'background:rgba(29,155,240,0.08)','color:rgb(29,155,240)',
+                            'border:1px solid rgba(29,155,240,0.25)',
+                            'font-family:-apple-system,BlinkMacSystemFont,sans-serif',
+                        ].join(';');
+                        toggleBtn.addEventListener('click', function (e) {
+                            e.stopPropagation();
+                            isOriginal = !isOriginal;
+                            textEl.textContent = isOriginal ? originalText : rewrittenText;
+                            toggleBtn.textContent = isOriginal ? '✏ Show rewritten' : '👁 Show original';
+                        });
+                        textEl.parentNode.insertBefore(toggleBtn, textEl);
+                    }
+                    let meta = { applied: true, label: entry.prompt_label || '', map_id: manipMapId_IG };
+                    if (manipConfig_IG.logOriginal) meta.original_text = originalText;
+                    manipApplied_IG[postDetails.postID] = meta;
+                }
+            }
+            // ─────────────────────────────────────────────────────
+
             injectInstagramPostSurvey(articleNode, postDetails.postID, postDetails.postOwner);
             postCtx.renderSurvey(
                 postDetails.postOwner,
@@ -333,12 +381,21 @@ function createObserver() {
 }
 
 function initializeSurveys() {
-    chrome.storage.local.get(['config', 'isEnabled', 'activeTargetList', 'clientID', 'selectors'], function (result) {
+    chrome.storage.local.get(['config', 'isEnabled', 'activeTargetList', 'clientID', 'selectors', 'manipulationMaps'], function (result) {
 
         // Load selectors into the module-level variable
         const _rawIG = (result.selectors && result.selectors.instagram) ? result.selectors.instagram : {};
         SEL_IG = { ...(_rawIG.shared || {}), ...(_rawIG.account || {}), ...(_rawIG.post || {}) };
         checkSelectorHealth('instagram', SEL_IG, result.config && result.config.activeSurveys);
+
+        // Load manipulation map for instagram-post
+        const _postConfIG = result.config && result.config.surveys && result.config.surveys['instagram-post'];
+        manipConfig_IG = (_postConfIG && _postConfIG.manipulation) || {};
+        if (manipConfig_IG.enabled && result.manipulationMaps && result.manipulationMaps['instagram-post']) {
+            let fullMap = result.manipulationMaps['instagram-post'];
+            manipMapId_IG = (fullMap._meta && fullMap._meta.map_id) || '';
+            for (let k in fullMap) { if (k !== '_meta') manipMap_IG[k] = fullMap[k]; }
+        }
 
         const currentPlatform = 'instagram';
         for (let index = 0; index < availableContextsInstagram.length; ++index) {
@@ -359,6 +416,18 @@ function initializeSurveys() {
                     if (!errors) {
                         values.surveyType = currentContext.name;
                         values.studyID = studyID;
+
+                        // Attach manipulation metadata
+                        let _ma = manipApplied_IG[values.post_id];
+                        if (_ma) {
+                            values.manipulation_applied = true;
+                            values.manipulation_label   = _ma.label;
+                            values.manipulation_map_id  = _ma.map_id;
+                            if (_ma.original_text !== undefined) values.original_text = _ma.original_text;
+                        } else {
+                            values.manipulation_applied = false;
+                        }
+
                         storeResults(values, currentPlatform);
 
                         let isUserSurvey = currentContext.name.endsWith('-user');

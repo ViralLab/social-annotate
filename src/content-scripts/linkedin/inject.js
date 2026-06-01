@@ -9,6 +9,12 @@ let liRoot = null;
 let obsConfigLI = {};
 let observerLI = null;
 
+// ── Manipulation state ────────────────────────────────────
+let manipConfig_LI  = {};
+let manipMap_LI     = {};
+let manipMapId_LI   = '';
+let manipApplied_LI = {};
+
 // Cache of CDN video URLs captured by inject-api.js (MAIN world)
 // Maps postKey → last CDN video URL seen for that post
 if (!window.__socialAnnotate__) window.__socialAnnotate__ = {};
@@ -37,7 +43,7 @@ window.addEventListener('mh:download-request', function(e) {
     
     let containerName = 'surveyFormContainer-' + postID;
     let surveyContainer = document.getElementById(containerName);
-    let injectNode = surveyContainer ? (surveyContainer.closest(SEL_LI.postContainer || '[data-testid="mainFeed"] [role="listitem"]') || surveyContainer.parentNode) : null;
+    let injectNode = surveyContainer ? (surveyContainer.closest(SEL_LI.postContainer || '[data-testid="mainFeed"] [role="listitem"], [role="main"] [role="listitem"], .feed-shared-update-v2') || surveyContainer.parentNode) : null;
 
     // ── Images: use DOM-extracted URLs with credentialed fetch ────────────
     let imageUrls = [];
@@ -126,6 +132,44 @@ function processPostNode(postNode) {
         let postDetails = extractPostDetails(postNode);
 
         if (postDetails && postDetails.postID) {
+            // ── Manipulation DOM patch ────────────────────────────
+            if (manipConfig_LI.enabled && manipMap_LI[postDetails.postID]) {
+                let entry  = manipMap_LI[postDetails.postID];
+                let textEl = postNode.querySelector(SEL_LI.postText || '[data-testid="expandable-text-box"]')
+                              || postNode.querySelector('.update-components-text')
+                              || postNode.querySelector('.feed-shared-update-v2__description');
+                if (textEl) {
+                    let rewrittenText = entry.rewritten_text;
+                    let originalText  = entry.original_text || '';
+                    textEl.textContent = rewrittenText;
+                    if (manipConfig_LI.mode === 'aware') {
+                        let isOriginal = false;
+                        let toggleBtn  = document.createElement('button');
+                        toggleBtn.textContent = '👁 Show original';
+                        toggleBtn.setAttribute('data-sa-manip-toggle', '1');
+                        toggleBtn.style.cssText = [
+                            'display:block','margin-left:auto','margin-bottom:4px',
+                            'padding:2px 10px','font-size:11px','line-height:1.6',
+                            'cursor:pointer','border-radius:4px',
+                            'background:rgba(29,155,240,0.08)','color:rgb(29,155,240)',
+                            'border:1px solid rgba(29,155,240,0.25)',
+                            'font-family:-apple-system,BlinkMacSystemFont,sans-serif',
+                        ].join(';');
+                        toggleBtn.addEventListener('click', function (e) {
+                            e.stopPropagation();
+                            isOriginal = !isOriginal;
+                            textEl.textContent = isOriginal ? originalText : rewrittenText;
+                            toggleBtn.textContent = isOriginal ? '✏ Show rewritten' : '👁 Show original';
+                        });
+                        textEl.parentNode.insertBefore(toggleBtn, textEl);
+                    }
+                    let meta = { applied: true, label: entry.prompt_label || '', map_id: manipMapId_LI };
+                    if (manipConfig_LI.logOriginal) meta.original_text = originalText;
+                    manipApplied_LI[postDetails.postID] = meta;
+                }
+            }
+            // ─────────────────────────────────────────────────────
+
             injectLinkedInPostSurvey(insertElement, postDetails.postID);
             availableContextsLinkedIn[0].renderSurvey(
                 postDetails.postOwner,
@@ -147,10 +191,10 @@ function createObserver() {
             if (mutation.type === 'childList') {
                 mutation.addedNodes.forEach(node => {
                     if (node.nodeType === 1) {
-                        let posts = node.querySelectorAll(SEL_LI.postContainer || '[data-testid="mainFeed"] [role="listitem"]');
+                        let posts = node.querySelectorAll(SEL_LI.postContainer || '[data-testid="mainFeed"] [role="listitem"], [role="main"] [role="listitem"], .feed-shared-update-v2');
                         posts.forEach(processPostNode);
 
-                        if (node.matches && node.matches(SEL_LI.postContainer || '[data-testid="mainFeed"] [role="listitem"]')) {
+                        if (node.matches && node.matches(SEL_LI.postContainer || '[data-testid="mainFeed"] [role="listitem"], [role="main"] [role="listitem"], .feed-shared-update-v2')) {
                             processPostNode(node);
                         }
                     }
@@ -162,12 +206,12 @@ function createObserver() {
 }
 
 function enablePostObserver(injectElement) {
-    document.querySelectorAll(SEL_LI.postContainer || '[data-testid="mainFeed"] [role="listitem"]').forEach(processPostNode);
+    document.querySelectorAll(SEL_LI.postContainer || '[data-testid="mainFeed"] [role="listitem"], [role="main"] [role="listitem"], .feed-shared-update-v2').forEach(processPostNode);
     if (liRoot && observerLI) {
         observerLI.observe(liRoot, obsConfigLI);
     }
     setTimeout(() => {
-        document.querySelectorAll(SEL_LI.postContainer || '[data-testid="mainFeed"] [role="listitem"]').forEach(processPostNode);
+        document.querySelectorAll(SEL_LI.postContainer || '[data-testid="mainFeed"] [role="listitem"], [role="main"] [role="listitem"], .feed-shared-update-v2').forEach(processPostNode);
     }, 1500);
 }
 
@@ -196,7 +240,9 @@ function extractPostMedia(postNode) {
 
 function extractPostTextContent(postNode) {
     let textParts = [];
-    let textNodes = postNode.querySelectorAll(SEL_LI.postText || '[data-testid="expandable-text-box"]');
+    let sel = SEL_LI.postText || '[data-testid="expandable-text-box"]';
+    let textNodes = postNode.querySelectorAll(sel);
+    if (textNodes.length === 0) textNodes = postNode.querySelectorAll('.update-components-text, .feed-shared-update-v2__description');
     textNodes.forEach(node => {
         if (node.innerText) textParts.push(node.innerText.trim());
     });
@@ -209,15 +255,39 @@ function extractPostMetrics(postNode) {
 }
 
 function extractPostDetails(postNode) {
-    // Generate a pseudo-ID for LinkedIn posts if urn not found easily
-    // Sometimes LinkedIn posts have a urn:li:activity:... 
-    // but we can just use a unique attribute or random id for DOM insertion if we don't have it.
     let postID = "";
-    if (postNode.dataset.componentkey) {
-        postID = postNode.dataset.componentkey;
-    } else if (postNode.getAttribute('componentkey')) {
-        postID = postNode.getAttribute('componentkey');
-    } else {
+
+    // Tier 1: activity URN from any child componentkey — stable across sessions
+    let urnEl = postNode.querySelector('[componentkey*="urn:li:activity:"]');
+    if (urnEl) {
+        let m = (urnEl.getAttribute('componentkey') || '').match(/urn:li:activity:(\d+)/);
+        if (m) postID = m[1];
+    }
+
+    // Tier 2: activity URN from any data-* attribute on the post node itself
+    if (!postID) {
+        for (let attr of postNode.attributes) {
+            let m = attr.value.match(/urn:li:activity:(\d+)/);
+            if (m) { postID = m[1]; break; }
+        }
+    }
+
+    // Tier 3: stable anchor href (e.g. share URL contains the activity URN)
+    if (!postID) {
+        let anchors = postNode.querySelectorAll('a[href*="urn%3Ali%3Aactivity%3A"], a[href*="urn:li:activity:"]');
+        for (let a of anchors) {
+            let m = decodeURIComponent(a.href).match(/urn:li:activity:(\d+)/);
+            if (m) { postID = m[1]; break; }
+        }
+    }
+
+    // Tier 4: fall back to componentkey (session-specific but keeps surveys working)
+    if (!postID) {
+        postID = postNode.dataset.componentkey || postNode.getAttribute('componentkey') || '';
+    }
+
+    // Last resort: random stable-for-this-session ID
+    if (!postID) {
         postID = Math.random().toString(36).substr(2, 9);
         postNode.setAttribute('componentkey', postID);
     }
@@ -229,12 +299,7 @@ function extractPostDetails(postNode) {
         if (ownerMatch) postOwner = ownerMatch[1];
     }
 
-    if (!postID) return null;
-
-    return {
-        postOwner: postOwner,
-        postID: postID
-    };
+    return { postOwner, postID };
 }
 
 // ───────────────────────────────────────────────────────────────────────
@@ -382,10 +447,19 @@ function injectLinkedInPostSurvey(injectNode, postID) {
 
 function initializeSurveys() {
     if (!isExtensionContextValid()) return;
-    chrome.storage.local.get(['config', 'isEnabled', 'activeTargetList', 'clientID', 'isGuided', 'selectors'], function (result) {
+    chrome.storage.local.get(['config', 'isEnabled', 'activeTargetList', 'clientID', 'isGuided', 'selectors', 'manipulationMaps'], function (result) {
         const _rawLI = (result.selectors && result.selectors.linkedin) ? result.selectors.linkedin : {};
         SEL_LI = { ...(_rawLI.shared || {}), ...(_rawLI.account || {}), ...(_rawLI.post || {}) };
         checkSelectorHealth('linkedin', SEL_LI, result.config && result.config.activeSurveys);
+
+        // Load manipulation map for linkedin-post
+        const _postConfLI = result.config && result.config.surveys && result.config.surveys['linkedin-post'];
+        manipConfig_LI = (_postConfLI && _postConfLI.manipulation) || {};
+        if (manipConfig_LI.enabled && result.manipulationMaps && result.manipulationMaps['linkedin-post']) {
+            let fullMap = result.manipulationMaps['linkedin-post'];
+            manipMapId_LI = (fullMap._meta && fullMap._meta.map_id) || '';
+            for (let k in fullMap) { if (k !== '_meta') manipMap_LI[k] = fullMap[k]; }
+        }
 
         liRoot = document.getElementById('root') || document.querySelector(SEL_LI.appRoot || '#root') || document.body;
         obsConfigLI = SEL_LI.observerFilter || { attributes: false, childList: true, subtree: true };
@@ -428,6 +502,19 @@ function initializeSurveys() {
                         if (!isExtensionContextValid()) return;
                         values.surveyType = currentContext.name;
                         values.studyID = studyID;
+
+                        // Attach manipulation metadata
+                        if (!isUserSurvey) {
+                            let _ma = manipApplied_LI[values.post_id];
+                            if (_ma) {
+                                values.manipulation_applied = true;
+                                values.manipulation_label   = _ma.label;
+                                values.manipulation_map_id  = _ma.map_id;
+                                if (_ma.original_text !== undefined) values.original_text = _ma.original_text;
+                            } else {
+                                values.manipulation_applied = false;
+                            }
+                        }
 
                         if (isUserSurvey) {
                             let profile = extractLinkedInUserProfile();

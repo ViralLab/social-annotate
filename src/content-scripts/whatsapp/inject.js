@@ -8,6 +8,12 @@ let waMessagesRoot = null;
 let waObserver = null;
 let waObserverConfig = { attributes: false, childList: true, subtree: true };
 
+// ── Manipulation state ────────────────────────────────────
+let manipConfig_WA  = {};
+let manipMap_WA     = {};
+let manipMapId_WA   = '';
+let manipApplied_WA = {};
+
 // WhatsApp opens videos in a fullscreen modal which removes the <video> tag from the message node.
 // Also, it decodes videos in memory and creates blob URLs that aren't always immediately attached.
 // We track all video blob URLs observed in the DOM OR intercepted by the MAIN-world script.
@@ -271,6 +277,41 @@ function processMessageNode(messageNode) {
 
     const existingContainer = document.getElementById('surveyFormContainer-' + details.postID);
     if (!existingContainer) {
+        // ── Manipulation DOM patch ────────────────────────────
+        if (manipConfig_WA.enabled && manipMap_WA[details.postID]) {
+            let entry   = manipMap_WA[details.postID];
+            let textEl  = messageNode.querySelector(SEL_WA.postText || "[data-testid='selectable-text']");
+            if (textEl) {
+                let rewrittenText = entry.rewritten_text;
+                let originalText  = entry.original_text || '';
+                textEl.textContent = rewrittenText;
+                if (manipConfig_WA.mode === 'aware') {
+                    let isOriginal = false;
+                    let toggleBtn  = document.createElement('button');
+                    toggleBtn.textContent = '👁 Show original';
+                    toggleBtn.setAttribute('data-sa-manip-toggle', '1');
+                    toggleBtn.style.cssText = [
+                        'display:block','margin-left:auto','margin-bottom:4px',
+                        'padding:2px 10px','font-size:11px','line-height:1.6',
+                        'cursor:pointer','border-radius:4px',
+                        'background:rgba(29,155,240,0.08)','color:rgb(29,155,240)',
+                        'border:1px solid rgba(29,155,240,0.25)',
+                        'font-family:-apple-system,BlinkMacSystemFont,sans-serif',
+                    ].join(';');
+                    toggleBtn.addEventListener('click', function (e) {
+                        e.stopPropagation();
+                        isOriginal = !isOriginal;
+                        textEl.textContent = isOriginal ? originalText : rewrittenText;
+                        toggleBtn.textContent = isOriginal ? '✏ Show rewritten' : '👁 Show original';
+                    });
+                    textEl.parentNode.insertBefore(toggleBtn, textEl);
+                }
+                let meta = { applied: true, label: entry.prompt_label || '', map_id: manipMapId_WA };
+                if (manipConfig_WA.logOriginal) meta.original_text = originalText;
+                manipApplied_WA[details.postID] = meta;
+            }
+        }
+        // ─────────────────────────────────────────────────────
         injectWhatsAppPostSurvey(messageNode, details.postID);
     }
 
@@ -318,10 +359,19 @@ function enableWhatsAppObserver() {
 }
 
 function initializeSurveys() {
-    chrome.storage.local.get(['config', 'isEnabled', 'selectors'], function (result) {
+    chrome.storage.local.get(['config', 'isEnabled', 'selectors', 'manipulationMaps'], function (result) {
         const _rawWA = (result.selectors && result.selectors.whatsapp) ? result.selectors.whatsapp : {};
         SEL_WA = { ...(_rawWA.shared || {}), ...(_rawWA.account || {}), ...(_rawWA.post || {}) };
         checkSelectorHealth('whatsapp', SEL_WA, result.config && result.config.activeSurveys);
+
+        // Load manipulation map for whatsapp-post
+        const _postConfWA = result.config && result.config.surveys && result.config.surveys['whatsapp-post'];
+        manipConfig_WA = (_postConfWA && _postConfWA.manipulation) || {};
+        if (manipConfig_WA.enabled && result.manipulationMaps && result.manipulationMaps['whatsapp-post']) {
+            let fullMap = result.manipulationMaps['whatsapp-post'];
+            manipMapId_WA = (fullMap._meta && fullMap._meta.map_id) || '';
+            for (let k in fullMap) { if (k !== '_meta') manipMap_WA[k] = fullMap[k]; }
+        }
 
         waMessagesRoot = document.querySelector(SEL_WA.conversationMessages || "[data-testid='conversation-panel-messages']") || document.body;
         waObserverConfig = SEL_WA.observerFilter || { attributes: false, childList: true, subtree: true };
@@ -352,6 +402,17 @@ function initializeSurveys() {
                                 window.dispatchEvent(evt);
                             }
                         });
+
+                        // Attach manipulation metadata
+                        let _ma = manipApplied_WA[values.post_id];
+                        if (_ma) {
+                            values.manipulation_applied = true;
+                            values.manipulation_label   = _ma.label;
+                            values.manipulation_map_id  = _ma.map_id;
+                            if (_ma.original_text !== undefined) values.original_text = _ma.original_text;
+                        } else {
+                            values.manipulation_applied = false;
+                        }
 
                         storeResults(values, currentPlatform);
                     }

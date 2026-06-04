@@ -19,8 +19,8 @@ let manipConfig  = {};  // { enabled, mode, logOriginal }
 let manipMap     = {};  // { post_id: { rewritten_text, original_text, prompt_label, ... } }
 let manipMapId   = '';  // _meta.map_id from the imported map
 let manipApplied      = {};  // { tweetID: { applied, label, map_id, original_text? } }
-let _processedCount   = 0;
-registerHealthCounter(function () { return _processedCount; });
+let _processedCount_X   = 0;
+registerHealthCounter(function () { return _processedCount_X; });
 document.addEventListener('mh:media-response', function (e) {
     if (e.detail) {
         Object.assign(window.__socialAnnotate__.twitterApiMediaMap, e.detail);
@@ -69,7 +69,7 @@ window.addEventListener('mh:download-request', function (e) {
 });
 
 function processArticleNode(articleNode) {
-    _processedCount++;
+    _processedCount_X++;
     let insertElement = articleNode.parentNode;
     if (insertElement && insertElement.getElementsByClassName('survey-container-tweet').length === 0) {
         let tweetDetails = extractTweetDetails(insertElement);
@@ -610,7 +610,7 @@ function initializeSurveys() {
         // Load selectors into the module-level variable
         const _rawX = (result.selectors && result.selectors.x) ? result.selectors.x : {};
         SEL = { ...(_rawX.shared || {}), ...(_rawX.account || {}), ...(_rawX.post || {}) };
-        watchPostCounter('x', function () { return _processedCount; });
+        watchPostCounter('x', function () { return _processedCount_X; });
 
         // Load manipulation map for x-post
         const _postConf = result.config && result.config.surveys && result.config.surveys['x-post'];
@@ -723,7 +723,7 @@ function initializeSurveys() {
                 currentContext.injectSurvey(config.injectElement);
 
                 if (currentContext.name !== 'x-post') {
-                    _processedCount++;
+                    _processedCount_X++;
                     let surveyID = crawlUserName();
                     currentContext.renderSurvey(surveyID, null, {
                         user_profile: () => extractUserProfile()

@@ -13,8 +13,8 @@ let manipConfig_TS  = {};
 let manipMap_TS     = {};
 let manipMapId_TS   = '';
 let manipApplied_TS     = {};
-let _processedCount     = 0;
-registerHealthCounter(function () { return _processedCount; });
+let _processedCount_TS     = 0;
+registerHealthCounter(function () { return _processedCount_TS; });
 
 // ---------------------------------------------------------------------------
 // TruthSocial Mastodon API cache
@@ -105,7 +105,7 @@ window.addEventListener('mh:download-request', async function(e) {
 });
 
 function processPostNode(postNode) {
-    _processedCount++;
+    _processedCount_TS++;
     let insertElement = postNode;
     if (insertElement && insertElement.getElementsByClassName('survey-container-post').length === 0) {
         let postDetails = extractPostDetails(postNode);
@@ -519,7 +519,7 @@ function initializeSurveys() {
     chrome.storage.local.get(['config', 'isEnabled', 'activeTargetList', 'clientID', 'isGuided', 'selectors', 'manipulationMaps'], function (result) {
         const _rawTS = (result.selectors && result.selectors.truthsocial) ? result.selectors.truthsocial : {};
         SEL_TS = { ...(_rawTS.shared || {}), ...(_rawTS.account || {}), ...(_rawTS.post || {}) };
-        watchPostCounter('truthsocial', function () { return _processedCount; });
+        watchPostCounter('truthsocial', function () { return _processedCount_TS; });
 
         // Load manipulation map for truthsocial-post
         const _postConfTS = result.config && result.config.surveys && result.config.surveys['truthsocial-post'];
@@ -617,7 +617,7 @@ function initializeSurveys() {
                 currentContext.injectSurvey(config.injectElement);
 
                 if (currentContext.name !== 'truthsocial-post') {
-                    _processedCount++;
+                    _processedCount_TS++;
                     let surveyID = crawlUserName();
                     currentContext.renderSurvey(surveyID, null, {
                         user_profile: () => extractUserProfile()

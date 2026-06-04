@@ -13,8 +13,8 @@ let manipConfig_TG  = {};
 let manipMap_TG     = {};
 let manipMapId_TG   = '';
 let manipApplied_TG     = {};
-let _processedCount     = 0;
-registerHealthCounter(function () { return _processedCount; });
+let _processedCount_TG     = 0;
+registerHealthCounter(function () { return _processedCount_TG; });
 
 // ---------------------------------------------------------------------------
 // Video src capture bridge
@@ -354,7 +354,7 @@ function injectTelegramPostSurvey(messageNode, postID) {
 }
 
 function processMessageNode(messageNode) {
-    _processedCount++;
+    _processedCount_TG++;
     if (!messageNode || !messageNode.querySelector) return;
 
     const details = extractMessageDetails(messageNode);
@@ -447,7 +447,7 @@ function initializeSurveys() {
     chrome.storage.local.get(['config', 'isEnabled', 'selectors', 'manipulationMaps'], function (result) {
         const _rawTG = (result.selectors && result.selectors.telegram) ? result.selectors.telegram : {};
         SEL_TG = { ...(_rawTG.shared || {}), ...(_rawTG.account || {}), ...(_rawTG.post || {}) };
-        watchPostCounter('telegram', function () { return _processedCount; });
+        watchPostCounter('telegram', function () { return _processedCount_TG; });
 
         // Load manipulation map for telegram-post
         const _postConfTG = result.config && result.config.surveys && result.config.surveys['telegram-post'];

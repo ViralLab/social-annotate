@@ -13,8 +13,8 @@ let manipConfig_WA  = {};
 let manipMap_WA     = {};
 let manipMapId_WA   = '';
 let manipApplied_WA     = {};
-let _processedCount     = 0;
-registerHealthCounter(function () { return _processedCount; });
+let _processedCount_WA     = 0;
+registerHealthCounter(function () { return _processedCount_WA; });
 
 // WhatsApp opens videos in a fullscreen modal which removes the <video> tag from the message node.
 // Also, it decodes videos in memory and creates blob URLs that aren't always immediately attached.
@@ -268,7 +268,7 @@ function injectWhatsAppPostSurvey(messageNode, postID) {
 }
 
 function processMessageNode(messageNode) {
-    _processedCount++;
+    _processedCount_WA++;
     if (!messageNode || !messageNode.querySelector) return;
 
     const messageContainerSelector = SEL_WA.messageContainer || "[data-testid='msg-container']";
@@ -365,7 +365,7 @@ function initializeSurveys() {
     chrome.storage.local.get(['config', 'isEnabled', 'selectors', 'manipulationMaps'], function (result) {
         const _rawWA = (result.selectors && result.selectors.whatsapp) ? result.selectors.whatsapp : {};
         SEL_WA = { ...(_rawWA.shared || {}), ...(_rawWA.account || {}), ...(_rawWA.post || {}) };
-        watchPostCounter('whatsapp', function () { return _processedCount; });
+        watchPostCounter('whatsapp', function () { return _processedCount_WA; });
 
         // Load manipulation map for whatsapp-post
         const _postConfWA = result.config && result.config.surveys && result.config.surveys['whatsapp-post'];

@@ -21,8 +21,8 @@ let manipConfig_BS  = {};
 let manipMap_BS     = {};
 let manipMapId_BS   = '';
 let manipApplied_BS     = {};
-let _processedCount     = 0;
-registerHealthCounter(function () { return _processedCount; });
+let _processedCount_BS     = 0;
+registerHealthCounter(function () { return _processedCount_BS; });
 
 document.addEventListener('mh:bsky-video-found', function(e) {
     if (e.detail && e.detail.cid && e.detail.did) {
@@ -102,7 +102,7 @@ window.addEventListener('mh:download-request', function(e) {
 });
 
 function processPostNode(postNode) {
-    _processedCount++;
+    _processedCount_BS++;
     let insertElement = postNode.parentNode;
     if (insertElement && insertElement.getElementsByClassName('survey-container-post').length === 0) {
         let postDetails = extractPostDetails(postNode);
@@ -425,7 +425,7 @@ function initializeSurveys() {
         // Load selectors into the module-level variable
         const _rawBS = (result.selectors && result.selectors.bluesky) ? result.selectors.bluesky : {};
         SEL_BS = { ...(_rawBS.shared || {}), ...(_rawBS.account || {}), ...(_rawBS.post || {}) };
-        watchPostCounter('bluesky', function () { return _processedCount; });
+        watchPostCounter('bluesky', function () { return _processedCount_BS; });
 
         // Load manipulation map for bluesky-post
         const _postConfBS = result.config && result.config.surveys && result.config.surveys['bluesky-post'];
@@ -516,7 +516,7 @@ function initializeSurveys() {
                 currentContext.injectSurvey(config.injectElement);
 
                 if (currentContext.name === 'bluesky-user') {
-                    _processedCount++;
+                    _processedCount_BS++;
                     let surveyID = crawlUserName();
                     currentContext.renderSurvey(surveyID, null, {
                         user_profile: () => extractUserProfile()

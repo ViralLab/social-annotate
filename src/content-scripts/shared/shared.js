@@ -447,16 +447,20 @@ function watchPostCounter(platform, getCount, delay) {
 
 // ---------------------------------------------------------------------------
 // Health stats — lets the popup query the active tab for processed item count.
+// Guard against shared.js being loaded multiple times on file:// test pages.
 // ---------------------------------------------------------------------------
-let _healthGetCount = null;
-function registerHealthCounter(fn) { _healthGetCount = fn; }
-
-chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
-    if (msg.action === 'getHealthStats') {
-        sendResponse({ processedCount: _healthGetCount ? _healthGetCount() : 0 });
-        return true;
-    }
-});
+if (!window.__socialAnnotate__) window.__socialAnnotate__ = {};
+if (!window.__socialAnnotate__._healthListenerAdded) {
+    window.__socialAnnotate__._healthListenerAdded = true;
+    chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
+        if (msg.action === 'getHealthStats') {
+            let fn = window.__socialAnnotate__._healthGetCount;
+            sendResponse({ processedCount: fn ? fn() : 0 });
+            return true;
+        }
+    });
+}
+function registerHealthCounter(fn) { window.__socialAnnotate__._healthGetCount = fn; }
 
 function storeResults(surveyResults, socialMediaPlatform) {
     if (!isExtensionContextValid()) { console.debug('[SocialAnnotate] Extension context invalidated, skipping storeResults.'); return; }

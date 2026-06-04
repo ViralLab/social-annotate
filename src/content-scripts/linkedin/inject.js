@@ -14,8 +14,8 @@ let manipConfig_LI  = {};
 let manipMap_LI     = {};
 let manipMapId_LI   = '';
 let manipApplied_LI     = {};
-let _processedCount     = 0;
-registerHealthCounter(function () { return _processedCount; });
+let _processedCount_LI     = 0;
+registerHealthCounter(function () { return _processedCount_LI; });
 
 // Cache of CDN video URLs captured by inject-api.js (MAIN world)
 // Maps postKey → last CDN video URL seen for that post
@@ -128,7 +128,7 @@ window.addEventListener('mh:download-request', function(e) {
 });
 
 function processPostNode(postNode) {
-    _processedCount++;
+    _processedCount_LI++;
     if (!isExtensionContextValid()) return;
     let insertElement = postNode;
     if (insertElement && insertElement.getElementsByClassName('survey-container-post').length === 0) {
@@ -458,7 +458,7 @@ function initializeSurveys() {
     chrome.storage.local.get(['config', 'isEnabled', 'activeTargetList', 'clientID', 'isGuided', 'selectors', 'manipulationMaps'], function (result) {
         const _rawLI = (result.selectors && result.selectors.linkedin) ? result.selectors.linkedin : {};
         SEL_LI = { ...(_rawLI.shared || {}), ...(_rawLI.account || {}), ...(_rawLI.post || {}) };
-        watchPostCounter('linkedin', function () { return _processedCount; });
+        watchPostCounter('linkedin', function () { return _processedCount_LI; });
 
         // Load manipulation map for linkedin-post
         const _postConfLI = result.config && result.config.surveys && result.config.surveys['linkedin-post'];

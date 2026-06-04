@@ -457,16 +457,6 @@ function buildSurveyCard(key, survey) {
         </div>
         <textarea id="${key}_annotation-list" class="field-textarea field-textarea--short" rows="2" spellcheck="false"></textarea>
       </div>
-      <div class="field-group" style="margin-top:16px;">
-        <label class="field-label" for="${key}_theme">
-          Survey Theme
-          <span class="field-hint">Dark (glassmorphism) or light</span>
-        </label>
-        <select class="field-input" id="${key}_theme">
-          <option value="dark">Dark</option>
-          <option value="light">Light</option>
-        </select>
-      </div>
     </div>
 
     <!-- Consent -->
@@ -504,6 +494,16 @@ function buildSurveyCard(key, survey) {
       <div id="${key}_json-view" style="display:none;">
         <textarea id="${key}_form-template" class="field-textarea" rows="10" spellcheck="false"></textarea>
         <div class="json-error" id="${key}_json-error"></div>
+      </div>
+      <div class="field-group" style="margin-top:16px;">
+        <label class="field-label" for="${key}_theme">
+          Survey Theme
+          <span class="field-hint">Dark (glassmorphism) or light</span>
+        </label>
+        <select class="field-input" id="${key}_theme">
+          <option value="dark">Dark</option>
+          <option value="light">Light</option>
+        </select>
       </div>
     </div>
 

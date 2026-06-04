@@ -1,0 +1,25 @@
+{
+  "_meta": {
+    "map_id": "test0004",
+    "prompt_label": "test",
+    "model": "manual",
+    "timestamp": 1748800000,
+    "total": 2,
+    "succeeded": 2,
+    "failed": 0
+  },
+  "3AFE22E1E17EB1BB4542": {
+    "rewritten_text": "🧪 [MANIPULATION TEST] WhatsApp message rewritten. If you see this, DOM patch is working.",
+    "original_text": "Replace with the actual message text.",
+    "prompt_label": "test",
+    "model": "manual",
+    "timestamp": 1748800000
+  },
+  "3A7A3515A43F503F3218": {
+    "rewritten_text": "🧪 [MANIPULATION TEST] Second WhatsApp message — toggle button should appear in aware mode.",
+    "original_text": "Replace with the actual message text.",
+    "prompt_label": "test",
+    "model": "manual",
+    "timestamp": 1748800000
+  }
+}

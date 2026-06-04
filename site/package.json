@@ -1,0 +1,13 @@
+{
+  "name": "social-annotate-site",
+  "version": "0.0.1",
+  "description": "Social Annotate documentation site",
+  "scripts": {
+    "docs:dev": "vitepress dev",
+    "docs:build": "vitepress build",
+    "docs:preview": "vitepress preview"
+  },
+  "devDependencies": {
+    "vitepress": "^1.6.3"
+  }
+}

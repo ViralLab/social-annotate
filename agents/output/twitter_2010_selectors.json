@@ -1,7 +1,7 @@
 {
   "x": {
     "shared": {
-      "appRoot": "body",
+      "appRoot": "#container",
       "observerFilter": {
         "attributes": true,
         "childList": true,
@@ -12,29 +12,29 @@
       }
     },
     "account": {
-      "userDisplayName": "strong > a.screen-name",
-      "userHandle": "strong > a.screen-name",
+      "userDisplayName": null,
+      "userHandle": null,
       "userAvatar": null,
-      "userProfileAvatar": "img#profile-image",
+      "userProfileAvatar": "#profile-image",
       "userProfileSchema": "script[data-testid=\"UserProfileSchema-test\"]",
       "userBanner": null,
-      "userBio": "span.bio",
+      "userBio": ".bio",
       "userHeadline": null,
-      "userVerified": "li.verified-profile",
+      "userVerified": ".verified-profile",
       "userFollowers": "#follower_count_link",
       "userFollowing": "#following_count_link",
       "userConnections": null,
-      "userLocation": "span.adr",
+      "userLocation": ".adr",
       "userJoinDate": null,
-      "userUrl": "ul.about a.url",
+      "userUrl": ".vcard .url",
       "userLink": null
     },
     "post": {
-      "postContainer": "span.status-body",
-      "postText": "span.entry-content",
+      "postContainer": ".status-body",
+      "postText": ".entry-content",
       "postImage": null,
       "postVideo": null,
-      "postTimestamp": "span.published.timestamp",
+      "postTimestamp": ".published.timestamp",
       "postLink": null,
       "cardWrapper": null,
       "conversationMessages": null,

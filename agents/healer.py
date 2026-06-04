@@ -97,14 +97,18 @@ async def _spin_while(message: str, coro):
 # ──────────────────────────────────────────────────────────────────────────────
 
 _PRUNE_TEXT_THRESHOLD = 50   # collapse text nodes longer than this
-_PRUNE_MAX_CHARS = 800_000   # truncate pruned HTML if still too large
+_PRUNE_MAX_CHARS = 80_000    # truncate pruned HTML if still too large
+
+
+_ATTR_MAX_LEN = 120   # truncate long attribute values (e.g. proxy image URLs)
 
 
 def _prune_html(html: str) -> str:
     soup = BeautifulSoup(html, "html.parser")
 
+    # Remove non-content elements
     for tag in soup(["script", "style", "svg", "path", "iframe", "noscript",
-                     "link", "meta", "head"]):
+                     "link", "meta", "head", "nav", "header", "footer", "aside"]):
         tag.decompose()
 
     for text_node in soup.find_all(string=True):
@@ -113,6 +117,10 @@ def _prune_html(html: str) -> str:
 
     for tag in soup.find_all(True):
         tag.attrs.pop("style", None)
+        # Truncate long attribute values (data URIs, proxy URLs, etc.)
+        for attr, val in list(tag.attrs.items()):
+            if isinstance(val, str) and len(val) > _ATTR_MAX_LEN:
+                tag.attrs[attr] = val[:_ATTR_MAX_LEN] + "…"
 
     result = str(soup)
     return result[:_PRUNE_MAX_CHARS] if len(result) > _PRUNE_MAX_CHARS else result
@@ -238,10 +246,11 @@ class SelectorHealer:
                 f"\nPREVIOUS ERROR — do NOT repeat these selectors: {error_feedback}\n"
                 if error_feedback else ""
             )
-            prompt = self.platform_agent.prompt_template.format(
-                html=pruned,
-                context_section=context_section,
-                error_section=error_section,
+            prompt = (
+                self.platform_agent.prompt_template
+                .replace("{context_section}", context_section)
+                .replace("{error_section}", error_section)
+                .replace("{html}", pruned)
             )
 
             try:
@@ -299,8 +308,10 @@ class SelectorHealer:
 
         failed_urls: list[str] = []
 
+        block_scripts = self.platform_agent.block_spa_scripts
+
         # Initial load (seeds extension storage via onInstalled)
-        page = await env.open_file(self.fixture_path, block_spa_scripts=True)
+        page = await env.open_file(self.fixture_path, block_spa_scripts=block_scripts)
 
         # Track 404s from this point on
         page.on("response", lambda r: failed_urls.append(r.url) if r.status == 404 else None)
@@ -308,7 +319,14 @@ class SelectorHealer:
         # Batch-set survey type + new selectors, then single reload
         await env.set_active_survey(self.survey_type)
         await self._push_selectors_to_storage(env, new_selectors)
-        await _spin_while("Reloading page with new selectors …", page.reload(wait_until="domcontentloaded"))
+        # Use "load" for SPA platforms: waits for HTML-referenced resources but not
+        # async fetches (which never settle on offline fixtures hitting missing CDN).
+        # "domcontentloaded" for script-blocked platforms where CSS is static.
+        reload_wait = "domcontentloaded" if block_scripts else "load"
+        try:
+            await _spin_while("Reloading page with new selectors …", page.reload(wait_until=reload_wait, timeout=45_000))
+        except Exception:
+            await _spin_while("Reloading (fallback) …", page.reload(wait_until="domcontentloaded", timeout=30_000))
 
         if failed_urls:
             print(f"  ⚠️  {len(failed_urls)} resource(s) returned 404 (non-critical):")
@@ -545,6 +563,8 @@ class SelectorHealer:
             res.offline_post_count, res.offline_warnings = self._step1_validate_offline()
         except Exception as exc:
             res.error = f"Step 1: {exc}"
+            print(f"\n❌ {res.error}")
+            traceback.print_exc()
             return res
 
         with open(self.fixture_path, encoding="utf-8", errors="replace") as f:
@@ -555,6 +575,8 @@ class SelectorHealer:
             res.selectors = llm_result
         except Exception as exc:
             res.error = f"Step 2: {exc}"
+            print(f"\n❌ {res.error}")
+            traceback.print_exc()
             return res
 
         # Load existing selectors to preserve non-LLM fields

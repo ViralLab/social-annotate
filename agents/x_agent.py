@@ -224,7 +224,9 @@ def validate_x_selectors(soup: BeautifulSoup, result: XSelectorResult) -> str | 
     if good < min_good:
         return (
             f"postTimestamp '{result.postTimestamp}': only {good}/{len(containers)} containers "
-            "had a <time> element whose parent links to /status/."
+            "had a timestamp element whose direct parent <a> links to /status/. "
+            "The selector must target an element INSIDE the status anchor (e.g. a <time> or "
+            "<span> child), not the anchor itself — ts.parentNode must be the <a href='/status/...'>."
         )
 
     # 4. postText must hit at least one container
@@ -342,14 +344,19 @@ Your task: identify CSS selectors so a browser extension can inject survey forms
 each post and extract post metadata (ID, author, text, media, metrics).
 
 RULES:
-1. Prefer data-testid attributes over class names — X uses these for stable targeting.
+1. Examine the HTML era before choosing selectors. Modern X (post-2016) uses data-testid
+   attributes — prefer those when present. Older Twitter archives have no data-testid;
+   use stable CSS class selectors instead (e.g. class-based or attribute selectors).
 2. postContainer must match MULTIPLE individual tweet cards in the feed, AND each matched
    element must have a DIFFERENT parent node. The extension injects the survey into
    postContainer's parentNode — if all postContainer elements share the same parent (e.g.
    you selected <li> items whose parent is a single <ol>), only one form will appear.
    Fix: select a direct child INSIDE each tweet wrapper instead of the wrapper itself,
    so that parentNode resolves to the unique per-tweet element.
-3. postTimestamp selects the <time> element whose parent <a> href contains /status/{{id}}.
+3. postTimestamp selects the element that holds the post timestamp — inspect the HTML to
+   find what tag is used (may be <time datetime="..."> in modern snapshots, or a <span>
+   with a data-time attribute in older ones). Its direct parent <a> must have an href
+   containing /status/{{id}}. Do not assume a specific tag — look at the actual markup.
 4. For metricsReply / metricsRepost / metricsLike / metricsBookmark: provide a value that
    locates the action button element inside each post. The value is interpreted as follows:
    - If it contains any CSS special characters (space . # [ ] > : + ~) → used as querySelector

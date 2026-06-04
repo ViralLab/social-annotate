@@ -42,4 +42,5 @@ BLUESKY_PLATFORM_AGENT = PlatformAgent(
         '[data-testid^="post-"]',
         "article",
     ],
+    block_spa_scripts=False,
 )

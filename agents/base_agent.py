@@ -268,3 +268,4 @@ class PlatformAgent:
     to_nested_fn: Callable[[Any, dict | None], dict]
     prompt_template: str
     offline_selectors: list[str]
+    block_spa_scripts: bool = True

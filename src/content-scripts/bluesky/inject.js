@@ -144,7 +144,7 @@ function processPostNode(postNode) {
                     manipApplied_BS[postDetails.postID] = meta;
                 }
                 if (entry.replacement_image) {
-                    let avatarImg = postNode.querySelector('img[src*="avatar"]');
+                    let avatarImg = postNode.querySelector(SEL_BS.postAuthorAvatar || 'img[src*="avatar"]');
                     if (avatarImg) { avatarImg.src = entry.replacement_image; avatarImg.srcset = ''; }
                 }
             }
@@ -191,12 +191,17 @@ function createObserver() {
 
 
 function crawlUserName() {
-    let currentURL = window.location.href;
-    // Bluesky profile URLs: https://bsky.app/profile/handle.bsky.social
-    let match = currentURL.match(/bsky\.app\/profile\/([^/?#]+)/);
-    if (match) {
-        return match[1];
+    if (window.location.protocol === 'file:' || window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
+        let handleEl = document.querySelector(SEL_BS.userHandle || 'div:has(> [data-testid="profileHeaderDisplayName"]) + div > div[dir="auto"]');
+        if (handleEl) {
+            let text = handleEl.textContent.trim().replace(/^@/, '');
+            if (text) return text;
+        }
+        return 'local-test-user';
     }
+    let currentURL = window.location.href;
+    let match = currentURL.match(/bsky\.app\/profile\/([^/?#]+)/);
+    if (match) return match[1];
     return '';
 }
 
@@ -213,7 +218,7 @@ function extractUserProfile() {
 
     // Handle
     try {
-        let handleEl = document.querySelector(SEL_BS.userHandle || '[data-testid="profileHeaderHandle"]');
+        let handleEl = document.querySelector(SEL_BS.userHandle || 'div:has(> [data-testid="profileHeaderDisplayName"]) + div > div[dir="auto"]');
         if (handleEl) {
             profile.handle = handleEl.textContent.trim();
         } else {
@@ -413,7 +418,8 @@ function injectBlueskyPostSurvey(injectNode, postID) {
 }
 
 function checkUserURL() {
-    // Bluesky profile pages match /profile/<handle>
+    if (window.location.protocol === 'file:') return true;
+    if (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') return true;
     let currentURL = window.location.href;
     let match = currentURL.match(/bsky\.app\/profile\/([^/?#]+)\/?$/);
     return !!match;
@@ -528,4 +534,34 @@ function initializeSurveys() {
 }
 
 // Fire the survey initializer on script load
+window.__socialAnnotate__.platformDebugCapture = function(selectors, stored) {
+    let raw = selectors.bluesky || {};
+    let SEL_D = Object.assign({}, raw.shared || {}, raw.account || {}, raw.post || {});
+    let activeSurvey = stored && stored.config && stored.config.activeSurveys && stored.config.activeSurveys[0];
+
+    function probe(field) {
+        let selector = SEL_D[field];
+        if (!selector) return { field, selector: null, matched: false, value: null, note: 'not in selectors.json' };
+        try {
+            let el = document.querySelector(selector);
+            return { field, selector, matched: !!el, value: el ? (el.src || el.currentSrc || el.textContent.trim().slice(0, 200) || null) : null };
+        } catch(e) {
+            return { field, selector, matched: false, value: null, note: 'invalid selector' };
+        }
+    }
+
+    let isUser = activeSurvey ? activeSurvey.endsWith('-user') : checkUserURL();
+    let section = isUser ? (raw.account || {}) : (raw.post || {});
+    return {
+        platform: 'bluesky',
+        surveyType: activeSurvey || (isUser ? 'bluesky-user' : 'bluesky-post'),
+        injectionStatus: {
+            userSurveyInjected: !!document.getElementById('surveyFormContainer'),
+            postSurveysInjected: document.querySelectorAll('.survey-container-post').length
+        },
+        extractedData: { userID: crawlUserName(), profile: isUser ? extractUserProfile() : {} },
+        selectorDiagnostics: Object.keys(section).filter(f => !['postVideo','postImage','userBanner'].includes(f)).map(probe)
+    };
+};
+
 initializeSurveys();

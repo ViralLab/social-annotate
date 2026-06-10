@@ -222,7 +222,7 @@ function extractMessageDetails(messageNode) {
 
     let userID = parseUserFromPrePlainText(prePlainText);
     if (!userID) {
-        const senderLabel = messageNode.querySelector('span[aria-label$=":"]');
+        const senderLabel = messageNode.querySelector(SEL_WA.messageSender || 'span[aria-label$=":"]');
         if (senderLabel) {
             userID = (senderLabel.getAttribute('aria-label') || '').replace(/:$/, '').trim();
         }
@@ -429,5 +429,32 @@ function initializeSurveys() {
         }
     });
 }
+
+window.__socialAnnotate__.platformDebugCapture = function(selectors, stored) {
+    let raw = selectors.whatsapp || {};
+    let SEL_D = Object.assign({}, raw.shared || {}, raw.account || {}, raw.post || {});
+
+    function probe(field) {
+        let selector = SEL_D[field];
+        if (!selector) return { field, selector: null, matched: false, value: null, note: 'not in selectors.json' };
+        try {
+            let el = document.querySelector(selector);
+            return { field, selector, matched: !!el, value: el ? (el.src || el.currentSrc || el.textContent.trim().slice(0, 200) || null) : null };
+        } catch(e) {
+            return { field, selector, matched: false, value: null, note: 'invalid selector' };
+        }
+    }
+
+    return {
+        platform: 'whatsapp',
+        surveyType: 'whatsapp-post',
+        injectionStatus: {
+            userSurveyInjected: !!document.getElementById('surveyFormContainer'),
+            postSurveysInjected: document.querySelectorAll('.survey-container-post').length
+        },
+        extractedData: {},
+        selectorDiagnostics: Object.keys(raw.post || {}).filter(f => !['postVideo','postImage','userBanner'].includes(f)).map(probe)
+    };
+};
 
 initializeSurveys();

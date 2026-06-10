@@ -306,7 +306,7 @@ function extractMessageDetails(messageNode) {
     if (nameNode) {
         userID = nameNode.textContent.trim();
     } else {
-        const headerName = document.querySelector('.MiddleHeader .fullName, .ChatInfo .fullName, .Header .fullName');
+        const headerName = document.querySelector(SEL_TG.userDisplayName || '.fullName');
         if (headerName) {
             userID = headerName.textContent.trim();
         } else {
@@ -519,5 +519,35 @@ function initializeSurveys() {
         }
     });
 }
+
+window.__socialAnnotate__.platformDebugCapture = function(selectors, stored) {
+    let raw = selectors.telegram || {};
+    let SEL_D = Object.assign({}, raw.shared || {}, raw.account || {}, raw.post || {});
+
+    function probe(field) {
+        let selector = SEL_D[field];
+        if (!selector) return { field, selector: null, matched: false, value: null, note: 'not in selectors.json' };
+        try {
+            let el = document.querySelector(selector);
+            return { field, selector, matched: !!el, value: el ? (el.src || el.currentSrc || el.textContent.trim().slice(0, 200) || null) : null };
+        } catch(e) {
+            return { field, selector, matched: false, value: null, note: 'invalid selector' };
+        }
+    }
+
+    const SKIP = ['postVideo','postImage','userBanner'];
+    let accountFields = Object.keys(raw.account || {}).filter(f => !SKIP.includes(f)).map(probe);
+    let postFields = Object.keys(raw.post || {}).filter(f => !SKIP.includes(f)).map(probe);
+    return {
+        platform: 'telegram',
+        surveyType: 'telegram-post',
+        injectionStatus: {
+            userSurveyInjected: !!document.getElementById('surveyFormContainer'),
+            postSurveysInjected: document.querySelectorAll('.survey-container-post').length
+        },
+        extractedData: {},
+        selectorDiagnostics: [...accountFields, ...postFields]
+    };
+};
 
 initializeSurveys();

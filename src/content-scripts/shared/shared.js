@@ -462,6 +462,36 @@ if (!window.__socialAnnotate__._healthListenerAdded) {
 }
 function registerHealthCounter(fn) { window.__socialAnnotate__._healthGetCount = fn; }
 
+if (!window.__socialAnnotate__._debugListenerAdded) {
+    window.__socialAnnotate__._debugListenerAdded = true;
+    chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
+        if (msg.action !== 'debugCapture') return false;
+        chrome.storage.local.get(
+            ['config', 'isEnabled', 'isProfileDownloadEnabled', 'isBannerDownloadEnabled',
+             'isMediaDownloadEnabled', 'clientID', 'selectors'],
+            function(stored) {
+                let base = {
+                    timestamp: Math.floor(Date.now() / 1000),
+                    url: window.location.href,
+                    storage: {
+                        isEnabled: stored.isEnabled,
+                        activeSurveys: stored.config && stored.config.activeSurveys,
+                        isProfileDownloadEnabled: stored.isProfileDownloadEnabled,
+                        isBannerDownloadEnabled: stored.isBannerDownloadEnabled,
+                        isMediaDownloadEnabled: stored.isMediaDownloadEnabled,
+                        clientID: stored.clientID
+                    }
+                };
+                let platformCapture = window.__socialAnnotate__ &&
+                                      window.__socialAnnotate__.platformDebugCapture;
+                let platformData = platformCapture ? platformCapture(stored.selectors || {}, stored) : {};
+                sendResponse(Object.assign(base, platformData));
+            }
+        );
+        return true;
+    });
+}
+
 function storeResults(surveyResults, socialMediaPlatform) {
     if (!isExtensionContextValid()) { console.debug('[SocialAnnotate] Extension context invalidated, skipping storeResults.'); return; }
     surveyResults.submission_timestamp = Math.floor(Date.now() / 1000);

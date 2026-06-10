@@ -370,3 +370,77 @@ function objectList2jsonl(items) {
     }
     return jsonl;
 }
+
+// ── Debug ──────────────────────────────────────────────────
+document.getElementById('debugCapture').addEventListener('click', function () {
+    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+        if (!tabs[0]) return;
+        chrome.tabs.sendMessage(tabs[0].id, { action: 'debugCapture' }, function (payload) {
+            if (chrome.runtime.lastError || !payload) {
+                renderDebugError(chrome.runtime.lastError && chrome.runtime.lastError.message);
+                return;
+            }
+            renderDebugPayload(payload);
+        });
+    });
+});
+
+function renderDebugPayload(payload) {
+    window.__debugPayload = payload;
+
+    let meta = document.getElementById('debug-meta');
+    let st = payload.storage || {};
+    let urlShort = (payload.url || '').replace(/^https?:\/\/[^/]+/, '').slice(0, 40) || payload.url;
+    meta.innerHTML =
+        '<span>platform:</span> ' + (payload.platform || '—') +
+        ' &nbsp;•&nbsp; <span>survey:</span> ' + (payload.surveyType || '—') +
+        '<br><span>enabled:</span> ' + (st.isEnabled !== undefined ? st.isEnabled : '—') +
+        ' &nbsp;•&nbsp; <span>url:</span> ' + urlShort;
+
+    let tbody = document.getElementById('debug-tbody');
+    tbody.innerHTML = '';
+
+    let diagnostics = payload.selectorDiagnostics || [];
+    if (diagnostics.length === 0) {
+        let tr = document.createElement('tr');
+        tr.innerHTML = '<td colspan="3" style="padding:10px 18px;color:var(--text-3);">No diagnostics returned (platform not recognized on this page).</td>';
+        tbody.appendChild(tr);
+    }
+    diagnostics.forEach(function (d) {
+        let tr = document.createElement('tr');
+        let isWarn = d.note === 'not in selectors.json';
+        let isFail = !isWarn && !d.matched;
+        let isOk   = !isWarn && d.matched;
+        tr.className = isWarn ? 'debug-row--warn' : (isFail ? 'debug-row--fail' : 'debug-row--ok');
+
+        let icon = isWarn ? '⚠' : (isOk ? '✓' : '✕');
+        let displayVal = isWarn ? 'not configured' : (d.value ? String(d.value).slice(0, 60) : '—');
+
+        tr.innerHTML =
+            '<td>' + d.field + '</td>' +
+            '<td style="text-align:center;">' + icon + '</td>' +
+            '<td title="' + (d.value || '').replace(/"/g, '&quot;') + '">' + displayVal + '</td>';
+        tbody.appendChild(tr);
+    });
+
+    document.getElementById('debug-panel').style.display = 'block';
+}
+
+function renderDebugError(msg) {
+    window.__debugPayload = null;
+    let tbody = document.getElementById('debug-tbody');
+    tbody.innerHTML = '';
+    document.getElementById('debug-meta').innerHTML =
+        '<span class="debug-error">Could not reach content script. Make sure you are on a supported page and the extension is enabled.</span>';
+    document.getElementById('debug-panel').style.display = 'block';
+}
+
+document.getElementById('debug-copy').addEventListener('click', function () {
+    if (window.__debugPayload) {
+        navigator.clipboard.writeText(JSON.stringify(window.__debugPayload, null, 2));
+    }
+});
+
+document.getElementById('debug-close').addEventListener('click', function () {
+    document.getElementById('debug-panel').style.display = 'none';
+});

@@ -171,8 +171,7 @@ function processPostNode(postNode) {
                     manipApplied_LI[postDetails.postID] = meta;
                 }
                 if (entry.replacement_image) {
-                    let avatarImg = postNode.querySelector('.update-components-actor img')
-                                   || postNode.querySelector('img[src*="profile"]');
+                    let avatarImg = postNode.querySelector(SEL_LI.postAuthorAvatar || '.update-components-actor img, img[src*="profile"]');
                     if (avatarImg) { avatarImg.src = entry.replacement_image; avatarImg.srcset = ''; }
                 }
             }
@@ -577,5 +576,35 @@ function initializeSurveys() {
         }
     });
 }
+
+window.__socialAnnotate__.platformDebugCapture = function(selectors, stored) {
+    let raw = selectors.linkedin || {};
+    let SEL = Object.assign({}, raw.shared || {}, raw.account || {}, raw.post || {});
+    let activeSurvey = stored && stored.config && stored.config.activeSurveys && stored.config.activeSurveys[0];
+
+    function probe(field) {
+        let selector = SEL[field];
+        if (!selector) return { field, selector: null, matched: false, value: null, note: 'not in selectors.json' };
+        try {
+            let el = document.querySelector(selector);
+            return { field, selector, matched: !!el, value: el ? (el.src || el.currentSrc || el.textContent.trim().slice(0, 200) || null) : null };
+        } catch(e) {
+            return { field, selector, matched: false, value: null, note: 'invalid selector' };
+        }
+    }
+
+    let isUser = activeSurvey ? activeSurvey.endsWith('-user') : isLinkedInUserPage();
+    let section = isUser ? (raw.account || {}) : (raw.post || {});
+    return {
+        platform: 'linkedin',
+        surveyType: activeSurvey || (isUser ? 'linkedin-user' : 'linkedin-post'),
+        injectionStatus: {
+            userSurveyInjected: !!document.getElementById('surveyFormContainer'),
+            postSurveysInjected: document.querySelectorAll('.survey-container-post').length
+        },
+        extractedData: { userID: crawlLinkedInUsername(), profile: isUser ? extractLinkedInUserProfile() : {} },
+        selectorDiagnostics: Object.keys(section).filter(f => !['postVideo','postImage','userBanner'].includes(f)).map(probe)
+    };
+};
 
 initializeSurveys();

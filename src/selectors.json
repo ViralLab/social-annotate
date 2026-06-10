@@ -31,6 +31,7 @@
         },
         "post": {
             "postContainer": "article[role=\"article\"]",
+            "postAuthorAvatar": "[data-testid=\"Tweet-User-Avatar\"]",
             "postText": "[data-testid=\"tweetText\"]",
             "postImage": "[data-testid=\"tweetPhoto\"] img",
             "postVideo": "[data-testid=\"videoPlayer\"] video",
@@ -40,10 +41,10 @@
             "conversationMessages": null,
             "messageContainer": null,
             "copyableText": null,
-            "metricsReply": "reply",
-            "metricsRepost": "retweet",
-            "metricsLike": "like",
-            "metricsBookmark": "bookmark",
+            "metricsReply": "[data-testid=\"reply\"], [data-testid=\"unreply\"]",
+            "metricsRepost": "[data-testid=\"retweet\"], [data-testid=\"unretweet\"]",
+            "metricsLike": "[data-testid=\"like\"], [data-testid=\"unlike\"]",
+            "metricsBookmark": "[data-testid=\"bookmark\"], [data-testid=\"unbookmark\"]",
             "metricsViews": null,
             "metricsQuote": null,
             "metricsViewsPattern": "views?"
@@ -78,7 +79,7 @@
         },
         "post": {
             "postContainer": "article",
-            "postText": null,
+            "postText": "h1[dir='auto'], span[dir='auto']",
             "postImage": null,
             "postVideo": null,
             "postTimestamp": "time[datetime]",
@@ -107,7 +108,7 @@
         },
         "account": {
             "userDisplayName": "[data-testid=\"profileHeaderDisplayName\"]",
-            "userHandle": "[data-testid=\"profileHeaderHandle\"]",
+            "userHandle": "div:has(> [data-testid=\"profileHeaderDisplayName\"]) + div > div[dir=\"auto\"]",
             "userAvatar": "div[aria-label*=\"'s avatar\"] img",
             "userProfileAvatar": null,
             "userProfileSchema": null,
@@ -125,6 +126,7 @@
         },
         "post": {
             "postContainer": "[data-testid*=\"feedItem\"], [data-testid*=\"postThreadItem\"]",
+            "postAuthorAvatar": "img[src*=\"avatar\"]",
             "postText": "[data-testid=\"postText\"]",
             "postImage": "img[src*=\"cdn.bsky.app\"]",
             "postVideo": "video",
@@ -171,6 +173,7 @@
             "userLink": null
         },
         "post": {
+            "messageSender": "span[aria-label$=\":\"]",
             "postContainer": "[data-testid^='conv-msg-']",
             "postText": "[data-testid*='selectable-text']",
             "postImage": "img[src]",
@@ -247,25 +250,27 @@
             }
         },
         "account": {
-            "userDisplayName": "[data-testid=\"account\"] p.truncate",
-            "userHandle": "[data-testid=\"account\"] a[href^=\"/@\"]",
-            "userAvatar": "[data-testid=\"account\"] img[alt=\"Avatar\"]",
+            "userDisplayName": "h1.text-xl, div.px-4 p.text-lg",
+            "userHandle": "main p.text-muted-foreground[style=\"direction: ltr;\"]",
+            "userAvatar": "img[src*=\"accounts/avatars\"]",
             "userProfileAvatar": null,
             "userProfileSchema": null,
-            "userBanner": null,
+            "userBanner": "img[src*=\"accounts/headers\"]",
             "userBio": null,
             "userHeadline": null,
             "userVerified": null,
-            "userFollowers": null,
-            "userFollowing": null,
+            "userFollowers": "[data-testid=\"followers-button\"]",
+            "userFollowing": "[data-testid=\"following-button\"]",
             "userConnections": null,
             "userLocation": null,
-            "userJoinDate": null,
+            "userJoinDate": "[data-testid=\"icon\"]:has(path[d*=\"M4 11h16\"]) + p",
             "userUrl": null,
             "userLink": null
         },
         "post": {
             "postContainer": "[data-testid=\"status\"]",
+            "postAuthorAvatar": ".status__avatar img, img[src*=\"avatar\"]",
+            "postTextContainer": "[data-testid=\"status-content\"]",
             "postText": "[data-testid=\"status-content\"] [data-testid=\"markup\"]",
             "postImage": "img",
             "postVideo": "video",
@@ -313,6 +318,7 @@
         },
         "post": {
             "postContainer": "[data-testid=\"mainFeed\"] [role=\"listitem\"], [role=\"main\"] [role=\"listitem\"], .feed-shared-update-v2",
+            "postAuthorAvatar": ".update-components-actor img, img[src*=\"profile\"]",
             "postText": "[data-testid=\"expandable-text-box\"]",
             "postImage": "img[alt=\"View image\"]",
             "postVideo": "video",

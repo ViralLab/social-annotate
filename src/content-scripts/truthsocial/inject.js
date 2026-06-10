@@ -148,8 +148,7 @@ function processPostNode(postNode) {
                     manipApplied_TS[postDetails.postID] = meta;
                 }
                 if (entry.replacement_image) {
-                    let avatarImg = postNode.querySelector('.status__avatar img')
-                                   || postNode.querySelector('img[src*="avatar"]');
+                    let avatarImg = postNode.querySelector(SEL_TS.postAuthorAvatar || '.status__avatar img, img[src*="avatar"]');
                     if (avatarImg) { avatarImg.src = entry.replacement_image; avatarImg.srcset = ''; }
                 }
             }
@@ -201,16 +200,16 @@ function applyManipToFocalPost() {
     let textEl = null;
     let byId = document.getElementById('status-' + focalId);
     if (byId) {
-        textEl = byId.querySelector('[data-testid="status-content"] [data-testid="markup"]')
+        textEl = byId.querySelector(SEL_TS.postText || '[data-testid="status-content"] [data-testid="markup"]')
                  || byId.querySelector('[data-testid="markup"]');
     }
 
     // Strategy 2: first [data-testid="status-content"] NOT inside [data-testid="status"]
     // This is the "detailed status" component Truth Social uses for the focal post.
     if (!textEl) {
-        let allContents = document.querySelectorAll('[data-testid="status-content"]');
+        let allContents = document.querySelectorAll(SEL_TS.postTextContainer || '[data-testid="status-content"]');
         for (let el of allContents) {
-            if (!el.closest('[data-testid="status"]')) {
+            if (!el.closest(SEL_TS.postContainer || '[data-testid="status"]')) {
                 textEl = el.querySelector('[data-testid="markup"]') || el;
                 break;
             }
@@ -411,7 +410,7 @@ function extractPostDetails(postNode) {
 function crawlUserName() {
     let currentURL = window.location.href;
     if (window.location.protocol === 'file:') {
-        let handle = document.querySelector('p.text-muted-foreground[style="direction: ltr;"]');
+        let handle = document.querySelector(SEL_TS.userHandle || 'main p.text-muted-foreground[style="direction: ltr;"]');
         if (handle) {
             let text = handle.textContent.trim().replace(/^@/, '');
             if (text) return text;
@@ -427,27 +426,27 @@ function extractUserProfile() {
     let profile = {};
 
     try {
-        let nameEl = document.querySelector('h1.text-xl, div.px-4 p.text-lg');
+        let nameEl = document.querySelector(SEL_TS.userDisplayName || 'h1.text-xl, div.px-4 p.text-lg');
         if (nameEl) profile.displayName = nameEl.textContent.trim();
     } catch (e) {}
 
     try {
-        let handleEl = document.querySelector('p.text-muted-foreground[style="direction: ltr;"]');
+        let handleEl = document.querySelector(SEL_TS.userHandle || 'main p.text-muted-foreground[style="direction: ltr;"]');
         if (handleEl) profile.handle = handleEl.textContent.trim();
     } catch (e) {}
 
     try {
-        let avatarEl = document.querySelector('img[src*="accounts/avatars"]');
+        let avatarEl = document.querySelector(SEL_TS.userAvatar || 'img[src*="accounts/avatars"]');
         if (avatarEl) profile.avatarUrl = avatarEl.src;
     } catch (e) {}
 
     try {
-        let bannerEl = document.querySelector('img[src*="accounts/headers"]');
+        let bannerEl = document.querySelector(SEL_TS.userBanner || 'img[src*="accounts/headers"]');
         if (bannerEl) profile.bannerUrl = bannerEl.src;
     } catch (e) {}
 
     try {
-        let followersEl = document.querySelector('[data-testid="followers-button"]');
+        let followersEl = document.querySelector(SEL_TS.userFollowers || '[data-testid="followers-button"]');
         if (followersEl) {
             let text = followersEl.textContent.trim();
             profile.followersText = text;
@@ -457,7 +456,7 @@ function extractUserProfile() {
     } catch (e) {}
 
     try {
-        let followingEl = document.querySelector('[data-testid="following-button"]');
+        let followingEl = document.querySelector(SEL_TS.userFollowing || '[data-testid="following-button"]');
         if (followingEl) {
             let text = followingEl.textContent.trim();
             profile.followingText = text;
@@ -465,13 +464,16 @@ function extractUserProfile() {
             if (numMatch) profile.followingCount = numMatch[1];
         }
     } catch (e) {}
-    
+
     try {
-        let urlEl = document.querySelector('.max-w-\\[300px\\] a');
-        if (urlEl) {
-            profile.websiteUrl = urlEl.href;
-        }
+        let urlEl = document.querySelector(SEL_TS.userUrl || '.max-w-\\[300px\\] a');
+        if (urlEl) profile.websiteUrl = urlEl.href;
     } catch(e) {}
+
+    try {
+        let joinEl = document.querySelector(SEL_TS.userJoinDate || '[data-testid="icon"]:has(path[d*="M4 11h16"]) + p');
+        if (joinEl) profile.joinDate = joinEl.textContent.trim();
+    } catch (e) {}
 
     return profile;
 }
@@ -627,5 +629,35 @@ function initializeSurveys() {
         }
     });
 }
+
+window.__socialAnnotate__.platformDebugCapture = function(selectors, stored) {
+    let raw = selectors.truthsocial || {};
+    let SEL_D = Object.assign({}, raw.shared || {}, raw.account || {}, raw.post || {});
+    let activeSurvey = stored && stored.config && stored.config.activeSurveys && stored.config.activeSurveys[0];
+
+    function probe(field) {
+        let selector = SEL_D[field];
+        if (!selector) return { field, selector: null, matched: false, value: null, note: 'not in selectors.json' };
+        try {
+            let el = document.querySelector(selector);
+            return { field, selector, matched: !!el, value: el ? (el.src || el.currentSrc || el.textContent.trim().slice(0, 200) || null) : null };
+        } catch(e) {
+            return { field, selector, matched: false, value: null, note: 'invalid selector' };
+        }
+    }
+
+    let isUser = activeSurvey ? activeSurvey.endsWith('-user') : checkUserURL();
+    let section = isUser ? (raw.account || {}) : (raw.post || {});
+    return {
+        platform: 'truthsocial',
+        surveyType: activeSurvey || (isUser ? 'truthsocial-user' : 'truthsocial-post'),
+        injectionStatus: {
+            userSurveyInjected: !!document.getElementById('surveyFormContainer'),
+            postSurveysInjected: document.querySelectorAll('.survey-container-post').length
+        },
+        extractedData: { userID: crawlUserName(), profile: isUser ? extractUserProfile() : {} },
+        selectorDiagnostics: Object.keys(section).filter(f => !['postVideo','postImage','userBanner'].includes(f)).map(probe)
+    };
+};
 
 initializeSurveys();

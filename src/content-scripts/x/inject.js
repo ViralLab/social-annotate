@@ -111,7 +111,7 @@ function processArticleNode(articleNode) {
                     manipApplied[tweetDetails.tweetID] = meta;
                 }
                 if (entry.replacement_image) {
-                    let avatarContainer = articleNode.querySelector('[data-testid="Tweet-User-Avatar"]');
+                    let avatarContainer = articleNode.querySelector(SEL.postAuthorAvatar || '[data-testid="Tweet-User-Avatar"]');
                     if (avatarContainer && !avatarContainer.querySelector('[data-sa-avatar]')) {
                         let overlay = document.createElement('div');
                         overlay.setAttribute('data-sa-avatar', '1');
@@ -733,6 +733,36 @@ function initializeSurveys() {
         }
     });
 }
+
+window.__socialAnnotate__.platformDebugCapture = function(selectors, stored) {
+    let raw = selectors.x || {};
+    let SEL_D = Object.assign({}, raw.shared || {}, raw.account || {}, raw.post || {});
+    let activeSurvey = stored && stored.config && stored.config.activeSurveys && stored.config.activeSurveys[0];
+
+    function probe(field) {
+        let selector = SEL_D[field];
+        if (!selector) return { field, selector: null, matched: false, value: null, note: 'not in selectors.json' };
+        try {
+            let el = document.querySelector(selector);
+            return { field, selector, matched: !!el, value: el ? (el.src || el.currentSrc || el.textContent.trim().slice(0, 200) || null) : null };
+        } catch(e) {
+            return { field, selector, matched: false, value: null, note: 'invalid selector' };
+        }
+    }
+
+    let isUser = activeSurvey ? activeSurvey.endsWith('-user') : checkUserURL();
+    let section = isUser ? (raw.account || {}) : (raw.post || {});
+    return {
+        platform: 'x',
+        surveyType: activeSurvey || (isUser ? 'x-user' : 'x-post'),
+        injectionStatus: {
+            userSurveyInjected: !!document.getElementById('surveyFormContainer'),
+            postSurveysInjected: document.querySelectorAll('.survey-container-post').length
+        },
+        extractedData: { userID: crawlUserName(), profile: isUser ? extractUserProfile() : {} },
+        selectorDiagnostics: Object.keys(section).filter(f => !['postVideo','postImage','userBanner'].includes(f)).map(probe)
+    };
+};
 
 // Fire the survey initializer on script load
 initializeSurveys();

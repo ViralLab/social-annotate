@@ -93,6 +93,14 @@ window.addEventListener('mh:download-request', function(e) {
 });
 
 function crawlUserName() {
+    if (window.location.protocol === 'file:' || window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
+        let handleEl = document.querySelector(SEL_IG.userHandle || 'header section h2, header h2');
+        if (handleEl) {
+            let text = handleEl.textContent.trim().replace(/^@/, '');
+            if (text) return text;
+        }
+        return 'local-test-user';
+    }
     let currentURL = window.location.href;
     let temp = currentURL.split('.com/');
     temp = temp[temp.length - 1];
@@ -134,8 +142,8 @@ function injectInstagramUserSurvey(injectElement, userID) {
 }
 
 function checkUserURL() {
-    // Content script won't be loaded if not on Instagram, so we only need to exclude
-    // the home/root/explore pages. main page looks like ?hl=en or just nothing.
+    if (window.location.protocol === 'file:') return true;
+    if (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') return true;
     let uname = crawlUserName();
     return !(uname === '' || uname === 'home');
 }
@@ -273,7 +281,7 @@ function processInstagramArticleNode(articleNode) {
                 {
                     body: () => extractInstagramText(articleNode),
                     media_urls: () => extractInstagramMedia(articleNode),
-                    created_at: () => { let t = articleNode.querySelector('time[datetime]'); return t ? t.getAttribute('datetime') : null; },
+                    created_at: () => { let t = articleNode.querySelector(SEL_IG.postTimestamp || 'time[datetime]'); return t ? t.getAttribute('datetime') : null; },
                     post_metrics: () => extractInstagramMetrics(articleNode)
                 }
             );
@@ -319,7 +327,7 @@ function extractInstagramText(articleNode) {
         }
     } catch(e) {}
 
-    let textEls = articleNode.querySelectorAll("h1[dir='auto'], span[dir='auto']");
+    let textEls = articleNode.querySelectorAll(SEL_IG.postText || "h1[dir='auto'], span[dir='auto']");
     let longestText = "";
     textEls.forEach(el => {
         let text = el.innerText || el.textContent;
@@ -481,6 +489,44 @@ function initializeSurveys() {
 // Declare at module level so they are accessible inside initializeSurveys callback
 let igObserver = createObserver();
 let observerTarget = document.body;
+
+window.__socialAnnotate__.platformDebugCapture = function(selectors, stored) {
+    let raw = selectors.instagram || {};
+    let SEL_D = Object.assign({}, raw.shared || {}, raw.account || {}, raw.post || {});
+    let activeSurvey = stored && stored.config && stored.config.activeSurveys && stored.config.activeSurveys[0];
+
+    let isUser = activeSurvey ? activeSurvey.endsWith('-user') : checkUserURL();
+    let scopeEl = isUser ? document : (document.querySelector(SEL_D.postContainer || 'article') || document);
+
+    function probe(field) {
+        let selector = SEL_D[field];
+        if (!selector) return { field, selector: null, matched: false, value: null, note: 'not in selectors.json' };
+        try {
+            if (field === 'postText') {
+                let els = scopeEl.querySelectorAll(selector);
+                let longest = '', bestEl = null;
+                els.forEach(e => { let t = (e.innerText || e.textContent || '').trim(); if (t.length > longest.length) { longest = t; bestEl = e; } });
+                return { field, selector, matched: !!bestEl, value: bestEl ? longest.slice(0, 200) : null };
+            }
+            let el = scopeEl.querySelector(selector);
+            return { field, selector, matched: !!el, value: el ? (el.src || el.currentSrc || el.textContent.trim().slice(0, 200) || null) : null };
+        } catch(e) {
+            return { field, selector, matched: false, value: null, note: 'invalid selector' };
+        }
+    }
+
+    let section = isUser ? (raw.account || {}) : (raw.post || {});
+    return {
+        platform: 'instagram',
+        surveyType: activeSurvey || (isUser ? 'instagram-user' : 'instagram-post'),
+        injectionStatus: {
+            userSurveyInjected: !!document.getElementById('surveyFormContainer'),
+            postSurveysInjected: document.querySelectorAll('.survey-container-post').length
+        },
+        extractedData: { userID: crawlUserName() },
+        selectorDiagnostics: Object.keys(section).filter(f => !['postVideo','postImage','userBanner'].includes(f)).map(probe)
+    };
+};
 
 // Fire the survey initializer on script load — observer is started inside once formTemplate is ready
 initializeSurveys();

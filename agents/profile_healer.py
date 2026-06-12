@@ -305,17 +305,19 @@ class ProfileHealer:
             return False
 
         entry = entries[-1]
-        account_id   = entry.get("account_id") or entry.get("post_id") or ""
-        user_profile = entry.get("user_profile") or {}
+        account_group = entry.get("account") or {}
+        account_id    = entry.get("account_id") or ""
+        profile_name  = account_group.get("profile_name") or ""
+        handle        = account_group.get("handle") or ""
 
         print(f"  account_id   : {account_id!r}")
-        print(f"  user_profile : {json.dumps(user_profile, ensure_ascii=False)[:120]}")
+        print(f"  account      : {json.dumps(account_group, ensure_ascii=False)[:120]}")
 
         issues = []
         if not account_id:
             issues.append("account_id is empty — userHandle selector may not be extracting the username")
-        if not user_profile:
-            issues.append("user_profile is empty — profile selectors may not be matching")
+        if not profile_name and not handle:
+            issues.append("account group is empty — profile selectors may not be matching")
 
         if issues:
             for iss in issues:

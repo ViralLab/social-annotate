@@ -448,8 +448,8 @@ class SelectorHealer:
     async def _step9_validate_capture(self, env: ExtensionBrowserEnv) -> bool:
         """
         Read the last submitted entry from chrome.storage.local.resultsArrays
-        and verify that critical fields (post_id, created_at, post_metrics) are
-        actually populated — not just that the form was submitted.
+        and verify that critical fields are populated — post_id (top-level),
+        and body / created_at / post_metrics inside the entry["post"] group.
         """
         print("\n── Step 9: Validate captured data ──")
 
@@ -470,11 +470,12 @@ class SelectorHealer:
 
         # Check the last submitted entry
         entry = entries[-1]
+        post_group = entry.get("post") or {}
         post_id    = entry.get("post_id") or entry.get("account_id") or ""
-        created_at = entry.get("created_at") or ""
-        body       = entry.get("body") or ""
-        metrics    = entry.get("post_metrics") or {}
-        media_urls = entry.get("media_urls") or []
+        created_at = post_group.get("created_at") or ""
+        body       = post_group.get("body") or ""
+        metrics    = post_group.get("post_metrics") or {}
+        media_urls = post_group.get("media_urls") or []
 
         print(f"  post_id    : {post_id!r}")
         print(f"  created_at : {created_at!r}")

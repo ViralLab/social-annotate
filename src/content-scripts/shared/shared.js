@@ -492,9 +492,48 @@ if (!window.__socialAnnotate__._debugListenerAdded) {
     });
 }
 
+const _CAPTURED_KEYS = new Set(['body', 'created_at', 'media_urls', 'post_metrics', 'user_profile']);
+const _TOP_KEYS = new Set(['account_id', 'post_id', 'surveyType', 'studyID', 'clientID', 'submission_timestamp', 'survey_init_timestamp']);
+
+function restructureOutput(flat) {
+    let out = {};
+    let annotation = {};
+    let capturedGroup = {};
+    let manipulation = { applied: flat.manipulation_applied === true };
+    let capturedKey = (flat.surveyType && flat.surveyType.endsWith('-user')) ? 'account' : 'post';
+
+    for (let k in flat) {
+        if (_TOP_KEYS.has(k)) {
+            out[k] = flat[k];
+        } else if (_CAPTURED_KEYS.has(k)) {
+            if (k === 'user_profile' && flat[k] && typeof flat[k] === 'object') {
+                Object.assign(capturedGroup, flat[k]);
+            } else {
+                capturedGroup[k] = flat[k];
+            }
+        } else if (k === 'manipulation_applied') {
+            // handled via manipulation.applied above
+        } else if (k === 'manipulation_label') {
+            manipulation.label = flat[k];
+        } else if (k === 'manipulation_map_id') {
+            manipulation.map_id = flat[k];
+        } else if (k === 'original_text') {
+            manipulation.original_text = flat[k];
+        } else {
+            annotation[k] = flat[k];
+        }
+    }
+
+    out.annotation = annotation;
+    out[capturedKey] = capturedGroup;
+    out.manipulation = manipulation;
+    return out;
+}
+
 function storeResults(surveyResults, socialMediaPlatform) {
     if (!isExtensionContextValid()) { console.debug('[SocialAnnotate] Extension context invalidated, skipping storeResults.'); return; }
     surveyResults.submission_timestamp = Math.floor(Date.now() / 1000);
+    surveyResults = restructureOutput(surveyResults);
 
     let apiSuccess = true;
     try {

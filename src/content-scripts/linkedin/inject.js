@@ -336,7 +336,7 @@ function extractLinkedInUserProfile() {
     let profile = {};
     try {
         let nameEl = document.querySelector(SEL_LI.userDisplayName || "section[componentkey*='Topcard'] h2");
-        if (nameEl) profile.displayName = nameEl.textContent.trim();
+        if (nameEl) profile.profile_name = nameEl.textContent.trim();
     } catch(e) {}
     try {
         let headlineEl = document.querySelector(SEL_LI.userHeadline || "section[componentkey*='Topcard'] p.d8d5bbbc._2f6a5622");
@@ -371,7 +371,7 @@ function extractLinkedInUserProfile() {
                     .filter(u => u.startsWith('https://'));
                 if (cdnUrls.length > 0) src = cdnUrls[cdnUrls.length - 1]; // last entry is highest res
             }
-            if (src && src.startsWith('http')) profile.avatarUrl = src;
+            if (src && src.startsWith('http')) profile.profile_img_url = src;
         }
     } catch(e) {}
     try {
@@ -545,7 +545,7 @@ function initializeSurveys() {
                                             }
                                         });
                                 }
-                                if (res.isProfileDownloadEnabled && profile.avatarUrl) downloadUrl(profile.avatarUrl, 'profile');
+                                if (res.isProfileDownloadEnabled && profile.profile_img_url) downloadUrl(profile.profile_img_url, 'profile');
                                 if (res.isBannerDownloadEnabled && profile.bannerUrl) downloadUrl(profile.bannerUrl, 'banner');
                             });
                         } else {

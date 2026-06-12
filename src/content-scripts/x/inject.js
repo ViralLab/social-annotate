@@ -267,7 +267,7 @@ function extractUserProfile() {
             for (let s of spans) {
                 let text = s.textContent.trim();
                 if (text && !text.startsWith('@')) {
-                    profile.displayName = text;
+                    profile.profile_name = text;
                     break;
                 }
             }
@@ -286,7 +286,7 @@ function extractUserProfile() {
     try {
         let avatarUrl = getProfileAvatarUrl();
         if (avatarUrl) {
-            profile.avatarUrl = avatarUrl;
+            profile.profile_img_url = avatarUrl;
         }
     } catch (e) { /* skip */ }
 
@@ -340,7 +340,7 @@ function extractUserProfile() {
     try {
         let joinEl = document.querySelector(SEL.userJoinDate || '[data-testid="UserJoinDate"]');
         if (joinEl) {
-            profile.joinDate = joinEl.textContent.trim();
+            profile.created_at = joinEl.textContent.trim();
         }
     } catch (e) { /* skip */ }
 

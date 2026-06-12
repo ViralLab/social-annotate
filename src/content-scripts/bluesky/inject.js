@@ -212,7 +212,7 @@ function extractUserProfile() {
     try {
         let nameEl = document.querySelector(SEL_BS.userDisplayName || '[data-testid="profileHeaderDisplayName"]');
         if (nameEl) {
-            profile.displayName = nameEl.textContent.trim();
+            profile.profile_name = nameEl.textContent.trim();
         }
     } catch (e) { /* skip */ }
 
@@ -230,7 +230,7 @@ function extractUserProfile() {
     try {
         let avatarEl = document.querySelector(SEL_BS.userAvatar || 'div[aria-label*="\'s avatar"] img');
         if (avatarEl) {
-            profile.avatarUrl = avatarEl.src;
+            profile.profile_img_url = avatarEl.src;
         }
     } catch (e) { /* skip */ }
 

@@ -427,7 +427,7 @@ function extractUserProfile() {
 
     try {
         let nameEl = document.querySelector(SEL_TS.userDisplayName || 'h1.text-xl, div.px-4 p.text-lg');
-        if (nameEl) profile.displayName = nameEl.textContent.trim();
+        if (nameEl) profile.profile_name = nameEl.textContent.trim();
     } catch (e) {}
 
     try {
@@ -437,7 +437,7 @@ function extractUserProfile() {
 
     try {
         let avatarEl = document.querySelector(SEL_TS.userAvatar || 'img[src*="accounts/avatars"]');
-        if (avatarEl) profile.avatarUrl = avatarEl.src;
+        if (avatarEl) profile.profile_img_url = avatarEl.src;
     } catch (e) {}
 
     try {
@@ -472,7 +472,7 @@ function extractUserProfile() {
 
     try {
         let joinEl = document.querySelector(SEL_TS.userJoinDate || '[data-testid="icon"]:has(path[d*="M4 11h16"]) + p');
-        if (joinEl) profile.joinDate = joinEl.textContent.trim();
+        if (joinEl) profile.created_at = joinEl.textContent.trim();
     } catch (e) {}
 
     return profile;
@@ -575,7 +575,7 @@ function initializeSurveys() {
                             let capturedAvatarUrl = null;
                             let capturedBannerUrl = null;
                             let profile = extractUserProfile();
-                            if (profile.avatarUrl) capturedAvatarUrl = profile.avatarUrl;
+                            if (profile.profile_img_url) capturedAvatarUrl = profile.profile_img_url;
                             if (profile.bannerUrl) capturedBannerUrl = profile.bannerUrl;
                             
                             let capturedUserID = values.account_id;

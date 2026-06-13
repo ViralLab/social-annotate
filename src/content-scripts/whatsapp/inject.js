@@ -257,7 +257,7 @@ function injectWhatsAppPostSurvey(messageNode, postID) {
     surveyContainer.setAttribute('id', containerId);
 
     const shadowRoot = surveyContainer.attachShadow({ mode: 'open' });
-    const cssUrl = chrome.runtime.getURL('content-scripts/bluesky/inject.css');
+    const cssUrl = chrome.runtime.getURL('content-scripts/whatsapp/inject.css');
     shadowRoot.innerHTML = `
         <iframe class="surveyIframe" src="${chrome.runtime.getURL('sandbox/survey.html')}" data-css="${cssUrl}" style="border:none; width:100%; height:100%; background:transparent;"></iframe>
     `;

@@ -279,6 +279,8 @@
         "content-scripts/instagram/inject.css",
         "content-scripts/x/inject.css",
         "content-scripts/bluesky/inject.css",
+        "content-scripts/telegram/inject.css",
+        "content-scripts/whatsapp/inject.css",
         "content-scripts/truthsocial/inject.css",
         "content-scripts/linkedin/inject.css",
         "dep/jsonform/deps/opt/bootstrap.css"

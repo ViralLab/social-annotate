@@ -206,8 +206,8 @@ window.addEventListener('mh:download-request', async function (e) {
             console.log('[Social Annotate] TG: dispatched', allUrls.length, 'media item(s) for download.');
         } catch (err) {
             if (err.message.includes('Extension context invalidated')) {
-                console.warn('[Social Annotate] Extension context invalidated. Auto-reloading tab...');
-                window.location.reload();
+                console.warn('[Social Annotate] Extension context invalidated — download aborted.');
+                if (tgObserver) { tgObserver.disconnect(); tgObserver = null; }
             } else {
                 console.error('[Social Annotate] Error sending download message:', err);
             }
@@ -334,12 +334,12 @@ function injectTelegramPostSurvey(messageNode, postID) {
     const shadowRoot = surveyContainer.attachShadow({ mode: 'open' });
     let cssUrl, iframeSrc;
     try {
-        cssUrl = chrome.runtime.getURL('content-scripts/bluesky/inject.css');
+        cssUrl = chrome.runtime.getURL('content-scripts/telegram/inject.css');
         iframeSrc = chrome.runtime.getURL('sandbox/survey.html');
     } catch (err) {
         if (err.message.includes('Extension context invalidated')) {
-            console.warn('[Social Annotate] Extension context invalidated. Auto-reloading tab...');
-            window.location.reload();
+            console.warn('[Social Annotate] Extension context invalidated — stopping observer.');
+            if (tgObserver) { tgObserver.disconnect(); tgObserver = null; }
             return null;
         }
         throw err;

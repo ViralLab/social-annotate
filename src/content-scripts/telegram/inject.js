@@ -208,6 +208,7 @@ window.addEventListener('mh:download-request', async function (e) {
             if (err.message.includes('Extension context invalidated')) {
                 console.warn('[Social Annotate] Extension context invalidated — download aborted.');
                 if (tgObserver) { tgObserver.disconnect(); tgObserver = null; }
+                showExtensionReloadBanner();
             } else {
                 console.error('[Social Annotate] Error sending download message:', err);
             }
@@ -340,6 +341,7 @@ function injectTelegramPostSurvey(messageNode, postID) {
         if (err.message.includes('Extension context invalidated')) {
             console.warn('[Social Annotate] Extension context invalidated — stopping observer.');
             if (tgObserver) { tgObserver.disconnect(); tgObserver = null; }
+            showExtensionReloadBanner();
             return null;
         }
         throw err;
@@ -480,6 +482,8 @@ function initializeSurveys() {
 
                 function submitAction(errors, values) {
                     if (!errors) {
+                        if (!isExtensionContextValid()) { showExtensionReloadBanner(); return; }
+
                         values.surveyType = currentContext.name;
                         values.studyID    = studyID;
 

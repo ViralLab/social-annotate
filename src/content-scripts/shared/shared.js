@@ -58,6 +58,23 @@ const metadataForms = [
     }
 ];
 
+function showExtensionReloadBanner() {
+    if (document.getElementById('sa-reload-banner')) return;
+    let banner = document.createElement('div');
+    banner.id = 'sa-reload-banner';
+    banner.style.cssText = [
+        'position:fixed', 'top:0', 'left:0', 'right:0', 'z-index:999999',
+        'background:#F4212E', 'color:#fff', 'text-align:center',
+        'padding:10px 16px',
+        'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
+        'font-size:14px', 'font-weight:600', 'cursor:pointer',
+        'box-shadow:0 2px 8px rgba(0,0,0,0.3)'
+    ].join(';');
+    banner.innerHTML = '&#9888; Social Annotate was reloaded. <u>Click here to reload the page</u> to continue annotating.';
+    banner.onclick = () => window.location.reload();
+    document.body.appendChild(banner);
+}
+
 const notificationContainer = document.createElement("div");
 notificationContainer.className = "notification-container";
 notificationContainer.style.background = "transparent";
@@ -531,7 +548,7 @@ function restructureOutput(flat) {
 }
 
 function storeResults(surveyResults, socialMediaPlatform) {
-    if (!isExtensionContextValid()) { console.debug('[SocialAnnotate] Extension context invalidated, skipping storeResults.'); return; }
+    if (!isExtensionContextValid()) { console.debug('[SocialAnnotate] Extension context invalidated, skipping storeResults.'); showExtensionReloadBanner(); return; }
     surveyResults.submission_timestamp = Math.floor(Date.now() / 1000);
     surveyResults = restructureOutput(surveyResults);
 
@@ -600,8 +617,12 @@ function storeResults(surveyResults, socialMediaPlatform) {
                 insertKey = surveyResults.post_id;
             } else if (surveyType === 'truthsocial-post') {
                 insertKey = surveyResults.post_id;
+            } else if (surveyType === 'truthsocial-user') {
+                insertKey = surveyResults.account_id;
             } else if (surveyType === 'linkedin-post') {
                 insertKey = surveyResults.post_id;
+            } else if (surveyType === 'linkedin-user') {
+                insertKey = surveyResults.account_id;
             }
 
             let insertIndex = annotatedElements[surveyType].indexOf(insertKey);
@@ -621,7 +642,7 @@ function storeResults(surveyResults, socialMediaPlatform) {
             let bringNextUser = false;
             let nextUser = '';
             // If guided mode is enabled, advance to the next target after a successful annotation.
-            if (result.isGuided === true && (surveyType === 'x-user' || surveyType === 'x-post' || surveyType === 'instagram-user' || surveyType === 'instagram-post' || surveyType === 'bluesky-user' || surveyType === 'bluesky-post' || surveyType === 'truthsocial-post' || surveyType === 'linkedin-post')) {
+            if (result.isGuided === true && (surveyType === 'x-user' || surveyType === 'x-post' || surveyType === 'instagram-user' || surveyType === 'instagram-post' || surveyType === 'bluesky-user' || surveyType === 'bluesky-post' || surveyType === 'truthsocial-post' || surveyType === 'truthsocial-user' || surveyType === 'linkedin-post' || surveyType === 'linkedin-user')) {
                 let dropIndex = activeTargetList.findIndex(item => insertKey.toLowerCase() === item.toLowerCase());
                 if (dropIndex > -1) {
                     activeTargetList.splice(dropIndex, 1);

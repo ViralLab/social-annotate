@@ -1,8 +1,8 @@
 """
-Configurable LLM client: auto-selects Claude or Gemini based on available API key.
+Configurable LLM client: auto-selects Gemini or Claude based on available API key.
 
-Priority: ANTHROPIC_API_KEY → Claude, else GEMINI_API_KEY → Gemini.
-Override model via CLAUDE_MODEL or GEMINI_MODEL env vars.
+Priority: GEMINI_API_KEY → Gemini, else ANTHROPIC_API_KEY → Claude.
+Override model via GEMINI_MODEL or CLAUDE_MODEL env vars.
 """
 
 import os
@@ -85,13 +85,13 @@ class GeminiClient(LLMClient):
 
 
 def get_llm_client() -> LLMClient:
-    if os.environ.get("ANTHROPIC_API_KEY"):
-        client = ClaudeClient()
-        print(f"🤖 LLM: Claude ({client.model})")
-        return client
     if os.environ.get("GEMINI_API_KEY"):
         client = GeminiClient()
         print(f"🤖 LLM: Gemini ({client.model})")
+        return client
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        client = ClaudeClient()
+        print(f"🤖 LLM: Claude ({client.model})")
         return client
     raise EnvironmentError(
         "No LLM API key found. Set ANTHROPIC_API_KEY or GEMINI_API_KEY."

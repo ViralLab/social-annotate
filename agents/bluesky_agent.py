@@ -14,8 +14,10 @@ RULES:
    must have a DIFFERENT parent node. The extension injects into postContainer.parentNode.
    Common post containers: [data-testid^="feedItem-"], [data-testid="postThreadItem-by-"],
    or the top-level div wrapping each feed card.
-3. postTimestamp: Bluesky renders timestamps as <a> links containing a <time> element.
-   The link href contains the post URI (e.g. /profile/{handle}/post/{id}).
+3. postTimestamp: selector for the timestamp element inside a post. Also set
+   postTimestampAttr to the exact HTML attribute on that element that holds the date
+   string — inspect the element in the HTML above (e.g. 'datetime', 'aria-label', 'title').
+   Do not guess: look at what attribute is present on the matched element.
 4. metricsReply / metricsRepost / metricsLike: Bluesky posts have reply, repost, and
    like buttons with aria-label or data-testid attributes. Use data-testid values if
    present; otherwise use aria-label CSS selectors.

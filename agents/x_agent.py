@@ -30,11 +30,13 @@ class XSelectorResult(BaseModel):
     postContainer: str = Field(
         description=(
             "CSS selector that uniquely wraps a single tweet/post card. "
-            "Must match MULTIPLE elements in the feed (use [data-testid='tweet'] or article[role='article'])."
+            "Must match MULTIPLE elements AND each matched element must have a DIFFERENT parent node — "
+            "the extension injects into postContainer.parentNode, so shared parents mean only one form appears. "
+            "Inspect the HTML to find the right element for this snapshot's era and layout."
         )
     )
     postText: str = Field(
-        description="CSS selector for the text body of a post (e.g. [data-testid='tweetText'])."
+        description="CSS selector for the text body of a post, scoped inside postContainer."
     )
     postImage: Optional[str] = Field(
         None,
@@ -46,8 +48,10 @@ class XSelectorResult(BaseModel):
     )
     postTimestamp: str = Field(
         description=(
-            "CSS selector for the <time> element inside a post. "
-            "Its parent anchor must href to a /status/{id} URL."
+            "CSS selector for the timestamp element inside a post. "
+            "Its direct parent <a> must have an href containing /status/{id}. "
+            "Select the child element inside the anchor, not the anchor itself. "
+            "Inspect the HTML — the tag may be <time>, <span>, or similar depending on the era."
         )
     )
     cardWrapper: Optional[str] = Field(
@@ -55,38 +59,35 @@ class XSelectorResult(BaseModel):
         description="CSS selector for external link preview cards inside a post.",
     )
 
-    # Metrics — KEYWORDS, not CSS selectors.
-    # Return None for any metric that is genuinely absent in this HTML snapshot
-    # (e.g. an old archive where engagement buttons did not exist).
+    # Metrics — value used to locate the action button inside each post container.
+    # If the value contains CSS special chars (space . # [ ] > : + ~) it is used as querySelector.
+    # Otherwise it is matched as [data-testid="<value>"] or [data-testid="un<value>"].
+    # Inspect the HTML to determine which form applies for this snapshot.
+    # Set to null for any metric genuinely absent in this HTML.
     metricsReply: Optional[str] = Field(
         None,
         description=(
-            "Short keyword found in the reply button's aria-label "
-            "(e.g. 'reply', 'comment'). NOT a CSS selector. "
-            "Set to null if reply buttons are absent in this HTML."
+            "Value to locate the reply action inside a post. "
+            "Use a CSS selector (e.g. '.classname') for old layouts or a data-testid keyword "
+            "(e.g. 'reply') for modern ones. Null if absent in this HTML."
         ),
     )
     metricsRepost: Optional[str] = Field(
         None,
         description=(
-            "Short keyword found in the repost/retweet button's aria-label "
-            "(e.g. 'retweet', 'repost'). NOT a CSS selector. "
-            "Set to null if repost buttons are absent in this HTML."
+            "Value to locate the repost/retweet action. Same rules as metricsReply. Null if absent."
         ),
     )
     metricsLike: Optional[str] = Field(
         None,
         description=(
-            "Short keyword found in the like/favorite button's aria-label "
-            "(e.g. 'like', 'favorite'). NOT a CSS selector. "
-            "Set to null if like buttons are absent in this HTML."
+            "Value to locate the like/favourite action. Same rules as metricsReply. Null if absent."
         ),
     )
     metricsBookmark: Optional[str] = Field(
         None,
         description=(
-            "Short keyword found in the bookmark button's aria-label. "
-            "E.g. 'bookmark'. NOT a CSS selector."
+            "Value to locate the bookmark action. Same rules as metricsReply. Null if absent."
         ),
     )
 

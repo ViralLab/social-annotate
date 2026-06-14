@@ -18,6 +18,7 @@ Steps:
 import asyncio
 import itertools
 import json
+import re
 import sys
 import threading
 import time as _time
@@ -96,33 +97,90 @@ async def _spin_while(message: str, coro):
 # HTML pruning
 # ──────────────────────────────────────────────────────────────────────────────
 
-_PRUNE_TEXT_THRESHOLD = 50   # collapse text nodes longer than this
-_PRUNE_MAX_CHARS = 80_000    # truncate pruned HTML if still too large
+_PRUNE_MAX_CHARS = 80_000
+
+# Attributes relevant to CSS selector generation — everything else is dropped.
+_KEEP_ATTRS = {
+    "id", "class", "role", "type", "name", "placeholder",
+    "aria-label", "aria-labelledby", "href", "data-testid", "title",
+}
+_DATA_ATTR_RE = re.compile(r"^data-")
+_ATTR_MAX_LEN = 200
 
 
-_ATTR_MAX_LEN = 120   # truncate long attribute values (e.g. proxy image URLs)
+def _prune_html(html: str, hint_selectors: list[str] | None = None) -> str:
+    """
+    Smart HTML pruning for LLM selector extraction.
 
-
-def _prune_html(html: str) -> str:
+    Strategy:
+    1. Strip junk tags (scripts, styles, SVG, etc.)
+    2. Find the content-rich subtree:
+       a. Use hint_selectors (platform offline_selectors) to anchor on known post elements
+       b. Fall back to role="main" / <main> / largest child heuristic
+    3. Strip all attribute noise — keep only selector-relevant attrs
+    4. Strip long text nodes — keep short labels (button text, aria hints) as context
+    5. Truncate to _PRUNE_MAX_CHARS
+    """
     soup = BeautifulSoup(html, "html.parser")
 
-    # Remove non-content elements
-    for tag in soup(["script", "style", "svg", "path", "iframe", "noscript",
-                     "link", "meta", "head", "nav", "header", "footer", "aside"]):
+    # Step 1: remove non-structural junk
+    for tag in soup(["script", "style", "svg", "path", "iframe",
+                     "noscript", "link", "meta", "head"]):
         tag.decompose()
 
-    for text_node in soup.find_all(string=True):
-        if len(text_node.strip()) > _PRUNE_TEXT_THRESHOLD:
-            text_node.replace_with("…")
+    # Step 2: find the best subtree root
+    root = None
 
-    for tag in soup.find_all(True):
-        tag.attrs.pop("style", None)
-        # Truncate long attribute values (data URIs, proxy URLs, etc.)
+    # 2a. Use hint selectors to find where posts actually live
+    if hint_selectors:
+        for sel in hint_selectors:
+            try:
+                matches = soup.select(sel)
+                if len(matches) >= 2:
+                    # Walk up from a match until we have enough context
+                    candidate = matches[0].parent
+                    while candidate and candidate.parent and len(str(candidate)) < 8_000:
+                        candidate = candidate.parent
+                    root = candidate
+                    break
+            except Exception:
+                continue
+
+    # 2b. Semantic fallbacks
+    if root is None:
+        root = (
+            soup.find(attrs={"role": "main"})
+            or soup.find("main")
+            or soup.body
+            or soup
+        )
+
+    # 2c. If still huge, descend into the largest direct child
+    if root and len(str(root)) > _PRUNE_MAX_CHARS * 3:
+        best_child, best_len = root, 0
+        for child in root.find_all(True, recursive=False):
+            child_len = len(str(child))
+            if child_len > best_len:
+                best_len = child_len
+                best_child = child
+        if best_len > 1_000:
+            root = best_child
+
+    # Step 3: strip attribute noise — keep only what the LLM needs for selectors
+    for tag in (root or soup).find_all(True):
+        kept = {}
         for attr, val in list(tag.attrs.items()):
-            if isinstance(val, str) and len(val) > _ATTR_MAX_LEN:
-                tag.attrs[attr] = val[:_ATTR_MAX_LEN] + "…"
+            if attr in _KEEP_ATTRS or _DATA_ATTR_RE.match(attr):
+                v = " ".join(val) if isinstance(val, list) else str(val)
+                kept[attr] = v[:_ATTR_MAX_LEN] + "…" if len(v) > _ATTR_MAX_LEN else v
+        tag.attrs = kept
 
-    result = str(soup)
+    # Step 4: strip long text — keep short strings as semantic hints
+    for text_node in (root or soup).find_all(string=True):
+        if len(text_node.strip()) > 40:
+            text_node.replace_with("")
+
+    result = str(root or soup)
     return result[:_PRUNE_MAX_CHARS] if len(result) > _PRUNE_MAX_CHARS else result
 
 
@@ -174,6 +232,9 @@ class SelectorHealer:
         output_dir: str | Path = "agents/output",
         max_llm_retries: int = 3,
         extra_context: str | None = None,
+        block_spa_scripts: bool | None = None,
+        survey_type: str | None = None,
+        strip_csp: bool = False,
     ):
         if platform not in REGISTRY:
             raise ValueError(
@@ -182,11 +243,16 @@ class SelectorHealer:
         self.fixture_path = Path(fixture_path).resolve()
         self.platform = platform
         self.platform_agent = REGISTRY[platform]
-        self.survey_type = self.platform_agent.survey_type
+        self.survey_type = survey_type if survey_type else self.platform_agent.survey_type
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.max_llm_retries = max_llm_retries
         self.extra_context = extra_context.strip() if extra_context else None
+        self.block_spa_scripts = (
+            self.platform_agent.block_spa_scripts if block_spa_scripts is None
+            else block_spa_scripts
+        )
+        self.strip_csp = strip_csp
         self.llm = get_llm_client()
 
     # ── Phase 1: Offline ──────────────────────────────────────────────────────
@@ -228,7 +294,7 @@ class SelectorHealer:
     def _step2_extract_selectors(self, html: str) -> Any:
         print("\n── Step 2: LLM selector extraction ──")
 
-        pruned = _prune_html(html)
+        pruned = _prune_html(html, hint_selectors=self.platform_agent.offline_selectors)
         print(f"  HTML: {len(html):,} chars → pruned: {len(pruned):,} chars")
 
         soup = BeautifulSoup(html, "html.parser")
@@ -308,13 +374,16 @@ class SelectorHealer:
 
         failed_urls: list[str] = []
 
-        block_scripts = self.platform_agent.block_spa_scripts
+        block_scripts = self.block_spa_scripts
 
         # Initial load (seeds extension storage via onInstalled)
-        page = await env.open_file(self.fixture_path, block_spa_scripts=block_scripts)
+        page = await env.open_file(self.fixture_path, block_spa_scripts=block_scripts, strip_csp=self.strip_csp)
 
-        # Track 404s from this point on
+        # Track 404s and console errors from this point on
         page.on("response", lambda r: failed_urls.append(r.url) if r.status == 404 else None)
+        console_errors: list[str] = []
+        page.on("console", lambda msg: console_errors.append(f"[{msg.type}] {msg.text}"))
+        page.on("pageerror", lambda err: console_errors.append(f"[pageerror] {err}"))
 
         # Batch-set survey type + new selectors, then single reload
         await env.set_active_survey(self.survey_type)
@@ -334,7 +403,7 @@ class SelectorHealer:
                 print(f"     {url[:120]}")
 
         print(f"  Page URL: {page.url}")
-        return page, failed_urls
+        return page, failed_urls, console_errors
 
     async def _step4_wait_for_injection(self, page, wait_secs: float = 4.0) -> None:
         """Pause and scroll to trigger MutationObserver + delayed rescan."""
@@ -348,9 +417,10 @@ class SelectorHealer:
         """Scroll slightly down and capture a viewport screenshot."""
         print("\n── Step 5: Screenshot ──")
         await page.evaluate("window.scrollTo(0, 250)")
-        await _spin_while("Capturing screenshot …", page.screenshot(path=str(
-            self.output_dir / f"{self.fixture_path.stem}_injection.png"
-        )))
+        await _spin_while("Capturing screenshot …", page.screenshot(
+            path=str(self.output_dir / f"{self.fixture_path.stem}_injection.png"),
+            timeout=8000,
+        ))
         path = self.output_dir / f"{self.fixture_path.stem}_injection.png"
         print(f"  📸 {path}")
         return path
@@ -445,7 +515,7 @@ class SelectorHealer:
 
         return {"frames_found": len(survey_frames), "submitted": submitted > 0}
 
-    async def _step9_validate_capture(self, env: ExtensionBrowserEnv) -> bool:
+    async def _step9_validate_capture(self, env: ExtensionBrowserEnv, page=None) -> bool:
         """
         Read the last submitted entry from chrome.storage.local.resultsArrays
         and verify that critical fields are populated — post_id (top-level),
@@ -466,11 +536,44 @@ class SelectorHealer:
 
         if not entries:
             print(f"  ⚠️  No entries found in resultsArrays['{survey_type}'].")
+            # Dump full storage state to diagnose where data landed
+            non_empty = {k: len(v) for k, v in results_arrays.items() if v}
+            print(f"  Storage keys with data: {non_empty or '(none)'}")
+            print(f"  All resultsArrays keys: {list(results_arrays.keys())}")
+            # Probe content script state from the page context
+            if page:
+                try:
+                    diag = await page.evaluate("""() => {
+                        const sa = window.__socialAnnotate__;
+                        if (!sa) return { error: '__socialAnnotate__ not found on window' };
+                        const ctxs = sa.surveyContexts || {};
+                        const keys = Object.keys(ctxs);
+                        return {
+                            listenerAdded: sa.listenerAdded,
+                            surveyContextKeys: keys,
+                            firstCtxHasSubmitAction: keys.length > 0 ? typeof ctxs[keys[0]].context.submitAction : 'n/a',
+                        };
+                    }""")
+                    print(f"  Page-context diag: {diag}")
+                except Exception as e:
+                    print(f"  Page-context diag failed: {e}")
             return False
 
         # Check the last submitted entry
         entry = entries[-1]
         post_group = entry.get("post") or {}
+
+        # Profile-page surveys (e.g. linkedin-user) store account_id at the top level
+        # and have no "post" group. Validate them differently.
+        if not post_group:
+            account_id = entry.get("account_id") or ""
+            print(f"  account_id : {account_id!r}  (profile survey — no post group)")
+            if not account_id:
+                print("  ⚠️  account_id is empty — profile survey captured no user ID.")
+                return False
+            print("  ✅ Profile survey data looks valid.")
+            return True
+
         post_id    = entry.get("post_id") or entry.get("account_id") or ""
         created_at = post_group.get("created_at") or ""
         body       = post_group.get("body") or ""
@@ -594,13 +697,21 @@ class SelectorHealer:
         await env.start()
 
         try:
-            page, res.resource_404s = await self._step3_open_browser(env, new_selectors)
+            page, res.resource_404s, _console_errors = await self._step3_open_browser(env, new_selectors)
             res.browser_loaded = True
 
             await self._step4_wait_for_injection(page)
 
-            shot = await self._step5_screenshot(page)
-            res.screenshot_path = str(shot)
+            if _console_errors:
+                print(f"\n  Browser console ({len(_console_errors)} message(s)):")
+                for msg in _console_errors[:30]:
+                    print(f"    {msg[:300]}")
+
+            try:
+                shot = await self._step5_screenshot(page)
+                res.screenshot_path = str(shot)
+            except Exception as _ss_exc:
+                print(f"  ⚠️  Screenshot skipped: {_ss_exc}")
 
             inj = await self._step6_verify_injection(page)
             res.survey_containers = inj["containers"]
@@ -614,7 +725,7 @@ class SelectorHealer:
                 res.form_submitted = submit["submitted"]
 
                 if res.form_submitted:
-                    res.submission_validated = await self._step9_validate_capture(env)
+                    res.submission_validated = await self._step9_validate_capture(env, page)
 
         except Exception as exc:
             print(f"\n❌ Browser phase error: {exc}")

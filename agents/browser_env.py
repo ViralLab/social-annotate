@@ -127,7 +127,7 @@ class ExtensionBrowserEnv:
         }})""")
         print(f"✅ Active survey set to: {survey_type}")
 
-    async def open_file(self, file_path: str | Path, survey_type: str | None = None, block_spa_scripts: bool = False) -> Page:
+    async def open_file(self, file_path: str | Path, survey_type: str | None = None, block_spa_scripts: bool = False, strip_csp: bool = False) -> Page:
         """
         Opens a local HTML file via the local HTTP server.
 
@@ -139,6 +139,9 @@ class ExtensionBrowserEnv:
             block_spa_scripts: If True, neutralises the page's own <script> tags before
                                execution so SPA frameworks don't crash on missing API calls.
                                The extension's content scripts are unaffected.
+            strip_csp:         If True, removes Content-Security-Policy meta tags from the
+                               HTML response so saved pages with strict CSPs don't block fonts
+                               or scripts when loaded locally.
         """
         if not self.browser_context:
             raise RuntimeError("Browser is not started. Call start() first.")
@@ -159,22 +162,40 @@ class ExtensionBrowserEnv:
         else:
             page = await self.browser_context.new_page()
 
-        if block_spa_scripts:
-            # Block the page's JS bundle files via network interception so the SPA
-            # never runs and the static pre-rendered HTML stays intact.
-            # Chrome extension content scripts are injected by the browser separately
-            # and are completely unaffected by this route interception.
-            async def _block_js(route):
+        if block_spa_scripts or strip_csp:
+            import re as _re
+            _csp_re = _re.compile(
+                r'<meta[^>]+http-equiv=["\']Content-Security-Policy["\'][^>]*>',
+                _re.IGNORECASE,
+            )
+
+            async def _intercept(route):
                 req = route.request
-                # Let chrome-extension:// requests pass through normally
                 if req.url.startswith("chrome-extension://"):
                     await route.continue_()
-                elif req.resource_type == "script":
+                    return
+                if block_spa_scripts and req.resource_type == "script":
                     await route.abort()
-                else:
-                    await route.continue_()
+                    return
+                if strip_csp:
+                    # Abort external font requests — they block screenshots when offline
+                    if req.resource_type == "font" and not req.url.startswith("http://127.0.0.1"):
+                        await route.abort()
+                        return
+                    # Only strip CSP meta-tag from the main fixture document, not sub-frames.
+                    # Read from disk to avoid HTTP round-trip overhead on large files.
+                    if req.resource_type == "document" and req.url == url:
+                        body = path_obj.read_text(encoding="utf-8", errors="replace")
+                        body = _csp_re.sub("", body)
+                        await route.fulfill(
+                            status=200,
+                            content_type="text/html; charset=utf-8",
+                            body=body,
+                        )
+                        return
+                await route.continue_()
 
-            await page.route("**/*", _block_js)
+            await page.route("**/*", _intercept)
 
         # Load the page once so the extension's onInstalled fires and seeds storage
         await page.goto(url, wait_until="domcontentloaded")

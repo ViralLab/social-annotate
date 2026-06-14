@@ -16,8 +16,10 @@ RULES:
    DIFFERENT parent node. The extension injects into postContainer.parentNode.
    Common containers: article.status, .entry, .status-public, or the outermost
    per-status div in the feed list.
-3. postTimestamp: look for <time> or <a class="status__relative-time"> with a datetime
-   attribute or href linking to /statuses/{id} or /@{user}/{id}.
+3. postTimestamp: selector for the timestamp element inside a post. Also set
+   postTimestampAttr to the exact HTML attribute on that element that holds the date
+   string — inspect the matched element in the HTML above (e.g. 'datetime', 'aria-label',
+   'title'). Do not guess: look at what attribute is actually present.
 4. metricsReply / metricsRepost / metricsLike: TruthSocial uses Mastodon's action bar
    (.status__action-bar or .detailed-status__action-bar) with buttons for reply, boost,
    and favourite. Use class-based CSS selectors scoped inside each post container.

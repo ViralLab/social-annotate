@@ -46,6 +46,17 @@ class BaseSelectorResult(BaseModel):
     postTimestamp: Optional[str] = Field(
         None, description="CSS selector for the timestamp element inside a post."
     )
+    postTimestampAttr: Optional[str] = Field(
+        None,
+        description=(
+            "How to read the date/time string from the postTimestamp element. "
+            "Inspect the actual element in the HTML: "
+            "use 'datetime' for <time datetime='...'>, "
+            "'aria-label'/'title'/'data-tooltip' for elements that carry it as an attribute, "
+            "or 'textContent' when the timestamp string is the element's visible text content "
+            "(e.g. '2w', '1d', '3 days ago'). Required when postTimestamp is set."
+        ),
+    )
     cardWrapper: Optional[str] = Field(
         None, description="CSS selector for external link preview cards inside a post."
     )
@@ -235,6 +246,7 @@ def make_to_nested(platform: str) -> Callable:
                     "postImage": result.postImage,
                     "postVideo": result.postVideo,
                     "postTimestamp": result.postTimestamp,
+                    "postTimestampAttr": result.postTimestampAttr,
                     "postLink": None,
                     "cardWrapper": result.cardWrapper,
                     "conversationMessages": None,

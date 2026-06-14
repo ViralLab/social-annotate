@@ -1,340 +1,342 @@
 {
-    "x": {
-        "shared": {
-            "appRoot": "#react-root",
-            "observerFilter": {
-                "attributes": true,
-                "childList": true,
-                "subtree": true,
-                "attributeFilter": [
-                    "role"
-                ]
-            }
-        },
-        "account": {
-            "userDisplayName": "[data-testid=\"User-Name\"]",
-            "userHandle": "[data-testid=\"User-Name\"] a[href][tabindex=\"-1\"] span",
-            "userAvatar": "[data-testid=\"Tweet-User-Avatar\"] img[src*=\"profile_images\"]",
-            "userProfileAvatar": "[data-testid^=\"UserAvatar-Container-\"]",
-            "userProfileSchema": "script[data-testid=\"UserProfileSchema-test\"]",
-            "userBanner": "img[src*=\"profile_banners\"]",
-            "userBio": "[data-testid=\"UserDescription\"]",
-            "userHeadline": null,
-            "userVerified": "[data-testid=\"icon-verified\"]",
-            "userFollowers": "a[href$=\"/verified_followers\"], a[href$=\"/followers\"]",
-            "userFollowing": "a[href$=\"/following\"]",
-            "userConnections": null,
-            "userLocation": "[data-testid=\"UserLocation\"]",
-            "userJoinDate": "[data-testid=\"UserJoinDate\"]",
-            "userUrl": "[data-testid=\"UserUrl\"]",
-            "userLink": null
-        },
-        "post": {
-            "postContainer": "article[role=\"article\"]",
-            "postAuthorAvatar": "[data-testid=\"Tweet-User-Avatar\"]",
-            "postText": "[data-testid=\"tweetText\"]",
-            "postImage": "[data-testid=\"tweetPhoto\"] img",
-            "postVideo": "[data-testid=\"videoPlayer\"] video",
-            "postTimestamp": "time",
-            "postLink": null,
-            "cardWrapper": "[data-testid=\"card.wrapper\"]",
-            "conversationMessages": null,
-            "messageContainer": null,
-            "copyableText": null,
-            "metricsReply": "[data-testid=\"reply\"], [data-testid=\"unreply\"]",
-            "metricsRepost": "[data-testid=\"retweet\"], [data-testid=\"unretweet\"]",
-            "metricsLike": "[data-testid=\"like\"], [data-testid=\"unlike\"]",
-            "metricsBookmark": "[data-testid=\"bookmark\"], [data-testid=\"unbookmark\"]",
-            "metricsViews": null,
-            "metricsQuote": null,
-            "metricsViewsPattern": "views?"
-        }
+  "x": {
+    "shared": {
+      "appRoot": "#react-root",
+      "observerFilter": {
+        "attributes": true,
+        "childList": true,
+        "subtree": true,
+        "attributeFilter": [
+          "role"
+        ]
+      }
     },
-    "instagram": {
-        "shared": {
-            "appRoot": "#react-root",
-            "observerFilter": {
-                "attributes": false,
-                "childList": true,
-                "subtree": true
-            }
-        },
-        "account": {
-            "userDisplayName": null,
-            "userHandle": null,
-            "userAvatar": "header img[alt]",
-            "userProfileAvatar": null,
-            "userProfileSchema": null,
-            "userBanner": null,
-            "userBio": null,
-            "userHeadline": null,
-            "userVerified": null,
-            "userFollowers": null,
-            "userFollowing": null,
-            "userConnections": null,
-            "userLocation": null,
-            "userJoinDate": null,
-            "userUrl": null,
-            "userLink": "a[href]"
-        },
-        "post": {
-            "postContainer": "article",
-            "postText": "h1[dir='auto'], span[dir='auto']",
-            "postImage": null,
-            "postVideo": null,
-            "postTimestamp": "time[datetime]",
-            "postLink": "a[href*='/p/'], a[href*='/reel/']",
-            "cardWrapper": null,
-            "conversationMessages": null,
-            "messageContainer": null,
-            "copyableText": null,
-            "metricsReply": null,
-            "metricsRepost": null,
-            "metricsLike": null,
-            "metricsBookmark": null,
-            "metricsViews": null,
-            "metricsQuote": null,
-            "metricsViewsPattern": null
-        }
+    "account": {
+      "userDisplayName": "[data-testid=\"User-Name\"]",
+      "userHandle": "[data-testid=\"User-Name\"] a[href][tabindex=\"-1\"] span",
+      "userAvatar": "[data-testid=\"Tweet-User-Avatar\"] img[src*=\"profile_images\"]",
+      "userProfileAvatar": "[data-testid^=\"UserAvatar-Container-\"]",
+      "userProfileSchema": "script[data-testid=\"UserProfileSchema-test\"]",
+      "userBanner": "img[src*=\"profile_banners\"]",
+      "userBio": "[data-testid=\"UserDescription\"]",
+      "userHeadline": null,
+      "userVerified": "[data-testid=\"icon-verified\"]",
+      "userFollowers": "a[href$=\"/verified_followers\"], a[href$=\"/followers\"]",
+      "userFollowing": "a[href$=\"/following\"]",
+      "userConnections": null,
+      "userLocation": "[data-testid=\"UserLocation\"]",
+      "userJoinDate": "[data-testid=\"UserJoinDate\"]",
+      "userUrl": "[data-testid=\"UserUrl\"]",
+      "userLink": null
     },
-    "bluesky": {
-        "shared": {
-            "appRoot": "#root",
-            "observerFilter": {
-                "attributes": false,
-                "childList": true,
-                "subtree": true
-            }
-        },
-        "account": {
-            "userDisplayName": "[data-testid=\"profileHeaderDisplayName\"]",
-            "userHandle": "div:has(> [data-testid=\"profileHeaderDisplayName\"]) + div > div[dir=\"auto\"]",
-            "userAvatar": "div[aria-label*=\"'s avatar\"] img",
-            "userProfileAvatar": null,
-            "userProfileSchema": null,
-            "userBanner": "div[aria-label=\"View profile banner\"] img",
-            "userBio": "[data-testid=\"profileHeaderDescription\"]",
-            "userHeadline": null,
-            "userVerified": null,
-            "userFollowers": "[data-testid=\"profileHeaderFollowersButton\"]",
-            "userFollowing": "[data-testid=\"profileHeaderFollowsButton\"]",
-            "userConnections": null,
-            "userLocation": null,
-            "userJoinDate": null,
-            "userUrl": null,
-            "userLink": null
-        },
-        "post": {
-            "postContainer": "[data-testid*=\"feedItem\"], [data-testid*=\"postThreadItem\"]",
-            "postAuthorAvatar": "img[src*=\"avatar\"]",
-            "postText": "[data-testid=\"postText\"]",
-            "postImage": "img[src*=\"cdn.bsky.app\"]",
-            "postVideo": "video",
-            "postTimestamp": "a[href*=\"/post/\"]",
-            "postLink": null,
-            "cardWrapper": null,
-            "conversationMessages": null,
-            "messageContainer": null,
-            "copyableText": null,
-            "metricsReply": "[data-testid=\"replyBtn\"]",
-            "metricsRepost": "[data-testid=\"repostBtn\"]",
-            "metricsLike": "[data-testid=\"likeBtn\"], [data-testid=\"unlikeBtn\"]",
-            "metricsBookmark": null,
-            "metricsViews": null,
-            "metricsQuote": null,
-            "metricsViewsPattern": null
-        }
-    },
-    "whatsapp": {
-        "shared": {
-            "appRoot": null,
-            "observerFilter": {
-                "attributes": false,
-                "childList": true,
-                "subtree": true
-            }
-        },
-        "account": {
-            "userDisplayName": null,
-            "userHandle": null,
-            "userAvatar": null,
-            "userProfileAvatar": null,
-            "userProfileSchema": null,
-            "userBanner": null,
-            "userBio": null,
-            "userHeadline": null,
-            "userVerified": null,
-            "userFollowers": null,
-            "userFollowing": null,
-            "userConnections": null,
-            "userLocation": null,
-            "userJoinDate": null,
-            "userUrl": null,
-            "userLink": null
-        },
-        "post": {
-            "messageSender": "span[aria-label$=\":\"]",
-            "postContainer": "[data-testid^='conv-msg-']",
-            "postText": "[data-testid*='selectable-text']",
-            "postImage": "img[src]",
-            "postVideo": "video, video source, [data-testid='video-content'] [style*='background-image'], [data-testid='msg-video'] [style*='background-image']",
-            "postTimestamp": "[data-testid='msg-meta'] span[dir='auto']",
-            "postLink": null,
-            "cardWrapper": null,
-            "conversationMessages": "[data-testid='conversation-panel-messages']",
-            "messageContainer": "[data-testid='msg-container']",
-            "copyableText": ".copyable-text[data-pre-plain-text]",
-            "metricsReply": null,
-            "metricsRepost": null,
-            "metricsLike": null,
-            "metricsBookmark": null,
-            "metricsViews": null,
-            "metricsQuote": null,
-            "metricsViewsPattern": null
-        }
-    },
-    "telegram": {
-        "shared": {
-            "appRoot": null,
-            "observerFilter": {
-                "attributes": false,
-                "childList": true,
-                "subtree": true
-            }
-        },
-        "account": {
-            "userDisplayName": ".fullName",
-            "userHandle": null,
-            "userAvatar": ".Avatar__media",
-            "userProfileAvatar": null,
-            "userProfileSchema": null,
-            "userBanner": null,
-            "userBio": null,
-            "userHeadline": null,
-            "userVerified": null,
-            "userFollowers": null,
-            "userFollowing": null,
-            "userConnections": null,
-            "userLocation": null,
-            "userJoinDate": null,
-            "userUrl": null,
-            "userLink": null
-        },
-        "post": {
-            "postContainer": ".Message",
-            "postText": ".text-content",
-            "postImage": "img.media-photo, img.full-media, canvas.thumbnail.shown",
-            "postVideo": "video.full-media, video",
-            "postTimestamp": ".message-time",
-            "postLink": null,
-            "cardWrapper": null,
-            "conversationMessages": ".MessageList .messages-container",
-            "messageContainer": null,
-            "copyableText": null,
-            "metricsReply": null,
-            "metricsRepost": null,
-            "metricsLike": null,
-            "metricsBookmark": null,
-            "metricsViews": ".message-views",
-            "metricsQuote": null,
-            "metricsViewsPattern": null
-        }
-    },
-    "truthsocial": {
-        "shared": {
-            "appRoot": "#root",
-            "observerFilter": {
-                "attributes": false,
-                "childList": true,
-                "subtree": true
-            }
-        },
-        "account": {
-            "userDisplayName": "h1.text-xl, div.px-4 p.text-lg",
-            "userHandle": "main p.text-muted-foreground[style=\"direction: ltr;\"]",
-            "userAvatar": "img[src*=\"accounts/avatars\"]",
-            "userProfileAvatar": null,
-            "userProfileSchema": null,
-            "userBanner": "img[src*=\"accounts/headers\"]",
-            "userBio": null,
-            "userHeadline": null,
-            "userVerified": null,
-            "userFollowers": "[data-testid=\"followers-button\"]",
-            "userFollowing": "[data-testid=\"following-button\"]",
-            "userConnections": null,
-            "userLocation": null,
-            "userJoinDate": "[data-testid=\"icon\"]:has(path[d*=\"M4 11h16\"]) + p",
-            "userUrl": null,
-            "userLink": null
-        },
-        "post": {
-            "postContainer": "[data-testid=\"status\"]",
-            "postAuthorAvatar": ".status__avatar img, img[src*=\"avatar\"]",
-            "postTextContainer": "[data-testid=\"status-content\"]",
-            "postText": "[data-testid=\"status-content\"] [data-testid=\"markup\"]",
-            "postImage": "img",
-            "postVideo": "video",
-            "postTimestamp": "a[href*=\"/posts/\"] time",
-            "postLink": null,
-            "cardWrapper": null,
-            "conversationMessages": null,
-            "messageContainer": null,
-            "copyableText": null,
-            "metricsReply": "button[aria-label=\"Reply\"], button[aria-label=\"Replies\"]",
-            "metricsRepost": "button[aria-label=\"ReTruth\"], button[aria-label=\"ReTruths\"]",
-            "metricsLike": "button[aria-label=\"Like\"], button[aria-label=\"Likes\"]",
-            "metricsBookmark": null,
-            "metricsViews": null,
-            "metricsQuote": null,
-            "metricsViewsPattern": null
-        }
-    },
-    "linkedin": {
-        "shared": {
-            "appRoot": "#root",
-            "observerFilter": {
-                "attributes": false,
-                "childList": true,
-                "subtree": true
-            }
-        },
-        "account": {
-            "userDisplayName": "section[componentkey*='Topcard'] h2",
-            "userHandle": "a[href*='/in/'][tabindex='0']:not([componentkey])",
-            "userAvatar": "section[componentkey*='Topcard'] figure img._17236dac:not([alt='Cover photo'])[fetchpriority='high']",
-            "userProfileAvatar": null,
-            "userProfileSchema": null,
-            "userBanner": "section[componentkey*='Topcard'] figure img._17236dac[alt='Cover photo']",
-            "userBio": null,
-            "userHeadline": "section[componentkey*='Topcard'] p.d8d5bbbc._2f6a5622",
-            "userVerified": null,
-            "userFollowers": "a[href*='followers'] p",
-            "userFollowing": null,
-            "userConnections": "a[href*='connections'] p",
-            "userLocation": "section[componentkey*='Topcard'] p.bab73015._98cb9b8f",
-            "userJoinDate": null,
-            "userUrl": null,
-            "userLink": null
-        },
-        "post": {
-            "postContainer": "[data-testid=\"mainFeed\"] [role=\"listitem\"], [role=\"main\"] [role=\"listitem\"], .feed-shared-update-v2",
-            "postAuthorAvatar": ".update-components-actor img, img[src*=\"profile\"]",
-            "postText": "[data-testid=\"expandable-text-box\"]",
-            "postImage": "img[alt=\"View image\"]",
-            "postVideo": "video",
-            "postTimestamp": null,
-            "postLink": null,
-            "cardWrapper": null,
-            "conversationMessages": null,
-            "messageContainer": null,
-            "copyableText": null,
-            "metricsReply": null,
-            "metricsRepost": null,
-            "metricsLike": null,
-            "metricsBookmark": null,
-            "metricsViews": null,
-            "metricsQuote": null,
-            "metricsViewsPattern": null
-        }
+    "post": {
+      "postContainer": "article[role=\"article\"]",
+      "postAuthorAvatar": "[data-testid=\"Tweet-User-Avatar\"]",
+      "postText": "[data-testid=\"tweetText\"]",
+      "postImage": "[data-testid=\"tweetPhoto\"] img",
+      "postVideo": "[data-testid=\"videoPlayer\"] video",
+      "postTimestamp": "time",
+      "postLink": null,
+      "cardWrapper": "[data-testid=\"card.wrapper\"]",
+      "conversationMessages": null,
+      "messageContainer": null,
+      "copyableText": null,
+      "metricsReply": "[data-testid=\"reply\"], [data-testid=\"unreply\"]",
+      "metricsRepost": "[data-testid=\"retweet\"], [data-testid=\"unretweet\"]",
+      "metricsLike": "[data-testid=\"like\"], [data-testid=\"unlike\"]",
+      "metricsBookmark": "[data-testid=\"bookmark\"], [data-testid=\"unbookmark\"]",
+      "metricsViews": null,
+      "metricsQuote": null,
+      "metricsViewsPattern": "views?"
     }
+  },
+  "instagram": {
+    "shared": {
+      "appRoot": "#react-root",
+      "observerFilter": {
+        "attributes": false,
+        "childList": true,
+        "subtree": true
+      }
+    },
+    "account": {
+      "userDisplayName": null,
+      "userHandle": null,
+      "userAvatar": "header img[alt]",
+      "userProfileAvatar": null,
+      "userProfileSchema": null,
+      "userBanner": null,
+      "userBio": null,
+      "userHeadline": null,
+      "userVerified": null,
+      "userFollowers": null,
+      "userFollowing": null,
+      "userConnections": null,
+      "userLocation": null,
+      "userJoinDate": null,
+      "userUrl": null,
+      "userLink": "a[href]"
+    },
+    "post": {
+      "postContainer": "article",
+      "postText": "h1[dir='auto'], span[dir='auto']",
+      "postImage": null,
+      "postVideo": null,
+      "postTimestamp": "time[datetime]",
+      "postLink": "a[href*='/p/'], a[href*='/reel/']",
+      "cardWrapper": null,
+      "conversationMessages": null,
+      "messageContainer": null,
+      "copyableText": null,
+      "metricsReply": null,
+      "metricsRepost": null,
+      "metricsLike": null,
+      "metricsBookmark": null,
+      "metricsViews": null,
+      "metricsQuote": null,
+      "metricsViewsPattern": null
+    }
+  },
+  "bluesky": {
+    "shared": {
+      "appRoot": "#root",
+      "observerFilter": {
+        "attributes": false,
+        "childList": true,
+        "subtree": true
+      }
+    },
+    "account": {
+      "userDisplayName": "[data-testid=\"profileHeaderDisplayName\"]",
+      "userHandle": "div:has(> [data-testid=\"profileHeaderDisplayName\"]) + div > div[dir=\"auto\"]",
+      "userAvatar": "div[aria-label*=\"'s avatar\"] img",
+      "userProfileAvatar": null,
+      "userProfileSchema": null,
+      "userBanner": "div[aria-label=\"View profile banner\"] img",
+      "userBio": "[data-testid=\"profileHeaderDescription\"]",
+      "userHeadline": null,
+      "userVerified": null,
+      "userFollowers": "[data-testid=\"profileHeaderFollowersButton\"]",
+      "userFollowing": "[data-testid=\"profileHeaderFollowsButton\"]",
+      "userConnections": null,
+      "userLocation": null,
+      "userJoinDate": null,
+      "userUrl": null,
+      "userLink": null
+    },
+    "post": {
+      "postContainer": "[data-testid*=\"feedItem\"], [data-testid*=\"postThreadItem\"]",
+      "postAuthorAvatar": "img[src*=\"avatar\"]",
+      "postText": "[data-testid=\"postText\"]",
+      "postImage": "img[src*=\"cdn.bsky.app\"]",
+      "postVideo": "video",
+      "postTimestamp": "a[href*=\"/post/\"]",
+      "postLink": null,
+      "cardWrapper": null,
+      "conversationMessages": null,
+      "messageContainer": null,
+      "copyableText": null,
+      "metricsReply": "[data-testid=\"replyBtn\"]",
+      "metricsRepost": "[data-testid=\"repostBtn\"]",
+      "metricsLike": "[data-testid=\"likeBtn\"], [data-testid=\"unlikeBtn\"]",
+      "metricsBookmark": null,
+      "metricsViews": null,
+      "metricsQuote": null,
+      "metricsViewsPattern": null,
+      "postTimestampAttr": "aria-label"
+    }
+  },
+  "whatsapp": {
+    "shared": {
+      "appRoot": null,
+      "observerFilter": {
+        "attributes": false,
+        "childList": true,
+        "subtree": true
+      }
+    },
+    "account": {
+      "userDisplayName": null,
+      "userHandle": null,
+      "userAvatar": null,
+      "userProfileAvatar": null,
+      "userProfileSchema": null,
+      "userBanner": null,
+      "userBio": null,
+      "userHeadline": null,
+      "userVerified": null,
+      "userFollowers": null,
+      "userFollowing": null,
+      "userConnections": null,
+      "userLocation": null,
+      "userJoinDate": null,
+      "userUrl": null,
+      "userLink": null
+    },
+    "post": {
+      "messageSender": "span[aria-label$=\":\"]",
+      "postContainer": "[data-testid^='conv-msg-']",
+      "postText": "[data-testid*='selectable-text']",
+      "postImage": "img[src]",
+      "postVideo": "video, video source, [data-testid='video-content'] [style*='background-image'], [data-testid='msg-video'] [style*='background-image']",
+      "postTimestamp": "[data-testid='msg-meta'] span[dir='auto']",
+      "postLink": null,
+      "cardWrapper": null,
+      "conversationMessages": "[data-testid='conversation-panel-messages']",
+      "messageContainer": "[data-testid='msg-container']",
+      "copyableText": ".copyable-text[data-pre-plain-text]",
+      "metricsReply": null,
+      "metricsRepost": null,
+      "metricsLike": null,
+      "metricsBookmark": null,
+      "metricsViews": null,
+      "metricsQuote": null,
+      "metricsViewsPattern": null
+    }
+  },
+  "telegram": {
+    "shared": {
+      "appRoot": null,
+      "observerFilter": {
+        "attributes": false,
+        "childList": true,
+        "subtree": true
+      }
+    },
+    "account": {
+      "userDisplayName": ".fullName",
+      "userHandle": null,
+      "userAvatar": ".Avatar__media",
+      "userProfileAvatar": null,
+      "userProfileSchema": null,
+      "userBanner": null,
+      "userBio": null,
+      "userHeadline": null,
+      "userVerified": null,
+      "userFollowers": null,
+      "userFollowing": null,
+      "userConnections": null,
+      "userLocation": null,
+      "userJoinDate": null,
+      "userUrl": null,
+      "userLink": null
+    },
+    "post": {
+      "postContainer": ".Message",
+      "postText": ".text-content",
+      "postImage": "img.media-photo, img.full-media, canvas.thumbnail.shown",
+      "postVideo": "video.full-media, video",
+      "postTimestamp": ".message-time",
+      "postLink": null,
+      "cardWrapper": null,
+      "conversationMessages": ".MessageList .messages-container",
+      "messageContainer": null,
+      "copyableText": null,
+      "metricsReply": null,
+      "metricsRepost": null,
+      "metricsLike": null,
+      "metricsBookmark": null,
+      "metricsViews": ".message-views",
+      "metricsQuote": null,
+      "metricsViewsPattern": null
+    }
+  },
+  "truthsocial": {
+    "shared": {
+      "appRoot": "#root",
+      "observerFilter": {
+        "attributes": false,
+        "childList": true,
+        "subtree": true
+      }
+    },
+    "account": {
+      "userDisplayName": "h1.text-xl, div.px-4 p.text-lg",
+      "userHandle": "main p.text-muted-foreground[style=\"direction: ltr;\"]",
+      "userAvatar": "img[src*=\"accounts/avatars\"]",
+      "userProfileAvatar": null,
+      "userProfileSchema": null,
+      "userBanner": "img[src*=\"accounts/headers\"]",
+      "userBio": null,
+      "userHeadline": null,
+      "userVerified": null,
+      "userFollowers": "[data-testid=\"followers-button\"]",
+      "userFollowing": "[data-testid=\"following-button\"]",
+      "userConnections": null,
+      "userLocation": null,
+      "userJoinDate": "[data-testid=\"icon\"]:has(path[d*=\"M4 11h16\"]) + p",
+      "userUrl": null,
+      "userLink": null
+    },
+    "post": {
+      "postContainer": "[data-testid=\"status\"]",
+      "postAuthorAvatar": ".status__avatar img, img[src*=\"avatar\"]",
+      "postTextContainer": "[data-testid=\"status-content\"]",
+      "postText": "[data-testid=\"status-content\"] [data-testid=\"markup\"]",
+      "postImage": "img",
+      "postVideo": "video",
+      "postTimestamp": "a[href*=\"/posts/\"] time",
+      "postLink": null,
+      "cardWrapper": null,
+      "conversationMessages": null,
+      "messageContainer": null,
+      "copyableText": null,
+      "metricsReply": "button[aria-label=\"Reply\"], button[aria-label=\"Replies\"]",
+      "metricsRepost": "button[aria-label=\"ReTruth\"], button[aria-label=\"ReTruths\"]",
+      "metricsLike": "button[aria-label=\"Like\"], button[aria-label=\"Likes\"]",
+      "metricsBookmark": null,
+      "metricsViews": null,
+      "metricsQuote": null,
+      "metricsViewsPattern": null,
+      "postTimestampAttr": "title"
+    }
+  },
+  "linkedin": {
+    "shared": {
+      "appRoot": "#root",
+      "observerFilter": {
+        "attributes": false,
+        "childList": true,
+        "subtree": true
+      }
+    },
+    "account": {
+      "userDisplayName": "section[componentkey*='Topcard'] h2",
+      "userHandle": "a[href*='/in/'][tabindex='0']:not([componentkey])",
+      "userAvatar": "section[componentkey*='Topcard'] figure img._17236dac:not([alt='Cover photo'])[fetchpriority='high']",
+      "userProfileAvatar": null,
+      "userProfileSchema": null,
+      "userBanner": "section[componentkey*='Topcard'] figure img._17236dac[alt='Cover photo']",
+      "userBio": null,
+      "userHeadline": "section[componentkey*='Topcard'] p.d8d5bbbc._2f6a5622",
+      "userVerified": null,
+      "userFollowers": "a[href*='followers'] p",
+      "userFollowing": null,
+      "userConnections": "a[href*='connections'] p",
+      "userLocation": "section[componentkey*='Topcard'] p.bab73015._98cb9b8f",
+      "userJoinDate": null,
+      "userUrl": null,
+      "userLink": null
+    },
+    "post": {
+      "postContainer": "[data-testid=\"mainFeed\"] [role=\"listitem\"], [role=\"main\"] [role=\"listitem\"], .feed-shared-update-v2",
+      "postAuthorAvatar": ".update-components-actor img, img[src*=\"profile\"]",
+      "postText": "[data-testid=\"expandable-text-box\"]",
+      "postImage": "img[alt=\"View image\"]",
+      "postVideo": "video",
+      "postTimestamp": null,
+      "postLink": null,
+      "cardWrapper": null,
+      "conversationMessages": null,
+      "messageContainer": null,
+      "copyableText": null,
+      "metricsReply": null,
+      "metricsRepost": null,
+      "metricsLike": null,
+      "metricsBookmark": null,
+      "metricsViews": null,
+      "metricsQuote": null,
+      "metricsViewsPattern": null
+    }
+  }
 }

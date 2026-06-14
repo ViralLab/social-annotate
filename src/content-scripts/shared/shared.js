@@ -152,7 +152,10 @@ class Context {
         if (!window.__socialAnnotate__) window.__socialAnnotate__ = {};
         if (!window.__socialAnnotate__.surveyContexts) window.__socialAnnotate__.surveyContexts = {};
         let callId = this.name + (postID ? '-' + postID : '');
-        const token = Math.random().toString(36).slice(2);
+        // Preserve the token across re-renders for the same callId so the iframe's onSubmit
+        // closure always matches surveyContexts[callId].token even after the 1500ms second pass.
+        const existingToken = window.__socialAnnotate__.surveyContexts[callId] && window.__socialAnnotate__.surveyContexts[callId].token;
+        const token = existingToken || Math.random().toString(36).slice(2);
         window.__socialAnnotate__.surveyContexts[callId] = { context: this, userID: userID, postID: postID, extras: extras, token: token };
 
         // Clone the form template so concurrent iframe loads don't accidentally share references to hidden defaults.

@@ -179,7 +179,9 @@ function processPostNode(postNode) {
                         const api = _tsApiCache[postDetails.postID];
                         if (api && api.created_at) return api.created_at;
                         let t = postNode.querySelector(SEL_TS.postTimestamp || 'a[href*="/posts/"] time') || postNode.querySelector('time[datetime]');
-                        return t ? (t.getAttribute('datetime') || t.dateTime || null) : null;
+                        if (!t) return null;
+                        let attr = SEL_TS.postTimestampAttr || 'datetime';
+                        return t.getAttribute(attr) || null;
                     }
                 }
             );

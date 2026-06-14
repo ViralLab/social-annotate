@@ -158,7 +158,12 @@ function processPostNode(postNode) {
                     body: () => extractPostTextContent(postNode),
                     media_urls: () => extractPostMedia(postNode),
                     post_metrics: () => extractPostMetrics(postNode),
-                    created_at: () => { let t = postNode.querySelector('time[datetime]'); return t ? t.getAttribute('datetime') : null; }
+                    created_at: () => {
+                        let tsEl = postNode.querySelector(SEL_BS.postTimestamp || 'time[datetime]');
+                        if (!tsEl) return null;
+                        let attr = SEL_BS.postTimestampAttr || 'datetime';
+                        return tsEl.getAttribute(attr) || null;
+                    }
                 }
             );
         }

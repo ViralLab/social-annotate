@@ -185,7 +185,13 @@ function processPostNode(postNode) {
                     body: () => extractPostTextContent(postNode),
                     media_urls: () => extractPostMedia(postNode),
                     post_metrics: () => extractPostMetrics(postNode),
-                    created_at: () => { let t = postNode.querySelector('time[datetime]'); return t ? t.getAttribute('datetime') : null; }
+                    created_at: () => {
+                        let t = postNode.querySelector(SEL_LI.postTimestamp || 'time[datetime]');
+                        if (!t) return null;
+                        let attr = SEL_LI.postTimestampAttr || 'datetime';
+                        if (attr === 'textContent' || attr === 'innerText') return t.textContent.trim() || null;
+                        return t.getAttribute(attr) || null;
+                    }
                 }
             );
         }
@@ -316,6 +322,8 @@ function extractPostDetails(postNode) {
 function isLinkedInUserPage() {
     // User profile pages: /in/{username}/
     if (window.location.protocol === 'file:') return true;
+    // Local HTTP test fixtures served via 127.0.0.1 or localhost
+    if (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') return true;
     return /^\/in\/[^/]+\/?/.test(window.location.pathname);
 }
 

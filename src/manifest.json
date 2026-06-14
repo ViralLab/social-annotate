@@ -63,8 +63,8 @@
         "*://twitter.com/*",
         "*://x.com/*",
         "file:///*",
-        "http://127.0.0.1/*",
-        "http://localhost/*"
+        "http://127.0.0.1/test_fixtures/x_twitter/*",
+        "http://localhost/test_fixtures/x_twitter/*"
       ],
       "run_at": "document_end",
       "exclude_matches": [
@@ -129,8 +129,8 @@
       "matches": [
         "*://bsky.app/*",
         "file:///*",
-        "http://127.0.0.1/*",
-        "http://localhost/*"
+        "http://127.0.0.1/test_fixtures/bluesky/*",
+        "http://localhost/test_fixtures/bluesky/*"
       ],
       "run_at": "document_end",
       "css": [
@@ -151,8 +151,8 @@
       "matches": [
         "*://web.whatsapp.com/*",
         "file:///*",
-        "http://127.0.0.1/*",
-        "http://localhost/*"
+        "http://127.0.0.1/test_fixtures/whatsapp/*",
+        "http://localhost/test_fixtures/whatsapp/*"
       ],
       "run_at": "document_end",
       "css": [
@@ -193,8 +193,8 @@
       "matches": [
         "*://web.telegram.org/*",
         "file:///*",
-        "http://127.0.0.1/*",
-        "http://localhost/*"
+        "http://127.0.0.1/test_fixtures/telegram/*",
+        "http://localhost/test_fixtures/telegram/*"
       ],
       "run_at": "document_end",
       "css": [
@@ -215,8 +215,8 @@
       "matches": [
         "*://truthsocial.com/*",
         "file:///*",
-        "http://127.0.0.1/*",
-        "http://localhost/*"
+        "http://127.0.0.1/test_fixtures/truthsocial/*",
+        "http://localhost/test_fixtures/truthsocial/*"
       ],
       "run_at": "document_end",
       "css": [
@@ -247,8 +247,8 @@
       "matches": [
         "*://www.linkedin.com/*",
         "file:///*",
-        "http://127.0.0.1/*",
-        "http://localhost/*"
+        "http://127.0.0.1/test_fixtures/linkedin/*",
+        "http://localhost/test_fixtures/linkedin/*"
       ],
       "run_at": "document_end",
       "css": [

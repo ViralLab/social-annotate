@@ -1,5 +1,6 @@
 /**
- * Place your custom CSS styles here.
+ * TikTok Survey Injection Styles
+ * Glassmorphic design with TikTok brand color (#FE2C55).
  **/
 
 div.survey-container-user {
@@ -15,24 +16,17 @@ div.survey-container-user {
 	z-index: 99;
 }
 
-div.survey-container-tweet {
-	height: 150px;
-	background-color: transparent;
+/* Positioned at the top of [data-e2e="feed-video"] which is position:relative in TikTok's layout */
+div.survey-container-post {
+	position: absolute;
 	top: 0;
-	z-index: 99;
-}
-
-div.survey-container-reel {
-	width: 560px;
-	max-width: 90vw;
-	height: 150px;
-	overflow: visible;
+	left: 0;
+	right: 0;
+	height: auto;
+	min-height: 120px;
 	background-color: transparent;
-	position: fixed;
-	top: 0;
-	left: 50%;
-	transform: translateX(-50%);
-	z-index: 999999;
+	z-index: 999;
+	pointer-events: none; /* let clicks pass through to the video beneath */
 }
 
 div.notification-container {
@@ -181,11 +175,11 @@ input[type="range"]::-webkit-slider-thumb {
     height: 20px;
     width: 20px;
     border-radius: 50%;
-    background: #1d9bf0;
+    background: #FE2C55;
     cursor: pointer;
     -webkit-appearance: none;
     margin-top: -6px;
-    box-shadow: 0 2px 8px rgba(29, 155, 240, 0.5);
+    box-shadow: 0 2px 8px rgba(254, 44, 85, 0.5);
     border: 2px solid #ffffff;
 }
 
@@ -215,10 +209,10 @@ div.form-group .btn-default:hover {
 
 /* Radio active selection state */
 div.form-group .btn-default.active {
-	background-color: #1d9bf0 !important;
-	border-color: #1d9bf0 !important;
+	background-color: #FE2C55 !important;
+	border-color: #FE2C55 !important;
 	color: #ffffff !important;
-	box-shadow: 0 4px 12px rgba(29, 155, 240, 0.4) !important;
+	box-shadow: 0 4px 12px rgba(254, 44, 85, 0.4) !important;
 	transform: scale(1.05);
 }
 
@@ -253,17 +247,17 @@ div.form-group .btn-default.active {
 
 /* Stage 2: BLUE — annotation selected, ready to submit */
 .surveySubmitBtn.ready-to-submit {
-	background: linear-gradient(135deg, #1d9bf0, #1a8cd8) !important;
+	background: linear-gradient(135deg, #FE2C55, #006ad5) !important;
 	border: none !important;
 	color: white !important;
-	box-shadow: 0 4px 16px rgba(29, 155, 240, 0.4) !important;
+	box-shadow: 0 4px 16px rgba(254, 44, 85, 0.4) !important;
 	animation: pulseBtn 2s infinite;
 }
 
 .surveySubmitBtn.ready-to-submit:hover {
 	transform: translateY(-2px) !important;
-	box-shadow: 0 8px 24px rgba(29, 155, 240, 0.6) !important;
-	background: linear-gradient(135deg, #4cb0f9, #1d9bf0) !important;
+	box-shadow: 0 8px 24px rgba(254, 44, 85, 0.6) !important;
+	background: linear-gradient(135deg, #339dff, #FE2C55) !important;
 }
 
 /* Stage 3: GREEN — successfully submitted */
@@ -282,10 +276,11 @@ div.form-group .btn-default.active {
 }
 
 @keyframes pulseBtn {
-    0% { box-shadow: 0 0 0 0 rgba(29, 155, 240, 0.6); }
-    70% { box-shadow: 0 0 0 12px rgba(29, 155, 240, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(29, 155, 240, 0); }
-}/* LIGHT THEME OVERRIDES */
+    0% { box-shadow: 0 0 0 0 rgba(254, 44, 85, 0.6); }
+    70% { box-shadow: 0 0 0 12px rgba(254, 44, 85, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(254, 44, 85, 0); }
+}
+/* LIGHT THEME OVERRIDES */
 [data-theme="light"] div.form-group {
     background: rgba(255, 255, 255, 0.85) !important;
     border: 1px solid rgba(0, 0, 0, 0.1);

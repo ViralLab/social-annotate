@@ -22,18 +22,24 @@ chrome.runtime.onInstalled.addListener(function () {
             "x-post": [],
             "instagram-user": [],
             "instagram-post": [],
+            "instagram-reel": [],
             "bluesky-post": [],
             "bluesky-user": [],
-            "whatsapp-post": []
+            "whatsapp-post": [],
+            "mastodon-post": [],
+            "mastodon-user": []
         },  // @TODO pull these from a supported types list somewhere.
         "annotatedElements": {
             "x-user": [],
             "x-post": [],
             "instagram-user": [],
             "instagram-post": [],
+            "instagram-reel": [],
             "bluesky-post": [],
             "bluesky-user": [],
-            "whatsapp-post": []
+            "whatsapp-post": [],
+            "mastodon-post": [],
+            "mastodon-user": []
         }, // @TODO pull these from a supported types list somewhere.
         "clientID": clientID,
         "config": config,
@@ -142,6 +148,17 @@ chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
         }
     }
 
+    // TikTok blob downloads: key is embedded in the suggested filename as tiktok__KEY__
+    if (item.filename && item.filename.startsWith('tiktok__')) {
+        let m = item.filename.match(/^tiktok__([a-z0-9]+)__/);
+        if (m && pendingFilenames[m[1]]) {
+            let filename = pendingFilenames[m[1]];
+            delete pendingFilenames[m[1]];
+            suggest({ filename });
+            return;
+        }
+    }
+
     // Telegram stream downloads embed metadata in the URL hash (#sa_post=...)
     if (item.url && item.url.includes('#sa_post=')) {
         try {
@@ -219,6 +236,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                                 format = ext;
                             }
                         }
+                        // TikTok CDN URLs have no extension — parse mime_type query param instead
+                        if (urlObj.searchParams.has('mime_type')) {
+                            let mt = urlObj.searchParams.get('mime_type').toLowerCase();
+                            if (mt.includes('mp4')) format = 'mp4';
+                            else if (mt.includes('webm')) format = 'webm';
+                            else if (mt.startsWith('video')) format = 'mp4';
+                        }
 
                         // Build a stable media token from path to help trace files back to content.
                         let pathParts = urlObj.pathname.split('/').filter(Boolean);
@@ -279,6 +303,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             });
             sendResponse({ status: "started" });
         });
+    }
+    else if (message.action === 'registerTikTokDownload') {
+        // Pre-register an organized filename so onDeterminingFilename can route the
+        // anchor-triggered download (from page context) into the right subfolder.
+        let key = message.key;
+        let userId = message.userId || 'unknown';
+        let postId = message.postId || 'unknown';
+        let surveyType = message.surveyType || 'tiktok-post';
+        let platform = surveyType.split('-')[0] || 'tiktok';
+        chrome.storage.local.get(['config'], function(result) {
+            let baseRoot = (result.config && result.config.downloadFolder && result.config.downloadFolder.trim())
+                ? result.config.downloadFolder.trim().replace(/\\/g, '/')
+                : 'SocialAnnotateExports';
+            if (!baseRoot.endsWith('/')) baseRoot += '/';
+            let safeUserId = String(userId).replace(/[^a-zA-Z0-9._-]/g, '_');
+            let safePostId = String(postId).replace(/[^a-zA-Z0-9._-]/g, '_');
+            pendingFilenames[key] = `${baseRoot}${platform}/${surveyType}/media/videos/${safeUserId}_${safePostId}_video.mp4`;
+            sendResponse({ ok: true });
+        });
+        return true; // async sendResponse
     }
     else if (message.action === 'saveConsentRecord') {
         chrome.storage.local.get(['config', 'clientID'], function(result) {

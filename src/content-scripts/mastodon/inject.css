@@ -1,7 +1,3 @@
-/**
- * Place your custom CSS styles here.
- **/
-
 div.survey-container-user {
 	width: 100%;
 	height: auto;
@@ -15,28 +11,17 @@ div.survey-container-user {
 	z-index: 99;
 }
 
-div.survey-container-tweet {
-	height: 150px;
+div.survey-container-post {
+	height: auto;
+	min-height: 150px;
+	position: relative;
+	width: 100%;
 	background-color: transparent;
-	top: 0;
 	z-index: 99;
-}
-
-div.survey-container-reel {
-	width: 560px;
-	max-width: 90vw;
-	height: 150px;
-	overflow: visible;
-	background-color: transparent;
-	position: fixed;
-	top: 0;
-	left: 50%;
-	transform: translateX(-50%);
-	z-index: 999999;
+	margin-bottom: 12px;
 }
 
 div.notification-container {
-	/*	Show on top as a banner*/
 	display: inline-flex;
 	width: 100%;
 	background-color: #f5f5f5;
@@ -47,7 +32,6 @@ div.notification-container {
 	width: 100%;
 }
 
-/*These are for user survey on top*/
 #surveyForm {
 	display: flex;
 	position: fixed;
@@ -72,11 +56,10 @@ div.notification-container {
 	flex-wrap: wrap-reverse;
 	top: 0;
 	left: 0;
-	color: #ffffff; 
+	color: #ffffff;
 	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
 }
 
-/* Overall Wrapper - Glassmorphism Integration */
 #surveyForm>div:not(.notification-container):not(.sa-fields-scroll),
 .surveyFormTweet>div:not(.sa-fields-scroll) {
 	background: transparent !important;
@@ -85,8 +68,8 @@ div.notification-container {
 	flex-wrap: nowrap;
 	width: 100%;
 	align-items: stretch;
-	gap: 16px;
-	padding: 10px 16px;
+	gap: 8px;
+	padding: 8px 12px;
 }
 
 .flexbox-rows {
@@ -96,28 +79,25 @@ div.notification-container {
 	width: 100%;
 }
 
-/* The Question Container — one card per visible slot */
 div.form-group {
 	background: rgba(21, 32, 43, 0.8) !important;
 	backdrop-filter: blur(12px) !important;
 	-webkit-backdrop-filter: blur(12px) !important;
 	border: 1px solid rgba(255, 255, 255, 0.1);
-	border-radius: 16px;
+	border-radius: 12px;
 	margin: 0 !important;
-	padding: 16px 24px !important;
+	padding: 12px 16px !important;
 	display: flex;
 	flex-direction: column;
 	justify-content: center;
 	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-	/* Carousel sizing: pure CSS */
-	flex: 1 0 280px !important;
+	flex: 1 1 200px !important;
 	max-width: 100%;
 	box-sizing: border-box !important;
 	scroll-snap-align: start;
 	scroll-snap-stop: always;
 }
 
-/* Horizontal carousel scroll wrapper */
 .sa-fields-scroll {
 	width: 100%;
 	display: flex;
@@ -128,17 +108,14 @@ div.form-group {
 	overflow-y: hidden;
 	scroll-snap-type: x mandatory;
 	-webkit-overflow-scrolling: touch;
-	padding: 10px 16px 16px 16px;
+	padding: 8px 12px 12px 12px;
 	box-sizing: border-box;
-	gap: 12px;
+	gap: 8px;
 	scrollbar-width: thin;
 	scrollbar-color: rgba(255, 255, 255, 0.4) transparent;
 }
 
-/* Chrome/Safari/Edge custom scrollbar */
-.sa-fields-scroll::-webkit-scrollbar { 
-	height: 8px;
-}
+.sa-fields-scroll::-webkit-scrollbar { height: 8px; }
 .sa-fields-scroll::-webkit-scrollbar-track {
 	background: rgba(255, 255, 255, 0.1);
 	border-radius: 8px;
@@ -151,18 +128,16 @@ div.form-group {
 	background: rgba(255, 255, 255, 0.6);
 }
 
-/* Typography for the Question */
 div.form-group label.control-label {
-	font-size: 16px !important;
+	font-size: 14px !important;
 	font-weight: 700 !important;
-	margin-bottom: 12px;
+	margin-bottom: 8px;
 	color: #ffffff !important;
 	background: transparent !important;
 	letter-spacing: 0.2px;
 	display: block;
 }
 
-/* Enhancing Range Input (Slider) */
 input[type="range"] {
     -webkit-appearance: none;
     width: 100%;
@@ -181,27 +156,26 @@ input[type="range"]::-webkit-slider-thumb {
     height: 20px;
     width: 20px;
     border-radius: 50%;
-    background: #1d9bf0;
+    background: #6364FF;
     cursor: pointer;
     -webkit-appearance: none;
     margin-top: -6px;
-    box-shadow: 0 2px 8px rgba(29, 155, 240, 0.5);
+    box-shadow: 0 2px 8px rgba(99, 100, 255, 0.5);
     border: 2px solid #ffffff;
 }
 
-/* The Radio Option Buttons Container */
 div.form-group .btn-group {
 	display: flex;
-	gap: 12px;
+	gap: 8px;
 }
 
-/* The Native Bootstrap Ratio Buttons Override */
 div.form-group .btn-default {
 	background-color: transparent !important;
 	border: 1px solid rgba(255, 255, 255, 0.25) !important;
 	color: #E7E9EA !important;
 	border-radius: 99px !important;
-	padding: 8px 24px !important;
+	padding: 6px 16px !important;
+	font-size: 14px !important;
 	font-weight: 600 !important;
 	transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
 	box-shadow: none !important;
@@ -213,24 +187,22 @@ div.form-group .btn-default:hover {
 	border-color: rgba(255, 255, 255, 0.4) !important;
 }
 
-/* Radio active selection state */
 div.form-group .btn-default.active {
-	background-color: #1d9bf0 !important;
-	border-color: #1d9bf0 !important;
+	background-color: #6364FF !important;
+	border-color: #6364FF !important;
 	color: #ffffff !important;
-	box-shadow: 0 4px 12px rgba(29, 155, 240, 0.4) !important;
+	box-shadow: 0 4px 12px rgba(99, 100, 255, 0.4) !important;
 	transform: scale(1.05);
 }
 
-/* Stage 1: Default RED — no annotation selected yet */
 .surveySubmitBtn {
 	background: linear-gradient(135deg, #F4212E, #c01822) !important;
 	border: none !important;
 	color: white !important;
 	font-weight: 700 !important;
-	font-size: 16px !important;
-	border-radius: 16px !important;
-	padding: 0 32px !important;
+	font-size: 14px !important;
+	border-radius: 12px !important;
+	padding: 0 16px !important;
 	margin: 0 !important;
 	cursor: pointer;
 	transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
@@ -240,7 +212,7 @@ div.form-group .btn-default.active {
 	align-items: center;
 	justify-content: center;
 	align-self: stretch !important;
-	min-width: 140px;
+	min-width: 100px;
 	scroll-snap-align: center;
 	scroll-snap-stop: always;
 }
@@ -251,22 +223,20 @@ div.form-group .btn-default.active {
 	background: linear-gradient(135deg, #ff4d58, #F4212E) !important;
 }
 
-/* Stage 2: BLUE — annotation selected, ready to submit */
 .surveySubmitBtn.ready-to-submit {
-	background: linear-gradient(135deg, #1d9bf0, #1a8cd8) !important;
+	background: linear-gradient(135deg, #6364FF, #4f50d4) !important;
 	border: none !important;
 	color: white !important;
-	box-shadow: 0 4px 16px rgba(29, 155, 240, 0.4) !important;
+	box-shadow: 0 4px 16px rgba(99, 100, 255, 0.4) !important;
 	animation: pulseBtn 2s infinite;
 }
 
 .surveySubmitBtn.ready-to-submit:hover {
 	transform: translateY(-2px) !important;
-	box-shadow: 0 8px 24px rgba(29, 155, 240, 0.6) !important;
-	background: linear-gradient(135deg, #4cb0f9, #1d9bf0) !important;
+	box-shadow: 0 8px 24px rgba(99, 100, 255, 0.6) !important;
+	background: linear-gradient(135deg, #7e7fff, #6364FF) !important;
 }
 
-/* Stage 3: GREEN — successfully submitted */
 .surveySubmitBtn.submitted {
 	background: linear-gradient(135deg, #00BA7C, #009262) !important;
 	border: none !important;
@@ -282,10 +252,11 @@ div.form-group .btn-default.active {
 }
 
 @keyframes pulseBtn {
-    0% { box-shadow: 0 0 0 0 rgba(29, 155, 240, 0.6); }
-    70% { box-shadow: 0 0 0 12px rgba(29, 155, 240, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(29, 155, 240, 0); }
-}/* LIGHT THEME OVERRIDES */
+    0% { box-shadow: 0 0 0 0 rgba(99, 100, 255, 0.6); }
+    70% { box-shadow: 0 0 0 12px rgba(99, 100, 255, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(99, 100, 255, 0); }
+}
+
 [data-theme="light"] div.form-group {
     background: rgba(255, 255, 255, 0.85) !important;
     border: 1px solid rgba(0, 0, 0, 0.1);
@@ -309,7 +280,6 @@ div.form-group .btn-default.active {
 [data-theme="light"] input[type="range"]::-webkit-slider-runnable-track {
     background: rgba(0, 0, 0, 0.1);
 }
-
 [data-theme="light"] .sa-fields-scroll {
     scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
 }

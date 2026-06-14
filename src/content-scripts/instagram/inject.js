@@ -1,11 +1,13 @@
 // Context class is defined in shared.js
 const availableContextsInstagram = [
     new Context('instagram-user', injectInstagramUserSurvey, checkUserURL),
-    new Context('instagram-post', () => {}, () => true) // Injection is handled by observer
+    new Context('instagram-post', () => {}, () => !isReelPage()),
+    new Context('instagram-reel', () => {}, isReelPage)
 ];
 
 // Selectors loaded from storage (populated by initializeSurveys)
 let SEL_IG = {};
+let SEL_IGR = {};
 
 if (!window.__socialAnnotate__) window.__socialAnnotate__ = {};
 if (!window.__socialAnnotate__.instagramApiMediaMap) window.__socialAnnotate__.instagramApiMediaMap = {};
@@ -14,7 +16,11 @@ if (!window.__socialAnnotate__.instagramApiMediaMap) window.__socialAnnotate__.i
 let manipConfig_IG  = {};
 let manipMap_IG     = {};
 let manipMapId_IG   = '';
-let manipApplied_IG     = {};
+let manipApplied_IG = {};
+let manipConfig_IGR = {};
+let manipMap_IGR    = {};
+let manipMapId_IGR  = '';
+let manipApplied_IGR = {};
 let _processedCount_IG     = 0;
 registerHealthCounter(function () { return _processedCount_IG; });
 document.addEventListener('mh:media-response-ig', function(e) {
@@ -56,7 +62,9 @@ window.addEventListener('mh:download-request', function(e) {
     
     let containerName = 'surveyFormContainer-' + postID;
     let surveyContainer = document.getElementById(containerName);
-    let injectNode = surveyContainer ? surveyContainer.closest('article') : null;
+    let injectNode = surveyContainer
+        ? (surveyContainer.closest('article') || surveyContainer.nextElementSibling)
+        : null;
     
     let urlsToDownload = [];
     if (injectNode) {
@@ -108,6 +116,245 @@ function crawlUserName() {
     return temp;
 }
 
+
+// ── Reel helpers ──────────────────────────────────────────
+
+function isReelPage() {
+    return /^\/reels?\//i.test(window.location.pathname);
+}
+
+function extractReelShortcodeFromUrl(url) {
+    var m = String(url || '').match(/\/reels?\/((?!audio\/)[A-Za-z0-9_-]{5,})/);
+    return m ? m[1] : null;
+}
+
+let currentReelShortcode = extractReelShortcodeFromUrl(window.location.href);
+let _currentReelEl = null;
+
+// IntersectionObserver: primary signal for reel changes.
+// window.scroll doesn't fire for Instagram's inner scroll container,
+// and pushState only fires for the first reel navigation.
+let _reelIO = null;
+
+function observeReelContainers() {
+    if (!_reelIO) {
+        _reelIO = new IntersectionObserver(function(entries) {
+            var anyVisible = entries.some(function(e) { return e.isIntersecting && e.intersectionRatio >= 0.5; });
+            if (anyVisible) processCurrentReel();
+        }, { threshold: [0.5] });
+    }
+    var sel = SEL_IGR.postContainer || 'div[aria-label="Video player"][role="group"]';
+    document.querySelectorAll(sel).forEach(function(el) { _reelIO.observe(el); });
+}
+
+(function() {
+    var origPush    = history.pushState;
+    var origReplace = history.replaceState;
+    function onNav(url) {
+        if (url) {
+            var code = extractReelShortcodeFromUrl(String(url));
+            if (code) currentReelShortcode = code;
+        }
+        setTimeout(processCurrentReel, 150);
+    }
+    history.pushState = function(state, title, url) {
+        var r = origPush.apply(this, arguments);
+        onNav(url);
+        return r;
+    };
+    history.replaceState = function(state, title, url) {
+        var r = origReplace.apply(this, arguments);
+        onNav(url);
+        return r;
+    };
+    window.addEventListener('popstate', function() {
+        var code = extractReelShortcodeFromUrl(window.location.href);
+        if (code) currentReelShortcode = code;
+        setTimeout(processCurrentReel, 150);
+    });
+})();
+
+function getReelAuthor(containerEl) {
+    var authorSel = SEL_IGR.postAuthorLink || 'a[aria-label$=" reels"][role="link"]';
+
+    function extractFromLink(link) {
+        if (!link) return null;
+        var href = link.getAttribute('href') || '';
+        var m = href.match(/instagram\.com\/([a-zA-Z0-9_.]+)\/reels/) ||
+                href.match(/^\/([a-zA-Z0-9_.]+)\/reels/);
+        return m ? m[1] : null;
+    }
+
+    // Strategy 1: walk up DOM from container, query subtree at each ancestor
+    var el = containerEl;
+    for (var i = 0; i < 25; i++) {
+        if (!el || !el.parentElement) break;
+        el = el.parentElement;
+        var link = el.querySelector(authorSel);
+        if (link) return extractFromLink(link);
+    }
+
+    // Strategy 2: find the visible author link in the whole document
+    // (handles React portals / absolute-positioned overlays outside the container subtree)
+    var allLinks = document.querySelectorAll(authorSel);
+    if (allLinks.length === 1) return extractFromLink(allLinks[0]);
+    if (allLinks.length > 1) {
+        var cRect = containerEl.getBoundingClientRect();
+        var best = null, bestDist = Infinity;
+        allLinks.forEach(function(l) {
+            var r = l.getBoundingClientRect();
+            if (r.width === 0 && r.height === 0) return;
+            var dist = Math.abs(r.top - cRect.top);
+            if (dist < bestDist) { bestDist = dist; best = l; }
+        });
+        if (best) return extractFromLink(best);
+    }
+
+    // Strategy 3: extract from img alt "username's profile picture"
+    var avatarImg = document.querySelector('img[alt*="\'s profile picture"]');
+    if (avatarImg) {
+        var m = (avatarImg.getAttribute('alt') || '').match(/^(.+?)'s profile picture/);
+        if (m) return m[1];
+    }
+
+    return null;
+}
+
+function injectInstagramReelSurvey(shortcode) {
+    let surveyContainer = document.createElement('div');
+    surveyContainer.className = "survey-container-reel";
+    surveyContainer.setAttribute("id", "surveyFormContainer-" + shortcode);
+    const shadowRoot = surveyContainer.attachShadow({ mode: 'open' });
+    let cssUrl = chrome.runtime.getURL("content-scripts/instagram/inject.css");
+    shadowRoot.innerHTML = `<iframe class="surveyIframe" src="${chrome.runtime.getURL("sandbox/survey.html")}" data-css="${cssUrl}" style="border:none; width:100%; height:100%; background:transparent;"></iframe>`;
+    document.body.appendChild(surveyContainer);
+}
+
+function extractReelText(containerEl) {
+    var el = containerEl;
+    for (var i = 0; i < 20; i++) {
+        if (!el || !el.parentElement) break;
+        el = el.parentElement;
+        var textEls = el.querySelectorAll(SEL_IGR.postText || 'span[dir="auto"]');
+        var longest = '';
+        textEls.forEach(function(t) {
+            var txt = (t.innerText || t.textContent || '').trim();
+            if (txt.length > longest.length) longest = txt;
+        });
+        if (longest.length > 5) return longest;
+    }
+    return '';
+}
+
+function extractReelMedia(containerEl) {
+    var video = containerEl.querySelector(SEL_IGR.postVideo || 'video');
+    if (!video) return [];
+    var src = video.src || video.currentSrc;
+    if (src && src.startsWith('blob:')) return ['[Blob Stream] ' + src];
+    if (src) return [src];
+    return [];
+}
+
+function processCurrentReel() {
+    if (!currentReelShortcode) return;
+
+    var reelCtx = availableContextsInstagram.find(c => c.name === 'instagram-reel');
+    if (!reelCtx || !reelCtx.formTemplate) return;
+
+    var sel = SEL_IGR.postContainer || 'div[aria-label="Video player"][role="group"]';
+    var containers = document.querySelectorAll(sel);
+
+    // Find the container whose center is closest to the viewport center.
+    // Using "first overlapping" is too loose — partially-scrolled-away containers
+    // still overlap and prevent the reset from firing on the next reel.
+    var vpMid = window.innerHeight / 2;
+    var bestEl = null, bestDist = Infinity;
+    for (var i = 0; i < containers.length; i++) {
+        var rect = containers[i].getBoundingClientRect();
+        if (rect.bottom <= 0 || rect.top >= window.innerHeight) continue;
+        var dist = Math.abs((rect.top + rect.bottom) / 2 - vpMid);
+        if (dist < bestDist) { bestDist = dist; bestEl = containers[i]; }
+    }
+    if (!bestEl) return;
+
+    // Reset when the dominant container changes (works even if URL stays the same).
+    if (bestEl !== _currentReelEl) {
+        _currentReelEl = bestEl;
+        document.querySelectorAll('div.survey-container-reel').forEach(function(el) { el.remove(); });
+        var code = extractReelShortcodeFromUrl(window.location.href);
+        if (code) currentReelShortcode = code;
+        else currentReelShortcode = 'reel-' + Date.now(); // fallback if URL didn't update
+    }
+
+    if (document.getElementById('surveyFormContainer-' + currentReelShortcode)) return;
+
+    var postOwner = getReelAuthor(bestEl);
+    if (!postOwner) return;
+
+    if (manipConfig_IGR.enabled && manipMap_IGR[currentReelShortcode]) {
+        let entry = manipMap_IGR[currentReelShortcode];
+        let textEl = null, longest = 0;
+        var el2 = bestEl;
+        for (var j = 0; j < 20 && el2 && el2.parentElement; j++) {
+            el2 = el2.parentElement;
+            el2.querySelectorAll(SEL_IGR.postText || 'span[dir="auto"]').forEach(function(e) {
+                let len = (e.innerText || e.textContent || '').length;
+                if (len > longest) { longest = len; textEl = e; }
+            });
+            if (textEl) break;
+        }
+        if (textEl) {
+            let rewrittenText = entry.rewritten_text;
+            let originalText  = entry.original_text || '';
+            textEl.textContent = rewrittenText;
+            if (manipConfig_IGR.mode === 'aware') {
+                let isOriginal = false;
+                let toggleBtn  = document.createElement('button');
+                toggleBtn.textContent = '👁 Show original';
+                toggleBtn.setAttribute('data-sa-manip-toggle', '1');
+                toggleBtn.style.cssText = [
+                    'display:block','margin-left:auto','margin-bottom:4px',
+                    'padding:2px 10px','font-size:11px','line-height:1.6',
+                    'cursor:pointer','border-radius:4px',
+                    'background:rgba(29,155,240,0.08)','color:rgb(29,155,240)',
+                    'border:1px solid rgba(29,155,240,0.25)',
+                ].join(';');
+                toggleBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    isOriginal = !isOriginal;
+                    textEl.textContent = isOriginal ? originalText : rewrittenText;
+                    toggleBtn.textContent = isOriginal ? '✏ Show rewritten' : '👁 Show original';
+                });
+                textEl.parentNode.insertBefore(toggleBtn, textEl);
+            }
+            let meta = { applied: true, label: entry.prompt_label || '', map_id: manipMapId_IGR };
+            if (manipConfig_IGR.logOriginal) meta.original_text = originalText;
+            manipApplied_IGR[currentReelShortcode] = meta;
+        }
+    }
+
+    var shortcode = currentReelShortcode;
+    var containerRef = bestEl;
+    injectInstagramReelSurvey(shortcode);
+    reelCtx.renderSurvey(postOwner, shortcode, {
+        body:         () => extractReelText(containerRef),
+        media_urls:   () => {
+            var urls = extractReelMedia(containerRef);
+            if (window.__socialAnnotate__.instagramApiMediaMap && window.__socialAnnotate__.instagramApiMediaMap[shortcode]) {
+                let apiVids = window.__socialAnnotate__.instagramApiMediaMap[shortcode];
+                if (apiVids.length > 0) {
+                    urls = urls.filter(u => !u.startsWith('[Blob Stream]'));
+                    urls.push(...apiVids);
+                }
+            }
+            return [...new Set(urls)];
+        },
+        created_at:   () => null,
+        post_metrics: () => ({})
+    });
+}
+
+// ─────────────────────────────────────────────────────────
 
 function injectInstagramUserSurvey(injectElement, userID) {
     let surveyContainer = document.createElement('div');
@@ -377,11 +624,22 @@ function createObserver() {
             if (mutation.type === 'childList') {
                 mutation.addedNodes.forEach(node => {
                     if (node.nodeType === 1) { // ELEMENT_NODE
-                        if (node.tagName && node.tagName.toLowerCase() === 'article') {
-                            processInstagramArticleNode(node);
+                        if (isReelPage()) {
+                            let reelSel = SEL_IGR.postContainer || 'div[aria-label="Video player"][role="group"]';
+                            if (node.matches && node.matches(reelSel)) {
+                                if (_reelIO) _reelIO.observe(node);
+                                processCurrentReel();
+                            } else if (node.querySelector && node.querySelector(reelSel)) {
+                                node.querySelectorAll(reelSel).forEach(function(el) { if (_reelIO) _reelIO.observe(el); });
+                                processCurrentReel();
+                            }
                         } else {
-                            let articles = node.querySelectorAll(SEL_IG.postContainer || 'article');
-                            articles.forEach(processInstagramArticleNode);
+                            if (node.tagName && node.tagName.toLowerCase() === 'article') {
+                                processInstagramArticleNode(node);
+                            } else {
+                                let articles = node.querySelectorAll(SEL_IG.postContainer || 'article');
+                                articles.forEach(processInstagramArticleNode);
+                            }
                         }
                     }
                 });
@@ -394,9 +652,11 @@ function createObserver() {
 function initializeSurveys() {
     chrome.storage.local.get(['config', 'isEnabled', 'activeTargetList', 'clientID', 'selectors', 'manipulationMaps'], function (result) {
 
-        // Load selectors into the module-level variable
+        // Load selectors into the module-level variables
         const _rawIG = (result.selectors && result.selectors.instagram) ? result.selectors.instagram : {};
         SEL_IG = { ...(_rawIG.shared || {}), ...(_rawIG.account || {}), ...(_rawIG.post || {}) };
+        const _rawIGR = (result.selectors && result.selectors['instagram-reel']) ? result.selectors['instagram-reel'] : {};
+        SEL_IGR = { ...(_rawIGR.shared || {}), ...(_rawIGR.account || {}), ...(_rawIGR.post || {}) };
         watchPostCounter('instagram', function () { return _processedCount_IG; });
 
         // Load manipulation map for instagram-post
@@ -406,6 +666,15 @@ function initializeSurveys() {
             let fullMap = result.manipulationMaps['instagram-post'];
             manipMapId_IG = (fullMap._meta && fullMap._meta.map_id) || '';
             for (let k in fullMap) { if (k !== '_meta') manipMap_IG[k] = fullMap[k]; }
+        }
+
+        // Load manipulation map for instagram-reel
+        const _reelConf = result.config && result.config.surveys && result.config.surveys['instagram-reel'];
+        manipConfig_IGR = (_reelConf && _reelConf.manipulation) || {};
+        if (manipConfig_IGR.enabled && result.manipulationMaps && result.manipulationMaps['instagram-reel']) {
+            let fullMap = result.manipulationMaps['instagram-reel'];
+            manipMapId_IGR = (fullMap._meta && fullMap._meta.map_id) || '';
+            for (let k in fullMap) { if (k !== '_meta') manipMap_IGR[k] = fullMap[k]; }
         }
 
         const currentPlatform = 'instagram';
@@ -428,8 +697,9 @@ function initializeSurveys() {
                         values.surveyType = currentContext.name;
                         values.studyID = studyID;
 
-                        // Attach manipulation metadata
-                        let _ma = manipApplied_IG[values.post_id];
+                        // Attach manipulation metadata (reel uses its own applied map)
+                        let _manipApplied = currentContext.name === 'instagram-reel' ? manipApplied_IGR : manipApplied_IG;
+                        let _ma = _manipApplied[values.post_id];
                         if (_ma) {
                             values.manipulation_applied = true;
                             values.manipulation_label   = _ma.label;
@@ -464,25 +734,35 @@ function initializeSurveys() {
                 currentContext.theme = config.theme || "light";
                 currentContext.submitAction = submitAction;
 
-                currentContext.injectSurvey(config.injectElement);
-                if (currentContext.name === 'instagram-user') {
-                    _processedCount_IG++;
-                    let surveyID = crawlUserName();
-                    currentContext.renderSurvey(surveyID);
+                if (currentContext.name === 'instagram-reel') {
+                    // No page-level injection; processCurrentReel() handles per-reel injection
+                } else {
+                    currentContext.injectSurvey(config.injectElement);
+                    if (currentContext.name === 'instagram-user') {
+                        _processedCount_IG++;
+                        let surveyID = crawlUserName();
+                        currentContext.renderSurvey(surveyID);
+                    }
                 }
             }
         }
 
         // Start observer only after formTemplate is set — prevents race condition
         // where observer fires renderSurvey before config is loaded.
-        let filter = SEL_IG.observerFilter || { childList: true, subtree: true };
+        let filter = (isReelPage() ? SEL_IGR.observerFilter : SEL_IG.observerFilter) || { childList: true, subtree: true };
         igObserver.observe(observerTarget, filter);
 
-        // Process articles already in the DOM
-        document.querySelectorAll(SEL_IG.postContainer || 'article').forEach(processInstagramArticleNode);
-        setTimeout(() => {
+        if (isReelPage()) {
+            observeReelContainers();
+            processCurrentReel();
+            setTimeout(function() { observeReelContainers(); processCurrentReel(); }, 1500);
+        } else {
+            // Process articles already in the DOM
             document.querySelectorAll(SEL_IG.postContainer || 'article').forEach(processInstagramArticleNode);
-        }, 1500);
+            setTimeout(() => {
+                document.querySelectorAll(SEL_IG.postContainer || 'article').forEach(processInstagramArticleNode);
+            }, 1500);
+        }
     });
 }
 

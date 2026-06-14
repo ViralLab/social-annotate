@@ -185,6 +185,8 @@ function navigateToTarget(target) {
                         baseUrl = 'https://bsky.app/profile/';
                     } else if (activeSurvey === 'bluesky-user') {
                         baseUrl = 'https://bsky.app/profile/';
+                    } else if (platform === 'tiktok') {
+                        baseUrl = 'https://www.tiktok.com/@';
                     } else {
                         baseUrl = 'https://x.com/';
                     }

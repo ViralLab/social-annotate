@@ -1,0 +1,52 @@
+{
+  "x": {
+    "shared": {
+      "appRoot": "#timeline",
+      "observerFilter": {
+        "attributes": true,
+        "childList": true,
+        "subtree": true,
+        "attributeFilter": [
+          "role"
+        ]
+      }
+    },
+    "account": {
+      "userDisplayName": "strong > a.screen-name",
+      "userHandle": "strong > a.screen-name",
+      "userAvatar": null,
+      "userProfileAvatar": null,
+      "userProfileSchema": "script[data-testid=\"UserProfileSchema-test\"]",
+      "userBanner": null,
+      "userBio": null,
+      "userHeadline": null,
+      "userVerified": null,
+      "userFollowers": null,
+      "userFollowing": null,
+      "userConnections": null,
+      "userLocation": null,
+      "userJoinDate": null,
+      "userUrl": null,
+      "userLink": null
+    },
+    "post": {
+      "postContainer": ".status-body",
+      "postText": ".entry-content",
+      "postImage": null,
+      "postVideo": null,
+      "postTimestamp": ".published.timestamp",
+      "postLink": null,
+      "cardWrapper": null,
+      "conversationMessages": null,
+      "messageContainer": null,
+      "copyableText": null,
+      "metricsReply": null,
+      "metricsRepost": null,
+      "metricsLike": null,
+      "metricsBookmark": null,
+      "metricsViews": null,
+      "metricsQuote": null,
+      "metricsViewsPattern": "views?"
+    }
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "bluesky": {
+    "shared": {
+      "appRoot": "body",
+      "observerFilter": {
+        "attributes": false,
+        "childList": true,
+        "subtree": true
+      }
+    },
+    "account": {
+      "userDisplayName": "a[href*=\"/profile/\"]",
+      "userHandle": "a[href*=\"/profile/\"] span",
+      "userAvatar": "[data-testid=\"userAvatarImage\"] img",
+      "userProfileAvatar": null,
+      "userProfileSchema": null,
+      "userBanner": null,
+      "userBio": null,
+      "userHeadline": null,
+      "userVerified": null,
+      "userFollowers": null,
+      "userFollowing": null,
+      "userConnections": null,
+      "userLocation": null,
+      "userJoinDate": null,
+      "userUrl": null,
+      "userLink": null
+    },
+    "post": {
+      "postContainer": "[data-testid^=\"feedItem-\"]",
+      "postText": "[data-testid=\"postText\"]",
+      "postImage": "[data-expoimage=\"true\"] img",
+      "postVideo": null,
+      "postTimestamp": "a[data-tooltip][href*=\"/post/\"]",
+      "postTimestampAttr": "data-tooltip",
+      "postLink": null,
+      "cardWrapper": null,
+      "conversationMessages": null,
+      "messageContainer": null,
+      "copyableText": null,
+      "metricsReply": "replyBtn",
+      "metricsRepost": "button[aria-label^=\"Repost\"]",
+      "metricsLike": "likeBtn",
+      "metricsBookmark": null,
+      "metricsViews": null,
+      "metricsQuote": null,
+      "metricsViewsPattern": "views?"
+    }
+  }
+}

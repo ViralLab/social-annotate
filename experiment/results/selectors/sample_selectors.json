@@ -1,0 +1,50 @@
+{
+  "telegram": {
+    "shared": {
+      "appRoot": "#root",
+      "observerFilter": {
+        "attributes": false,
+        "childList": true,
+        "subtree": true
+      }
+    },
+    "account": {
+      "userDisplayName": ".sender-title",
+      "userHandle": null,
+      "userAvatar": ".forward-avatar img",
+      "userProfileAvatar": ".ChatInfo .Avatar img",
+      "userProfileSchema": null,
+      "userBanner": null,
+      "userBio": null,
+      "userHeadline": null,
+      "userVerified": ".icon-verified",
+      "userFollowers": null,
+      "userFollowing": null,
+      "userConnections": null,
+      "userLocation": null,
+      "userJoinDate": null,
+      "userUrl": null,
+      "userLink": null
+    },
+    "post": {
+      "postContainer": ".Message.message-list-item",
+      "postText": ".text-content",
+      "postImage": ".media-inner canvas.thumbnail",
+      "postVideo": null,
+      "postTimestamp": ".message-time",
+      "postTimestampAttr": "textContent",
+      "postLink": null,
+      "cardWrapper": null,
+      "conversationMessages": null,
+      "messageContainer": null,
+      "copyableText": null,
+      "metricsReply": ".message-views",
+      "metricsRepost": ".message-action-buttons button[title=\"Forward\"]",
+      "metricsLike": null,
+      "metricsBookmark": null,
+      "metricsViews": null,
+      "metricsQuote": null,
+      "metricsViewsPattern": "views?"
+    }
+  }
+}

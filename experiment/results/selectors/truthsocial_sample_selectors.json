@@ -1,0 +1,50 @@
+{
+  "truthsocial": {
+    "shared": {
+      "appRoot": "body",
+      "observerFilter": {
+        "attributes": false,
+        "childList": true,
+        "subtree": true
+      }
+    },
+    "account": {
+      "userDisplayName": "[data-testid=\"account\"] p.font-semibold",
+      "userHandle": "[data-testid=\"account\"] p.text-muted-foreground",
+      "userAvatar": "[data-testid=\"account\"] img",
+      "userProfileAvatar": null,
+      "userProfileSchema": null,
+      "userBanner": null,
+      "userBio": null,
+      "userHeadline": null,
+      "userVerified": "[data-testid=\"verified-badge\"]",
+      "userFollowers": null,
+      "userFollowing": null,
+      "userConnections": null,
+      "userLocation": null,
+      "userJoinDate": null,
+      "userUrl": null,
+      "userLink": null
+    },
+    "post": {
+      "postContainer": ".status-public",
+      "postText": "[data-testid=\"markup\"]",
+      "postImage": ".media-gallery img",
+      "postVideo": null,
+      "postTimestamp": "time",
+      "postTimestampAttr": "title",
+      "postLink": null,
+      "cardWrapper": null,
+      "conversationMessages": null,
+      "messageContainer": null,
+      "copyableText": null,
+      "metricsReply": "[data-testid=\"status-action-bar\"] button[aria-label=\"Reply\"]",
+      "metricsRepost": "[data-testid=\"status-action-bar\"] button[aria-label=\"ReTruth\"]",
+      "metricsLike": "[data-testid=\"status-action-bar\"] button[aria-label=\"Like\"]",
+      "metricsBookmark": "[data-testid=\"status-action-bar\"] button[aria-label=\"Bookmark\"]",
+      "metricsViews": null,
+      "metricsQuote": null,
+      "metricsViewsPattern": "views?"
+    }
+  }
+}

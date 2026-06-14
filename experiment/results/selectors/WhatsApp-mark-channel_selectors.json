@@ -1,0 +1,50 @@
+{
+  "whatsapp": {
+    "shared": {
+      "appRoot": "body",
+      "observerFilter": {
+        "attributes": false,
+        "childList": true,
+        "subtree": true
+      }
+    },
+    "account": {
+      "userDisplayName": "span[aria-label$=':']",
+      "userHandle": null,
+      "userAvatar": null,
+      "userProfileAvatar": null,
+      "userProfileSchema": null,
+      "userBanner": null,
+      "userBio": null,
+      "userHeadline": null,
+      "userVerified": null,
+      "userFollowers": null,
+      "userFollowing": null,
+      "userConnections": null,
+      "userLocation": null,
+      "userJoinDate": null,
+      "userUrl": null,
+      "userLink": null
+    },
+    "post": {
+      "postContainer": "[data-testid^='conv-msg-']",
+      "postText": "[data-testid='selectable-text']",
+      "postImage": "[data-testid='image-thumb'] img",
+      "postVideo": null,
+      "postTimestamp": "[data-pre-plain-text]",
+      "postTimestampAttr": "data-pre-plain-text",
+      "postLink": null,
+      "cardWrapper": null,
+      "conversationMessages": null,
+      "messageContainer": null,
+      "copyableText": null,
+      "metricsReply": null,
+      "metricsRepost": null,
+      "metricsLike": "reaction-bubble",
+      "metricsBookmark": null,
+      "metricsViews": null,
+      "metricsQuote": null,
+      "metricsViewsPattern": "views?"
+    }
+  }
+}

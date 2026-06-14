@@ -1,0 +1,52 @@
+{
+  "x": {
+    "shared": {
+      "appRoot": "#react-root",
+      "observerFilter": {
+        "attributes": true,
+        "childList": true,
+        "subtree": true,
+        "attributeFilter": [
+          "role"
+        ]
+      }
+    },
+    "account": {
+      "userDisplayName": "[data-testid=\"User-Name\"] a span > span",
+      "userHandle": "[data-testid=\"User-Name\"] a > div > span",
+      "userAvatar": "[data-testid=\"Tweet-User-Avatar\"] img",
+      "userProfileAvatar": null,
+      "userProfileSchema": "script[data-testid=\"UserProfileSchema-test\"]",
+      "userBanner": null,
+      "userBio": null,
+      "userHeadline": null,
+      "userVerified": "[data-testid=\"User-Name\"] [role=\"link\"] img",
+      "userFollowers": null,
+      "userFollowing": null,
+      "userConnections": null,
+      "userLocation": null,
+      "userJoinDate": null,
+      "userUrl": null,
+      "userLink": null
+    },
+    "post": {
+      "postContainer": "[data-testid=\"tweet\"]",
+      "postText": "[data-testid=\"tweetText\"]",
+      "postImage": "[data-testid=\"tweetPhoto\"] img",
+      "postVideo": null,
+      "postTimestamp": "a[href*=\"/status/\"] > time",
+      "postLink": null,
+      "cardWrapper": "div[aria-labelledby][role=\"link\"]",
+      "conversationMessages": null,
+      "messageContainer": null,
+      "copyableText": null,
+      "metricsReply": "reply",
+      "metricsRepost": "retweet",
+      "metricsLike": "like",
+      "metricsBookmark": "bookmark",
+      "metricsViews": null,
+      "metricsQuote": null,
+      "metricsViewsPattern": "views?"
+    }
+  }
+}

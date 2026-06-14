@@ -1,0 +1,50 @@
+{
+  "linkedin": {
+    "shared": {
+      "appRoot": "#workspace",
+      "observerFilter": {
+        "attributes": false,
+        "childList": true,
+        "subtree": true
+      }
+    },
+    "account": {
+      "userDisplayName": "span > a > strong",
+      "userHandle": null,
+      "userAvatar": "._06fb2983",
+      "userProfileAvatar": null,
+      "userProfileSchema": null,
+      "userBanner": null,
+      "userBio": null,
+      "userHeadline": null,
+      "userVerified": "._3be211ce",
+      "userFollowers": null,
+      "userFollowing": null,
+      "userConnections": null,
+      "userLocation": null,
+      "userJoinDate": null,
+      "userUrl": null,
+      "userLink": null
+    },
+    "post": {
+      "postContainer": "[role=\"listitem\"]",
+      "postText": "[data-testid=\"expandable-text-box\"]",
+      "postImage": null,
+      "postVideo": "video",
+      "postTimestamp": null,
+      "postTimestampAttr": null,
+      "postLink": null,
+      "cardWrapper": null,
+      "conversationMessages": null,
+      "messageContainer": null,
+      "copyableText": null,
+      "metricsReply": "[aria-label=\"Comment\"]",
+      "metricsRepost": "[aria-label=\"Repost\"]",
+      "metricsLike": "[aria-label=\"Reaction button state: no reaction\"]",
+      "metricsBookmark": null,
+      "metricsViews": null,
+      "metricsQuote": null,
+      "metricsViewsPattern": "views?"
+    }
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "x": {
+    "shared": {
+      "appRoot": ".AppContent-main",
+      "observerFilter": {
+        "attributes": true,
+        "childList": true,
+        "subtree": true,
+        "attributeFilter": [
+          "role"
+        ]
+      }
+    },
+    "account": {
+      "userDisplayName": "strong.fullname",
+      "userHandle": "span.username",
+      "userAvatar": "img.avatar",
+      "userProfileAvatar": null,
+      "userProfileSchema": "script[data-testid=\"UserProfileSchema-test\"]",
+      "userBanner": null,
+      "userBio": ".ProfileHeaderCard-bio",
+      "userHeadline": null,
+      "userVerified": ".Icon--verified",
+      "userFollowers": null,
+      "userFollowing": null,
+      "userConnections": null,
+      "userLocation": ".ProfileHeaderCard-locationText",
+      "userJoinDate": ".ProfileHeaderCard-joinDateText",
+      "userUrl": ".ProfileHeaderCard-urlText a",
+      "userLink": null
+    },
+    "post": {
+      "postContainer": "div.tweet",
+      "postText": "p.js-tweet-text",
+      "postImage": ".AdaptiveMedia-photoContainer img",
+      "postVideo": null,
+      "postTimestamp": "span._timestamp",
+      "postLink": null,
+      "cardWrapper": null,
+      "conversationMessages": null,
+      "messageContainer": null,
+      "copyableText": null,
+      "metricsReply": ".ProfileTweet-action--reply button.js-actionReply",
+      "metricsRepost": ".ProfileTweet-action--retweet button.js-actionRetweet",
+      "metricsLike": ".ProfileTweet-action--favorite button.js-actionFavorite",
+      "metricsBookmark": null,
+      "metricsViews": null,
+      "metricsQuote": null,
+      "metricsViewsPattern": "views?"
+    }
+  }
+}

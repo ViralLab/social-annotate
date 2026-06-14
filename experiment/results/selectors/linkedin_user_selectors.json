@@ -1,0 +1,50 @@
+{
+  "linkedin": {
+    "shared": {
+      "appRoot": "section[aria-label=\"Primary content\"]",
+      "observerFilter": {
+        "attributes": false,
+        "childList": true,
+        "subtree": true
+      }
+    },
+    "account": {
+      "userDisplayName": "h2[class*=\"d8d5bbbc\"][class*=\"b46cb6f5\"]",
+      "userHandle": null,
+      "userAvatar": null,
+      "userProfileAvatar": "figure[class*=\"_06fb2983\"][class*=\"f22a1447\"] img[class*=\"_1c645ff0\"]",
+      "userProfileSchema": null,
+      "userBanner": null,
+      "userBio": "p[class*=\"d8d5bbbc\"][class*=\"bab73015\"][class*=\"e1321d56\"]",
+      "userHeadline": "p[class*=\"d8d5bbbc\"][class*=\"bab73015\"][class*=\"c494ebb7\"]",
+      "userVerified": null,
+      "userFollowers": null,
+      "userFollowing": null,
+      "userConnections": "a[href*=\"connections\"] p[class*=\"d8d5bbbc\"]",
+      "userLocation": "p[class*=\"d8d5bbbc\"][class*=\"bab73015\"][class*=\"_98cb9b8f\"]",
+      "userJoinDate": null,
+      "userUrl": null,
+      "userLink": null
+    },
+    "post": {
+      "postContainer": "div[class*=\"_97a0c51b\"][class*=\"_6a272bac\"]",
+      "postText": "p[class*=\"d8d5bbbc\"][class*=\"bab73015\"][class*=\"dd265f4a\"][class*=\"_6acde100\"]",
+      "postImage": null,
+      "postVideo": null,
+      "postTimestamp": null,
+      "postTimestampAttr": null,
+      "postLink": null,
+      "cardWrapper": null,
+      "conversationMessages": null,
+      "messageContainer": null,
+      "copyableText": null,
+      "metricsReply": "a[aria-label=\"Comment\"]",
+      "metricsRepost": "button[aria-label=\"Repost\"]",
+      "metricsLike": "button[aria-label*=\"Reaction\"]",
+      "metricsBookmark": null,
+      "metricsViews": null,
+      "metricsQuote": null,
+      "metricsViewsPattern": "views?"
+    }
+  }
+}

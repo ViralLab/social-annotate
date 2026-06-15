@@ -412,6 +412,8 @@ function buildSurveyCard(key, survey) {
         'truthsocial-user':  'Truth Social usernames',
     };
     let annotationHint = annotationHints[key] || 'Comma-separated identifiers';
+    const noManipulationPlatforms = ['tiktok', 'facebook', 'youtube', 'mastodon'];
+    let hasManipulation = !noManipulationPlatforms.some(function(p) { return key.startsWith(p); });
     return `
 <div class="survey-card" id="card_${key}">
   <div class="card-header">
@@ -427,7 +429,7 @@ function buildSurveyCard(key, survey) {
       <button class="card-tab-btn active" data-card-tab="${key}_tab_basic">Basic</button>
       <button class="card-tab-btn" data-card-tab="${key}_tab_consent">Consent</button>
       <button class="card-tab-btn" data-card-tab="${key}_tab_form">Form</button>
-      <button class="card-tab-btn" data-card-tab="${key}_tab_manipulation">Manipulation</button>
+      ${hasManipulation ? `<button class="card-tab-btn" data-card-tab="${key}_tab_manipulation">Manipulation</button>` : ''}
     </div>
 
     <!-- Basic -->
@@ -508,6 +510,7 @@ function buildSurveyCard(key, survey) {
     </div>
 
     <!-- Manipulation -->
+    ${hasManipulation ? `
     <div class="card-tab-pane" id="${key}_tab_manipulation">
       <div class="field-group">
         <label class="manip-toggle-label" style="margin-bottom:16px;">
@@ -539,7 +542,7 @@ function buildSurveyCard(key, survey) {
         </div>
         <div class="manip-map-status" id="${key}_manip-status">No map loaded.</div>
       </div>
-    </div>
+    </div>` : ''}
 
     <div class="card-actions">
       <button class="btn-preview" data-key="${key}">▶ Preview Survey</button>

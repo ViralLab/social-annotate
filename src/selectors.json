@@ -435,6 +435,83 @@
       "metricsViewsPattern": null
     }
   },
+  "youtube": {
+    "shared": {
+      "appRoot": "ytd-app",
+      "observerFilter": {
+        "attributes": false,
+        "childList": true,
+        "subtree": true
+      }
+    },
+    "account": {
+      "userDisplayName": "h1.dynamicTextViewModelH1, yt-page-header-view-model h1 yt-formatted-string, #channel-name yt-formatted-string",
+      "userHandle": null,
+      "userAvatar": ".ytSpecAvatarShapeAvatarSizeExtraExtraLarge img, #avatar img",
+      "userProfileAvatar": null,
+      "userProfileSchema": null,
+      "userBanner": "yt-image-banner-view-model img, #channel-header-container #banner img",
+      "userBio": null,
+      "userHeadline": null,
+      "userVerified": null,
+      "userFollowers": "#subscriber-count yt-formatted-string",
+      "userFollowing": null,
+      "userConnections": null,
+      "userLocation": null,
+      "userJoinDate": null,
+      "userUrl": null,
+      "userLink": null
+    },
+    "post": {
+      "postContainer": null,
+      "postAuthorLink": "ytd-video-owner-renderer a.yt-simple-endpoint[href]",
+      "postText": "h1.ytd-watch-metadata yt-formatted-string, #title h1 yt-formatted-string",
+      "postImage": null,
+      "postVideo": "video.html5-main-video",
+      "postTimestamp": "#info-strings yt-formatted-string",
+      "postLink": null,
+      "cardWrapper": null,
+      "conversationMessages": null,
+      "messageContainer": null,
+      "copyableText": null,
+      "metricsLike": "#segmented-like-button button[aria-label]",
+      "metricsRepost": null,
+      "metricsReply": null,
+      "metricsBookmark": null,
+      "metricsViews": "ytd-video-view-count-renderer span.view-count, #count .view-count",
+      "metricsQuote": null,
+      "metricsViewsPattern": null
+    }
+  },
+  "facebook": {
+    "shared": {
+      "appRoot": "[id^=mount]",
+      "observerFilter": {
+        "attributes": false,
+        "childList": true,
+        "subtree": true
+      }
+    },
+    "account": {
+      "userDisplayName": "[data-ad-rendering-role=\"profile_name\"]",
+      "userHandle": null,
+      "userAvatar": "a[href*=\"photo/?fbid=\"] svg image",
+      "userProfileAvatar": null,
+      "userProfileSchema": null,
+      "userBanner": "a[aria-label=\"View profile cover photo\"] img, img[data-imgperflogname=\"profileCoverPhoto\"]",
+      "userBio": "span[role=\"list\"]",
+      "userHeadline": null,
+      "userVerified": null,
+      "userFollowers": "a[href*=\"/followers/\"]",
+      "userFollowing": "a[href*=\"/following\"]",
+      "userConnections": null,
+      "userLocation": null,
+      "userJoinDate": null,
+      "userUrl": null,
+      "userLink": null
+    },
+    "post": {}
+  },
   "tiktok": {
     "shared": {
       "appRoot": "#app",

@@ -636,6 +636,22 @@ function storeResults(surveyResults, socialMediaPlatform) {
                 insertKey = surveyResults.post_id;
             } else if (surveyType === 'mastodon-user') {
                 insertKey = surveyResults.account_id;
+            } else if (surveyType === 'youtube-video') {
+                insertKey = surveyResults.post_id;
+            } else if (surveyType === 'youtube-user') {
+                insertKey = surveyResults.account_id;
+            } else if (surveyType === 'facebook-user') {
+                insertKey = surveyResults.account_id;
+            } else if (surveyType === 'facebook-post') {
+                insertKey = surveyResults.post_id;
+            }
+
+            const _USER_SURVEY_TYPES = new Set([
+                'x-user', 'instagram-user', 'bluesky-user', 'truthsocial-user',
+                'linkedin-user', 'tiktok-user', 'mastodon-user', 'youtube-user', 'facebook-user'
+            ]);
+            if (_USER_SURVEY_TYPES.has(surveyType)) {
+                delete surveyResults.post_id;
             }
 
             let insertIndex = annotatedElements[surveyType].indexOf(insertKey);
@@ -689,7 +705,7 @@ function storeResults(surveyResults, socialMediaPlatform) {
                 if (apiSuccess) {
                     // @TODO: endpoint error handling isn't done properly; all API-related paths need full exception handling.
                     let divName = "surveyFormContainer";
-                    if (surveyResults.surveyType === "x-post" || surveyResults.surveyType === "instagram-post" || surveyResults.surveyType === "bluesky-post" || surveyResults.surveyType === "whatsapp-post" || surveyResults.surveyType === "telegram-post" || surveyResults.surveyType === "truthsocial-post" || surveyResults.surveyType === "linkedin-post") {
+                    if (surveyResults.surveyType === "x-post" || surveyResults.surveyType === "instagram-post" || surveyResults.surveyType === "bluesky-post" || surveyResults.surveyType === "whatsapp-post" || surveyResults.surveyType === "telegram-post" || surveyResults.surveyType === "truthsocial-post" || surveyResults.surveyType === "linkedin-post" || surveyResults.surveyType === "youtube-video" || surveyResults.surveyType === "facebook-post") {
                         divName += '-' + surveyResults.post_id.toString();
                     }
 

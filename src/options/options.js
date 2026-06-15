@@ -438,7 +438,7 @@ function buildSurveyCard(key, survey) {
             Study ID
             <span class="field-hint">Identifier for this study</span>
           </label>
-          <input type="text" class="field-input" id="${key}_study-id" placeholder="e.g. kokone">
+          <input type="text" class="field-input" id="${key}_study-id" placeholder="e.g. ${key}-study">
         </div>
         <div class="field-group" style="margin:0;">
           <label class="field-label" for="${key}_insert-location">Insert Location</label>

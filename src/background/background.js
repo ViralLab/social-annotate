@@ -27,7 +27,9 @@ chrome.runtime.onInstalled.addListener(function () {
             "bluesky-user": [],
             "whatsapp-post": [],
             "mastodon-post": [],
-            "mastodon-user": []
+            "mastodon-user": [],
+            "youtube-video": [],
+            "youtube-user": []
         },  // @TODO pull these from a supported types list somewhere.
         "annotatedElements": {
             "x-user": [],
@@ -39,7 +41,9 @@ chrome.runtime.onInstalled.addListener(function () {
             "bluesky-user": [],
             "whatsapp-post": [],
             "mastodon-post": [],
-            "mastodon-user": []
+            "mastodon-user": [],
+            "youtube-video": [],
+            "youtube-user": []
         }, // @TODO pull these from a supported types list somewhere.
         "clientID": clientID,
         "config": config,

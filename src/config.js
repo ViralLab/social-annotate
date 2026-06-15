@@ -12,7 +12,7 @@ var config = {
         "x-post": {
             "socialMediaPlatform": "x",
             "injectElement": {},  // tweets are detected dynamically via MutationObserver, not a fixed element
-            "studyID": "kokone",
+            "studyID": "x-post-study",
             "mediaDownloadFolder": "",
             "theme": "light",
             "informedConsent": DEFAULT_CONSENT,
@@ -46,7 +46,7 @@ var config = {
                 "type": "class",
                 "index": 0
             },
-            "studyID": "maruko",
+            "studyID": "x-user-study",
             "mediaDownloadFolder": "",
             "theme": "light",
             "informedConsent": DEFAULT_CONSENT,
@@ -93,7 +93,7 @@ var config = {
                 "type": "class",
                 "index": 0
             },
-            "studyID": "maruko",
+            "studyID": "instagram-user-study",
             "mediaDownloadFolder": "",
             "theme": "light",
             "informedConsent": DEFAULT_CONSENT,
@@ -135,7 +135,7 @@ var config = {
         "instagram-post": {
             "socialMediaPlatform": "instagram",
             "injectElement": {},
-            "studyID": "kokone",
+            "studyID": "instagram-post-study",
             "mediaDownloadFolder": "",
             "theme": "light",
             "informedConsent": DEFAULT_CONSENT,
@@ -165,7 +165,7 @@ var config = {
         "instagram-reel": {
             "socialMediaPlatform": "instagram",
             "injectElement": {},
-            "studyID": "kokone",
+            "studyID": "instagram-reel-study",
             "mediaDownloadFolder": "",
             "theme": "light",
             "informedConsent": DEFAULT_CONSENT,
@@ -195,7 +195,7 @@ var config = {
         "bluesky-post": {
             "socialMediaPlatform": "bluesky",
             "injectElement": {},
-            "studyID": "kokone",
+            "studyID": "bluesky-post-study",
             "mediaDownloadFolder": "",
             "theme": "light",
             "informedConsent": DEFAULT_CONSENT,
@@ -229,7 +229,7 @@ var config = {
                 "type": "id",
                 "index": 0
             },
-            "studyID": "maruko",
+            "studyID": "bluesky-user-study",
             "mediaDownloadFolder": "",
             "theme": "light",
             "informedConsent": DEFAULT_CONSENT,
@@ -272,7 +272,7 @@ var config = {
         "whatsapp-post": {
             "socialMediaPlatform": "whatsapp",
             "injectElement": {},
-            "studyID": "kokone",
+            "studyID": "whatsapp-post-study",
             "mediaDownloadFolder": "",
             "theme": "light",
             "informedConsent": DEFAULT_CONSENT,
@@ -302,7 +302,7 @@ var config = {
         "telegram-post": {
             "socialMediaPlatform": "telegram",
             "injectElement": {},
-            "studyID": "kokone",
+            "studyID": "telegram-post-study",
             "mediaDownloadFolder": "",
             "theme": "light",
             "informedConsent": DEFAULT_CONSENT,
@@ -332,7 +332,7 @@ var config = {
         "truthsocial-post": {
             "socialMediaPlatform": "truthsocial",
             "injectElement": {},
-            "studyID": "kokone",
+            "studyID": "truthsocial-post-study",
             "mediaDownloadFolder": "",
             "theme": "light",
             "informedConsent": DEFAULT_CONSENT,
@@ -366,7 +366,7 @@ var config = {
                 "type": "id",
                 "index": 0
             },
-            "studyID": "maruko",
+            "studyID": "truthsocial-user-study",
             "mediaDownloadFolder": "",
             "theme": "light",
             "informedConsent": DEFAULT_CONSENT,
@@ -409,7 +409,7 @@ var config = {
         "linkedin-post": {
             "socialMediaPlatform": "linkedin",
             "injectElement": {},
-            "studyID": "kokone",
+            "studyID": "linkedin-post-study",
             "mediaDownloadFolder": "",
             "theme": "light",
             "informedConsent": DEFAULT_CONSENT,
@@ -439,7 +439,7 @@ var config = {
         "linkedin-user": {
             "socialMediaPlatform": "linkedin",
             "injectElement": {},
-            "studyID": "kokone",
+            "studyID": "linkedin-user-study",
             "mediaDownloadFolder": "",
             "theme": "light",
             "informedConsent": DEFAULT_CONSENT,
@@ -479,7 +479,7 @@ var config = {
         "mastodon-post": {
             "socialMediaPlatform": "mastodon",
             "injectElement": {},
-            "studyID": "kokone",
+            "studyID": "mastodon-post-study",
             "mediaDownloadFolder": "",
             "theme": "light",
             "informedConsent": DEFAULT_CONSENT,
@@ -513,7 +513,7 @@ var config = {
                 "type": "id",
                 "index": 0
             },
-            "studyID": "maruko",
+            "studyID": "mastodon-user-study",
             "mediaDownloadFolder": "",
             "theme": "light",
             "informedConsent": DEFAULT_CONSENT,
@@ -553,10 +553,156 @@ var config = {
                 ]
             }
         },
+        "youtube-video": {
+            "socialMediaPlatform": "youtube",
+            "injectElement": {},
+            "studyID": "youtube-video-study",
+            "mediaDownloadFolder": "",
+            "theme": "light",
+            "informedConsent": DEFAULT_CONSENT,
+            "screenNameList": [],
+            "surveyFormSchema": {
+                "schema": {
+                    "hatespeech": {
+                        "type": "string",
+                        "title": "Does this video contain HateSpeech?",
+                        "enum": ["Yes", "No"],
+                        "required": true
+                    }
+                },
+                "form": [
+                    {
+                        "key": "hatespeech",
+                        "type": "radiobuttons"
+                    },
+                    {
+                        "type": "submit",
+                        "title": "Submit",
+                        "htmlClass": "surveySubmitBtn"
+                    }
+                ]
+            }
+        },
+        "youtube-user": {
+            "socialMediaPlatform": "youtube",
+            "injectElement": {},
+            "studyID": "youtube-user-study",
+            "mediaDownloadFolder": "",
+            "theme": "light",
+            "informedConsent": DEFAULT_CONSENT,
+            "screenNameList": [],
+            "surveyFormSchema": {
+                "schema": {
+                    "bot": {
+                        "type": "string",
+                        "title": "Do you believe this channel to be a bot?",
+                        "enum": ["Yes", "No"],
+                        "required": true
+                    },
+                    "confidence": {
+                        "type": "integer",
+                        "title": "How confident with your response to bot question?",
+                        "description": "0 for least and 5 for the most confident",
+                        "default": 3,
+                        "minimum": 0,
+                        "maximum": 5,
+                        "required": true
+                    }
+                },
+                "form": [
+                    {
+                        "key": "bot",
+                        "type": "radiobuttons"
+                    },
+                    {
+                        "key": "confidence",
+                        "type": "range"
+                    },
+                    {
+                        "type": "submit",
+                        "title": "Submit",
+                        "htmlClass": "surveySubmitBtn"
+                    }
+                ]
+            }
+        },
+        "facebook-user": {
+            "socialMediaPlatform": "facebook",
+            "injectElement": {},
+            "studyID": "facebook-user-study",
+            "mediaDownloadFolder": "",
+            "theme": "light",
+            "informedConsent": DEFAULT_CONSENT,
+            "screenNameList": [],
+            "surveyFormSchema": {
+                "schema": {
+                    "bot": {
+                        "type": "string",
+                        "title": "Do you believe this user to be a bot?",
+                        "enum": ["Yes", "No"],
+                        "required": true
+                    },
+                    "confidence": {
+                        "type": "integer",
+                        "title": "How confident with your response to bot question?",
+                        "description": "0 for least and 5 for the most confident",
+                        "default": 3,
+                        "minimum": 0,
+                        "maximum": 5,
+                        "required": true
+                    }
+                },
+                "form": [
+                    {
+                        "key": "bot",
+                        "type": "radiobuttons"
+                    },
+                    {
+                        "key": "confidence",
+                        "type": "range"
+                    },
+                    {
+                        "type": "submit",
+                        "title": "Submit",
+                        "htmlClass": "surveySubmitBtn"
+                    }
+                ]
+            }
+        },
+        "facebook-post": {
+            "socialMediaPlatform": "facebook",
+            "injectElement": {},
+            "studyID": "facebook-post-study",
+            "mediaDownloadFolder": "",
+            "theme": "light",
+            "informedConsent": DEFAULT_CONSENT,
+            "screenNameList": [],
+            "surveyFormSchema": {
+                "schema": {
+                    "hatespeech": {
+                        "type": "string",
+                        "title": "Does this post contain HateSpeech?",
+                        "enum": ["Yes", "No"],
+                        "required": true
+                    }
+                },
+                "form": [
+                    {
+                        "key": "hatespeech",
+                        "type": "radiobuttons"
+                    },
+                    {
+                        "type": "submit",
+                        "title": "Submit",
+                        "htmlClass": "surveySubmitBtn"
+                    }
+                ]
+            }
+        },
         "tiktok-post": {
             "socialMediaPlatform": "tiktok",
             "injectElement": {},
-            "studyID": "kokone",
+            "studyID": "tiktok-post-study",
             "mediaDownloadFolder": "",
             "theme": "light",
             "informedConsent": DEFAULT_CONSENT,
@@ -586,7 +732,7 @@ var config = {
         "tiktok-user": {
             "socialMediaPlatform": "tiktok",
             "injectElement": {},
-            "studyID": "maruko",
+            "studyID": "tiktok-user-study",
             "mediaDownloadFolder": "",
             "theme": "light",
             "informedConsent": DEFAULT_CONSENT,

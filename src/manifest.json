@@ -24,6 +24,8 @@
     "*://www.tiktok.com/*",
     "*://mastodon.social/*",
     "*://fosstodon.org/*",
+    "*://www.facebook.com/*",
+    "*://www.youtube.com/*",
     "http://127.0.0.1/*",
     "http://localhost/*"
   ],
@@ -292,6 +294,60 @@
     },
     {
       "matches": [
+        "*://www.facebook.com/*"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "js": [
+        "content-scripts/facebook/inject-api.js"
+      ]
+    },
+    {
+      "matches": [
+        "*://www.facebook.com/*",
+        "file:///*",
+        "http://127.0.0.1/test_fixtures/facebook/*",
+        "http://localhost/test_fixtures/facebook/*"
+      ],
+      "run_at": "document_end",
+      "css": [
+        "content-scripts/facebook/inject.css",
+        "dep/jsonform/deps/opt/bootstrap.css"
+      ],
+      "js": [
+        "dep/analytics.js",
+        "dep/jsonform/deps/jquery.min.js",
+        "dep/jsonform/deps/underscore.js",
+        "dep/jsonform/deps/opt/jsv.js",
+        "dep/jsonform/lib/jsonform.js",
+        "content-scripts/shared/shared.js",
+        "content-scripts/facebook/inject.js"
+      ]
+    },
+    {
+      "matches": [
+        "*://www.youtube.com/*",
+        "file:///*",
+        "http://127.0.0.1/test_fixtures/youtube/*",
+        "http://localhost/test_fixtures/youtube/*"
+      ],
+      "run_at": "document_end",
+      "css": [
+        "content-scripts/youtube/inject.css",
+        "dep/jsonform/deps/opt/bootstrap.css"
+      ],
+      "js": [
+        "dep/analytics.js",
+        "dep/jsonform/deps/jquery.min.js",
+        "dep/jsonform/deps/underscore.js",
+        "dep/jsonform/deps/opt/jsv.js",
+        "dep/jsonform/lib/jsonform.js",
+        "content-scripts/shared/shared.js",
+        "content-scripts/youtube/inject.js"
+      ]
+    },
+    {
+      "matches": [
         "*://www.tiktok.com/*"
       ],
       "run_at": "document_start",
@@ -342,6 +398,8 @@
         "content-scripts/truthsocial/inject.css",
         "content-scripts/linkedin/inject.css",
         "content-scripts/mastodon/inject.css",
+        "content-scripts/facebook/inject.css",
+        "content-scripts/youtube/inject.css",
         "content-scripts/tiktok/inject.css",
         "dep/jsonform/deps/opt/bootstrap.css"
       ],

@@ -57,7 +57,7 @@ function crawlFacebookHandle() {
     let m = path.match(/^\/([A-Za-z0-9._]+)/);
     if (m && !_FB_NON_PROFILE_PATHS.has(m[1].toLowerCase())) return m[1];
     // Fallback: extract from followers link href
-    let followerLink = document.querySelector(SEL_FB.userFollowers || 'a[href*="/followers/"]');
+    let followerLink = document.querySelector(SEL_FB.userFollowers);
     if (followerLink) {
         let fm = (followerLink.getAttribute('href') || '').match(/facebook\.com\/([^/]+)\/followers/);
         if (fm) return fm[1];
@@ -71,7 +71,7 @@ function extractFacebookProfile() {
     let profile = {};
 
     try {
-        let nameEl = document.querySelector(SEL_FB.userDisplayName || '[data-ad-rendering-role="profile_name"]');
+        let nameEl = document.querySelector(SEL_FB.userDisplayName);
         if (nameEl) profile.profile_name = (nameEl.innerText || nameEl.textContent || '').trim();
     } catch(e) {}
 
@@ -84,7 +84,7 @@ function extractFacebookProfile() {
         // Facebook renders the profile picture as an SVG <image xlink:href="..."> inside
         // a[href*="photo/?fbid="] — scoping to the photo link excludes the logged-in
         // user's navbar avatar and story thumbnails (which link to /stories/).
-        let avatarEl = document.querySelector(SEL_FB.userAvatar || 'a[href*="photo/?fbid="] svg image');
+        let avatarEl = document.querySelector(SEL_FB.userAvatar);
         if (avatarEl) {
             let url = avatarEl.getAttributeNS('http://www.w3.org/1999/xlink', 'href')
                    || avatarEl.getAttribute('href')
@@ -94,24 +94,24 @@ function extractFacebookProfile() {
     } catch(e) {}
 
     try {
-        let bannerEl = document.querySelector(SEL_FB.userBanner || 'a[aria-label="View profile cover photo"] img, img[data-imgperflogname="profileCoverPhoto"]');
+        let bannerEl = document.querySelector(SEL_FB.userBanner);
         if (bannerEl && bannerEl.src && !bannerEl.src.startsWith('data:')) {
             profile.bannerUrl = bannerEl.src;
         }
     } catch(e) {}
 
     try {
-        let followersEl = document.querySelector(SEL_FB.userFollowers || 'a[href*="/followers/"]');
+        let followersEl = document.querySelector(SEL_FB.userFollowers);
         if (followersEl) profile.followersText = (followersEl.innerText || followersEl.textContent || '').trim();
     } catch(e) {}
 
     try {
-        let followingEl = document.querySelector(SEL_FB.userFollowing || 'a[href*="/following"]');
+        let followingEl = document.querySelector(SEL_FB.userFollowing);
         if (followingEl) profile.followingText = (followingEl.innerText || followingEl.textContent || '').trim();
     } catch(e) {}
 
     try {
-        let bioEl = document.querySelector(SEL_FB.userBio || 'span[role="list"]');
+        let bioEl = document.querySelector(SEL_FB.userBio);
         if (bioEl) profile.bio = (bioEl.innerText || bioEl.textContent || '').trim();
     } catch(e) {}
 
@@ -220,7 +220,7 @@ function extractFBPostDetails(postNode) {
     if (!postID) return null;
 
     // Author: prefer the h2 display name, then any named profile link, then page handle
-    let nameEl = postNode.querySelector('[data-ad-rendering-role="profile_name"] a, h2 a[role="link"]');
+    let nameEl = SEL_FB.postAuthorName ? postNode.querySelector(SEL_FB.postAuthorName) : null;
     if (nameEl) {
         postOwner = (nameEl.innerText || nameEl.textContent || '').trim().replace(/\s+/g, ' ');
     }
@@ -237,16 +237,9 @@ function extractFBPostDetails(postNode) {
 }
 
 function extractFBPostText(postNode) {
-    let selectors = [
-        SEL_FB.postText,
-        'div[data-ad-rendering-role="story_message"]',
-        'div[data-ad-preview="message"]',
-    ].filter(Boolean);
-    for (let sel of selectors) {
-        let el = postNode.querySelector(sel);
-        if (el) return (el.innerText || el.textContent || '').trim();
-    }
-    return '';
+    if (!SEL_FB.postText) return '';
+    let el = postNode.querySelector(SEL_FB.postText);
+    return el ? (el.innerText || el.textContent || '').trim() : '';
 }
 
 function extractFBPostMedia(postNode) {
@@ -263,7 +256,9 @@ function extractFBPostMedia(postNode) {
         let imgs = postNode.querySelectorAll(SEL_FB.postImage || 'img[src]');
         imgs.forEach(function(img) {
             let src = img.src || img.getAttribute('src') || '';
-            if (src && !src.startsWith('data:') && !src.includes('emoji') && !src.includes('icon')) urls.push(src);
+            // /t39.30808-1/ = profile/avatar CDN path; skip those, keep post content images
+            if (src && !src.startsWith('data:') && !src.includes('emoji') && !src.includes('icon')
+                && !src.includes('/t39.30808-1/')) urls.push(src);
         });
     }
     return [...new Set(urls)];
@@ -300,6 +295,10 @@ function processFBPostNode(postNode) {
     let postCtx = availableContextsFacebook.find(function(c) { return c.name === 'facebook-post'; });
     if (!postCtx || !postCtx.formTemplate) return;
 
+    // Skip feed widgets (Reels carousels, Suggested Groups, etc.) — real posts always have an author element
+    let authorSel = SEL_FB.postAuthorName || '[data-ad-rendering-role="profile_name"] a, h2 a[role="link"]';
+    if (!postNode.querySelector(authorSel)) return;
+
     let details = extractFBPostDetails(postNode);
     if (!details) return;
 
@@ -307,7 +306,7 @@ function processFBPostNode(postNode) {
 
     if (manipConfig_FB.enabled && manipMap_FB[details.postID]) {
         let entry = manipMap_FB[details.postID];
-        let textEl = postNode.querySelector(SEL_FB.postText || 'div[data-ad-rendering-role="story_message"]');
+        let textEl = SEL_FB.postText ? postNode.querySelector(SEL_FB.postText) : null;
         if (textEl) {
             let rewrittenText = entry.rewritten_text;
             let originalText = entry.original_text || '';
@@ -338,33 +337,45 @@ function processFBPostNode(postNode) {
         media_urls: function() { return extractFBPostMedia(postNode); },
         post_metrics: function() { return extractFBPostMetrics(postNode); },
         created_at: function() {
-            let el = postNode.querySelector(SEL_FB.postTimestamp || 'abbr[data-utime], a[role="link"] abbr');
+            if (!SEL_FB.postTimestamp) return null;
+            let el = postNode.querySelector(SEL_FB.postTimestamp);
             if (!el) return null;
-            let attr = SEL_FB.postTimestampAttr || 'data-utime';
-            return el.getAttribute(attr) || el.getAttribute('title') || el.innerText || null;
+            let val = el.getAttribute(SEL_FB.postTimestampAttr) || el.getAttribute('title');
+            if (val) return val;
+            // New FB layout: timestamp rendered as CSS-scrambled spans; readable label is in aria-labelledby target
+            let labelSpan = el.querySelector('[aria-labelledby]');
+            if (labelSpan) {
+                let labelEl = document.getElementById(labelSpan.getAttribute('aria-labelledby'));
+                if (labelEl) return (labelEl.textContent || '').trim() || null;
+            }
+            return null;
         }
     });
 }
 
 function createFBPostObserver() {
     return new MutationObserver(function(mutations) {
+        let sel = SEL_FB.postContainer || 'div[data-virtualized="false"]';
         for (let mutation of mutations) {
-            if (mutation.type !== 'childList') continue;
-            mutation.addedNodes.forEach(function(node) {
-                if (node.nodeType !== 1) return;
-                let sel = SEL_FB.postContainer || 'div[data-virtualized]';
-                if (node.matches && node.matches(sel)) {
-                    processFBPostNode(node);
-                } else {
-                    node.querySelectorAll(sel).forEach(processFBPostNode);
-                }
-            });
+            if (mutation.type === 'attributes') {
+                let node = mutation.target;
+                if (node.matches && node.matches(sel)) processFBPostNode(node);
+            } else if (mutation.type === 'childList') {
+                mutation.addedNodes.forEach(function(node) {
+                    if (node.nodeType !== 1) return;
+                    if (node.matches && node.matches(sel)) {
+                        processFBPostNode(node);
+                    } else {
+                        node.querySelectorAll(sel).forEach(processFBPostNode);
+                    }
+                });
+            }
         }
     });
 }
 
 function enableFBPostObserver() {
-    let sel = SEL_FB.postContainer || 'div[data-virtualized]';
+    let sel = SEL_FB.postContainer || 'div[data-virtualized="false"]';
     document.querySelectorAll(sel).forEach(processFBPostNode);
     let obsConf = SEL_FB.observerFilter || { attributes: false, childList: true, subtree: true };
     _fbPostObserver = createFBPostObserver();
@@ -387,13 +398,16 @@ function _fbRecordVideo(video, postId, userID) {
         let blobUrl = URL.createObjectURL(blob);
         let safeUser = (userID || 'user').replace(/[^a-zA-Z0-9._-]/g, '_');
         let safePost = String(postId).replace(/[^a-zA-Z0-9._-]/g, '_');
+        let key = Math.random().toString(36).substr(2, 9);
         let a = document.createElement('a');
         a.href = blobUrl;
-        a.download = 'facebook__' + safeUser + '_' + safePost + '.webm';
+        a.download = 'facebook__' + key + '__.webm';
         a.style.display = 'none';
         document.body.appendChild(a);
-        a.click();
-        setTimeout(function() { if (a.parentNode) a.parentNode.removeChild(a); URL.revokeObjectURL(blobUrl); }, 15000);
+        chrome.runtime.sendMessage({ action: 'registerFBVideoDownload', key: key, userId: safeUser, postId: safePost }, function() {
+            a.click();
+            setTimeout(function() { if (a.parentNode) a.parentNode.removeChild(a); URL.revokeObjectURL(blobUrl); }, 15000);
+        });
         console.log('[FB] Video recorded:', blob.size, 'bytes');
     };
     // Record for the video's duration (capped at 90s for long videos)
@@ -502,12 +516,14 @@ function initializeSurveys() {
                 currentContext.submitAction = submitAction;
                 currentContext.injectSurvey(config.injectElement);
 
-                _fbUserCtxActive = true;
-                _fbLastHref = window.location.href;
-                let surveyID = crawlFacebookHandle();
-                currentContext.renderSurvey(surveyID, null, {
-                    user_profile: function() { return extractFacebookProfile(); }
-                });
+                if (currentContext.name === 'facebook-user') {
+                    _fbUserCtxActive = true;
+                    _fbLastHref = window.location.href;
+                    let surveyID = crawlFacebookHandle();
+                    currentContext.renderSurvey(surveyID, null, {
+                        user_profile: function() { return extractFacebookProfile(); }
+                    });
+                }
             }
         }
 

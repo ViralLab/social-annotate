@@ -163,6 +163,17 @@ chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
         }
     }
 
+    // Facebook MediaRecorder blob downloads: key embedded as facebook__KEY__
+    if (item.filename && item.filename.startsWith('facebook__')) {
+        let m = item.filename.match(/^facebook__([a-z0-9]+)__/);
+        if (m && pendingFilenames[m[1]]) {
+            let filename = pendingFilenames[m[1]];
+            delete pendingFilenames[m[1]];
+            suggest({ filename });
+            return;
+        }
+    }
+
     // Telegram stream downloads embed metadata in the URL hash (#sa_post=...)
     if (item.url && item.url.includes('#sa_post=')) {
         try {
@@ -324,6 +335,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             let safeUserId = String(userId).replace(/[^a-zA-Z0-9._-]/g, '_');
             let safePostId = String(postId).replace(/[^a-zA-Z0-9._-]/g, '_');
             pendingFilenames[key] = `${baseRoot}${platform}/${surveyType}/media/videos/${safeUserId}_${safePostId}_video.mp4`;
+            sendResponse({ ok: true });
+        });
+        return true; // async sendResponse
+    }
+    else if (message.action === 'registerFBVideoDownload') {
+        let key = message.key;
+        let userId = message.userId || 'unknown';
+        let postId = message.postId || 'unknown';
+        chrome.storage.local.get(['config'], function(result) {
+            let baseRoot = (result.config && result.config.downloadFolder && result.config.downloadFolder.trim())
+                ? result.config.downloadFolder.trim().replace(/\\/g, '/')
+                : 'SocialAnnotateExports';
+            if (!baseRoot.endsWith('/')) baseRoot += '/';
+            let safeUserId = String(userId).replace(/[^a-zA-Z0-9._-]/g, '_');
+            let safePostId = String(postId).replace(/[^a-zA-Z0-9._-]/g, '_');
+            pendingFilenames[key] = `${baseRoot}facebook/facebook-post/media/videos/${safeUserId}_${safePostId}_video.webm`;
             sendResponse({ ok: true });
         });
         return true; // async sendResponse

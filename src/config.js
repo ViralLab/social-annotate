@@ -729,6 +729,85 @@ var config = {
                 ]
             }
         },
+        "reddit-post": {
+            "socialMediaPlatform": "reddit",
+            "injectElement": {},
+            "studyID": "reddit-post-study",
+            "mediaDownloadFolder": "",
+            "theme": "light",
+            "informedConsent": DEFAULT_CONSENT,
+            "screenNameList": [],
+            "surveyFormSchema": {
+                "schema": {
+                    "hatespeech": {
+                        "type": "string",
+                        "title": "Does this post contain HateSpeech?",
+                        "enum": ["Yes", "No"],
+                        "required": true
+                    }
+                },
+                "form": [
+                    { "key": "hatespeech", "type": "radiobuttons" },
+                    { "type": "submit", "title": "Submit", "htmlClass": "surveySubmitBtn" }
+                ]
+            }
+        },
+        "reddit-comment": {
+            "socialMediaPlatform": "reddit",
+            "injectElement": {},
+            "studyID": "reddit-comment-study",
+            "mediaDownloadFolder": "",
+            "theme": "light",
+            "informedConsent": DEFAULT_CONSENT,
+            "screenNameList": [],
+            "surveyFormSchema": {
+                "schema": {
+                    "hatespeech": {
+                        "type": "string",
+                        "title": "Does this comment contain HateSpeech?",
+                        "enum": ["Yes", "No"],
+                        "required": true
+                    }
+                },
+                "form": [
+                    { "key": "hatespeech", "type": "radiobuttons" },
+                    { "type": "submit", "title": "Submit", "htmlClass": "surveySubmitBtn" }
+                ]
+            }
+        },
+        "reddit-user": {
+            "socialMediaPlatform": "reddit",
+            "injectElement": {},
+            "studyID": "reddit-user-study",
+            "mediaDownloadFolder": "",
+            "theme": "light",
+            "informedConsent": DEFAULT_CONSENT,
+            "screenNameList": [],
+            "surveyFormSchema": {
+                "schema": {
+                    "bot": {
+                        "type": "string",
+                        "title": "Do you believe this user to be a bot?",
+                        "enum": ["Yes", "No"],
+                        "required": true
+                    },
+                    "confidence": {
+                        "type": "integer",
+                        "title": "How confident are you?",
+                        "description": "0 for least and 5 for the most confident",
+                        "default": 3,
+                        "minimum": 0,
+                        "maximum": 5,
+                        "required": true
+                    }
+                },
+                "form": [
+                    { "key": "bot", "type": "radiobuttons" },
+                    { "key": "confidence", "type": "range" },
+                    { "type": "submit", "title": "Submit", "htmlClass": "surveySubmitBtn" }
+                ]
+            }
+        },
         "tiktok-user": {
             "socialMediaPlatform": "tiktok",
             "injectElement": {},

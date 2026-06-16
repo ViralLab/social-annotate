@@ -26,6 +26,7 @@
     "*://fosstodon.org/*",
     "*://www.facebook.com/*",
     "*://www.youtube.com/*",
+    "*://www.reddit.com/*",
     "http://127.0.0.1/*",
     "http://localhost/*"
   ],
@@ -377,6 +378,21 @@
         "content-scripts/shared/shared.js",
         "content-scripts/tiktok/inject.js"
       ]
+    },
+    {
+      "matches": [
+        "*://www.reddit.com/*"
+      ],
+      "run_at": "document_end",
+      "js": [
+        "dep/analytics.js",
+        "dep/jsonform/deps/jquery.min.js",
+        "dep/jsonform/deps/underscore.js",
+        "dep/jsonform/deps/opt/jsv.js",
+        "dep/jsonform/lib/jsonform.js",
+        "content-scripts/shared/shared.js",
+        "content-scripts/reddit/inject.js"
+      ]
     }
   ],
   "icons": {
@@ -401,6 +417,7 @@
         "content-scripts/facebook/inject.css",
         "content-scripts/youtube/inject.css",
         "content-scripts/tiktok/inject.css",
+        "content-scripts/reddit/inject.css",
         "dep/jsonform/deps/opt/bootstrap.css"
       ],
       "matches": [

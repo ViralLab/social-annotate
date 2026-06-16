@@ -410,9 +410,12 @@ function buildSurveyCard(key, survey) {
         'linkedin-user':     'LinkedIn profile usernames',
         'truthsocial-post':  'Truth Social post IDs',
         'truthsocial-user':  'Truth Social usernames',
+        'reddit-post':       'Reddit post IDs (t3_* thing IDs)',
+        'reddit-comment':    'Reddit comment IDs (t1_* thing IDs)',
+        'reddit-user':       'Reddit usernames',
     };
     let annotationHint = annotationHints[key] || 'Comma-separated identifiers';
-    const noManipulationPlatforms = ['tiktok', 'facebook', 'youtube', 'mastodon'];
+    const noManipulationPlatforms = ['tiktok', 'facebook', 'youtube', 'mastodon', 'reddit'];
     let hasManipulation = !noManipulationPlatforms.some(function(p) { return key.startsWith(p); });
     return `
 <div class="survey-card" id="card_${key}">

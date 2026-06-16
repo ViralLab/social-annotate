@@ -1,0 +1,278 @@
+/* Reddit Survey Injection Styles — brand color #FF4500 (orangered) */
+
+div.survey-container-user {
+	width: 100%;
+	height: auto;
+	min-height: 120px;
+	display: flex;
+	flex-wrap: wrap-reverse;
+	overflow: visible;
+	background-color: transparent;
+	position: fixed;
+	bottom: 0;
+	z-index: 9999;
+}
+
+div.survey-container-post {
+	width: 100%;
+	height: auto;
+	min-height: 120px;
+	display: flex;
+	flex-wrap: wrap-reverse;
+	overflow: visible;
+	background-color: transparent;
+	position: relative;
+	z-index: 100;
+}
+
+div.notification-container {
+	display: inline-flex;
+	width: 100%;
+	background-color: transparent;
+	text-align: right;
+}
+
+.notification-container > span { width: 100%; }
+
+#surveyForm {
+	display: flex;
+	position: relative;
+	width: 100%;
+	flex-direction: row;
+	flex-wrap: wrap-reverse;
+	color: #ffffff;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+}
+
+#surveyForm > div.notification-container {
+	display: inline-flex;
+	width: 100%;
+	background-color: transparent !important;
+	text-align: right;
+}
+
+.surveyFormTweet {
+	display: flex;
+	width: 100%;
+	flex-direction: row;
+	flex-wrap: wrap-reverse;
+	color: #ffffff;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+}
+
+#surveyForm > div:not(.notification-container):not(.sa-fields-scroll),
+.surveyFormTweet > div:not(.sa-fields-scroll) {
+	background: transparent !important;
+	display: flex;
+	flex-direction: row;
+	flex-wrap: nowrap;
+	width: 100%;
+	align-items: stretch;
+	gap: 8px;
+	padding: 8px 12px;
+}
+
+.flexbox-rows {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap-reverse;
+	width: 100%;
+}
+
+div.form-group {
+	background: rgba(21, 32, 43, 0.88) !important;
+	backdrop-filter: blur(12px) !important;
+	-webkit-backdrop-filter: blur(12px) !important;
+	border: 1px solid rgba(255, 69, 0, 0.2);
+	border-radius: 12px;
+	margin: 0 !important;
+	padding: 12px 16px !important;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+	flex: 1 1 200px !important;
+	max-width: 100%;
+	box-sizing: border-box !important;
+	scroll-snap-align: start;
+	scroll-snap-stop: always;
+}
+
+.sa-fields-scroll {
+	width: 100%;
+	display: flex;
+	flex-direction: row;
+	flex-wrap: nowrap;
+	align-items: stretch;
+	overflow-x: auto;
+	overflow-y: hidden;
+	scroll-snap-type: x mandatory;
+	-webkit-overflow-scrolling: touch;
+	padding: 8px 12px 12px 12px;
+	box-sizing: border-box;
+	gap: 8px;
+	scrollbar-width: thin;
+	scrollbar-color: rgba(255, 69, 0, 0.5) transparent;
+}
+
+.sa-fields-scroll::-webkit-scrollbar { height: 8px; }
+.sa-fields-scroll::-webkit-scrollbar-track {
+	background: rgba(255, 255, 255, 0.07);
+	border-radius: 8px;
+}
+.sa-fields-scroll::-webkit-scrollbar-thumb {
+	background: rgba(255, 69, 0, 0.5);
+	border-radius: 8px;
+}
+.sa-fields-scroll::-webkit-scrollbar-thumb:hover {
+	background: rgba(255, 69, 0, 0.75);
+}
+
+div.form-group label.control-label {
+	font-size: 14px !important;
+	font-weight: 700 !important;
+	margin-bottom: 8px;
+	color: #ffffff !important;
+	background: transparent !important;
+	letter-spacing: 0.2px;
+	display: block;
+}
+
+input[type="range"] {
+	-webkit-appearance: none;
+	width: 100%;
+	margin: 12px 0;
+	background: transparent;
+}
+input[type="range"]:focus { outline: none; }
+input[type="range"]::-webkit-slider-runnable-track {
+	width: 100%;
+	height: 8px;
+	cursor: pointer;
+	background: rgba(255, 255, 255, 0.2);
+	border-radius: 8px;
+}
+input[type="range"]::-webkit-slider-thumb {
+	height: 20px;
+	width: 20px;
+	border-radius: 50%;
+	background: #FF4500;
+	cursor: pointer;
+	-webkit-appearance: none;
+	margin-top: -6px;
+	box-shadow: 0 2px 8px rgba(255, 69, 0, 0.5);
+	border: 2px solid #ffffff;
+}
+
+div.form-group .btn-group { display: flex; gap: 8px; }
+
+div.form-group .btn-default {
+	background-color: transparent !important;
+	border: 1px solid rgba(255, 255, 255, 0.25) !important;
+	color: #E7E9EA !important;
+	border-radius: 99px !important;
+	padding: 6px 16px !important;
+	font-size: 14px !important;
+	font-weight: 600 !important;
+	transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+	box-shadow: none !important;
+	text-shadow: none !important;
+}
+
+div.form-group .btn-default:hover {
+	background-color: rgba(255, 69, 0, 0.15) !important;
+	border-color: rgba(255, 69, 0, 0.5) !important;
+}
+
+div.form-group .btn-default.active {
+	background-color: #FF4500 !important;
+	border-color: #FF4500 !important;
+	color: #ffffff !important;
+	box-shadow: 0 4px 12px rgba(255, 69, 0, 0.4) !important;
+	transform: scale(1.05);
+}
+
+.surveySubmitBtn {
+	background: linear-gradient(135deg, #FF4500, #cc3700) !important;
+	border: none !important;
+	color: white !important;
+	font-weight: 700 !important;
+	font-size: 14px !important;
+	border-radius: 12px !important;
+	padding: 0 16px !important;
+	margin: 0 !important;
+	cursor: pointer;
+	transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+	box-shadow: 0 4px 14px rgba(255, 69, 0, 0.35) !important;
+	flex: 0 0 auto !important;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	align-self: stretch !important;
+	min-width: 100px;
+	scroll-snap-align: center;
+	scroll-snap-stop: always;
+}
+
+.surveySubmitBtn:not(.ready-to-submit):not(.submitted):hover {
+	transform: translateY(-2px) !important;
+	box-shadow: 0 8px 20px rgba(255, 69, 0, 0.5) !important;
+	background: linear-gradient(135deg, #ff6a33, #FF4500) !important;
+}
+
+.surveySubmitBtn.ready-to-submit {
+	background: linear-gradient(135deg, #FF4500, #cc3700) !important;
+	border: none !important;
+	color: white !important;
+	box-shadow: 0 4px 16px rgba(255, 69, 0, 0.4) !important;
+	animation: pulseBtn 2s infinite;
+}
+
+.surveySubmitBtn.ready-to-submit:hover {
+	transform: translateY(-2px) !important;
+	box-shadow: 0 8px 24px rgba(255, 69, 0, 0.6) !important;
+	background: linear-gradient(135deg, #ff6a33, #FF4500) !important;
+}
+
+.surveySubmitBtn.submitted {
+	background: linear-gradient(135deg, #00BA7C, #009262) !important;
+	border: none !important;
+	color: white !important;
+	box-shadow: 0 4px 16px rgba(0, 186, 124, 0.4) !important;
+	animation: none !important;
+	cursor: default !important;
+}
+
+.surveySubmitBtn.submitted:hover {
+	transform: none !important;
+	box-shadow: 0 4px 16px rgba(0, 186, 124, 0.4) !important;
+}
+
+@keyframes pulseBtn {
+	0%   { box-shadow: 0 0 0 0 rgba(255, 69, 0, 0.6); }
+	70%  { box-shadow: 0 0 0 12px rgba(255, 69, 0, 0); }
+	100% { box-shadow: 0 0 0 0 rgba(255, 69, 0, 0); }
+}
+
+[data-theme="light"] div.form-group {
+	background: rgba(255, 255, 255, 0.9) !important;
+	border: 1px solid rgba(255, 69, 0, 0.15);
+	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+	color: #1c1c1c !important;
+}
+[data-theme="light"] div.form-group label.control-label { color: #1c1c1c !important; }
+[data-theme="light"] div.form-group .btn-default {
+	border-color: rgba(0, 0, 0, 0.2) !important;
+	color: #1c1c1c !important;
+}
+[data-theme="light"] div.form-group .btn-default:hover {
+	background-color: rgba(255, 69, 0, 0.07) !important;
+	border-color: rgba(255, 69, 0, 0.4) !important;
+}
+[data-theme="light"] div.form-group .btn-default.active { color: #ffffff !important; }
+[data-theme="light"] input[type="range"]::-webkit-slider-runnable-track {
+	background: rgba(0, 0, 0, 0.1);
+}
+[data-theme="light"] .sa-fields-scroll {
+	scrollbar-color: rgba(255, 69, 0, 0.35) transparent;
+}

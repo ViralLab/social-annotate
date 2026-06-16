@@ -512,7 +512,7 @@ if (!window.__socialAnnotate__._debugListenerAdded) {
     });
 }
 
-const _CAPTURED_KEYS = new Set(['body', 'created_at', 'media_urls', 'post_metrics', 'user_profile']);
+const _CAPTURED_KEYS = new Set(['body', 'created_at', 'media_urls', 'post_metrics', 'user_profile', 'subreddit', 'comment_depth', 'parent_post_id']);
 const _TOP_KEYS = new Set(['account_id', 'post_id', 'surveyType', 'studyID', 'clientID', 'submission_timestamp', 'survey_init_timestamp']);
 
 function restructureOutput(flat) {
@@ -594,6 +594,8 @@ function storeResults(surveyResults, socialMediaPlatform) {
                 platformURL = "https://truthsocial.com/";
             } else if (socialMediaPlatform == 'linkedin') {
                 platformURL = "https://www.linkedin.com/";
+            } else if (socialMediaPlatform == 'reddit') {
+                platformURL = "https://www.reddit.com/";
             }
 
             let surveyType = surveyResults.surveyType;
@@ -644,11 +646,18 @@ function storeResults(surveyResults, socialMediaPlatform) {
                 insertKey = surveyResults.account_id;
             } else if (surveyType === 'facebook-post') {
                 insertKey = surveyResults.post_id;
+            } else if (surveyType === 'reddit-post') {
+                insertKey = surveyResults.post_id;
+            } else if (surveyType === 'reddit-comment') {
+                insertKey = surveyResults.post_id;
+            } else if (surveyType === 'reddit-user') {
+                insertKey = surveyResults.account_id;
             }
 
             const _USER_SURVEY_TYPES = new Set([
                 'x-user', 'instagram-user', 'bluesky-user', 'truthsocial-user',
-                'linkedin-user', 'tiktok-user', 'mastodon-user', 'youtube-user', 'facebook-user'
+                'linkedin-user', 'tiktok-user', 'mastodon-user', 'youtube-user', 'facebook-user',
+                'reddit-user'
             ]);
             if (_USER_SURVEY_TYPES.has(surveyType)) {
                 delete surveyResults.post_id;

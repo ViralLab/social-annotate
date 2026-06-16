@@ -29,6 +29,19 @@ div.survey-container-post {
 	z-index: 9999;
 }
 
+div.survey-container-comment {
+	width: 100%;
+	height: auto;
+	min-height: 80px;
+	display: flex;
+	flex-wrap: wrap-reverse;
+	overflow: visible;
+	background-color: transparent;
+	position: relative;
+	z-index: 100;
+	margin-bottom: 4px;
+}
+
 div.survey-container-shorts {
 	height: auto;
 	min-height: 120px;

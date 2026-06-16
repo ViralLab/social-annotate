@@ -1,17 +1,21 @@
 const availableContextsYouTube = [
-    new Context('youtube-video', enableVideoSurvey, checkVideoURL),
-    new Context('youtube-user', injectYouTubeChannelSurvey, checkChannelURL)
+    new Context('youtube-video',   enableVideoSurvey,       checkVideoURL),
+    new Context('youtube-user',    injectYouTubeChannelSurvey, checkChannelURL),
+    new Context('youtube-comment', enableYTCommentObserver, checkVideoURL)
 ];
 
 let SEL_YT = {};
 let _processedCount_YT = 0;
 registerHealthCounter(function() { return _processedCount_YT; });
 
-let _ytVideoCtxActive = false;
-let _ytUserCtxActive = false;
+let _ytVideoCtxActive   = false;
+let _ytUserCtxActive    = false;
+let _ytCommentCtxActive = false;
 
-let _injectedVideoIds = new Set();
-let _channelInjected = '';
+let _injectedVideoIds   = new Set();
+let _injectedCommentIds = new Set();
+let _channelInjected    = '';
+let _ytCommentObserver  = null;
 
 // ── URL helpers ───────────────────────────────────────────────────────────────
 
@@ -133,6 +137,102 @@ function enableVideoSurvey() {
     [0, 1500, 4000].forEach(function(d) { setTimeout(processVideoPage, d); });
 }
 
+// ── Comments (watch page) ──────────────────────────────────────────────────────
+
+function extractYTCommentId(commentEl) {
+    let link = commentEl.querySelector(SEL_YT.commentIdLinkSel);
+    if (!link) return '';
+    let href = link.getAttribute('href') || '';
+    let m = href.match(/[?&]lc=([^&]+)/);
+    return m ? m[1] : '';
+}
+
+function extractYTCommentAuthor(commentEl) {
+    let el = commentEl.querySelector(SEL_YT.commentAuthorSel);
+    return el ? (el.innerText || el.textContent || '').trim() : '';
+}
+
+function extractYTCommentText(commentEl) {
+    let el = commentEl.querySelector(SEL_YT.commentContentSel);
+    return el ? (el.innerText || el.textContent || '').trim() : '';
+}
+
+function extractYTCommentTimestamp(commentEl) {
+    let el = commentEl.querySelector(SEL_YT.commentTimestampSel);
+    return el ? (el.innerText || el.textContent || '').trim() : null;
+}
+
+function extractYTCommentMetrics(commentEl) {
+    let metrics = { like_count: null, comment_count: null, share_count: null, view_count: null, bookmark_count: null, quote_count: null };
+    let likeEl = SEL_YT.commentLikeSel ? commentEl.querySelector(SEL_YT.commentLikeSel) : null;
+    if (likeEl) {
+        let raw = (likeEl.innerText || likeEl.textContent || '').trim().replace(/,/g, '');
+        let n = parseInt(raw, 10);
+        if (!isNaN(n)) metrics.like_count = n;
+    }
+    return metrics;
+}
+
+function processYTCommentNode(commentEl) {
+    let commentId = extractYTCommentId(commentEl);
+    if (!commentId || _injectedCommentIds.has(commentId)) return;
+    _injectedCommentIds.add(commentId);
+    _processedCount_YT++;
+
+    let surveyContainer = document.createElement('div');
+    surveyContainer.className = 'survey-container-comment';
+    surveyContainer.setAttribute('id', 'surveyFormContainer-' + commentId);
+    const shadowRoot = surveyContainer.attachShadow({ mode: 'open' });
+    let cssUrl = chrome.runtime.getURL('content-scripts/youtube/inject.css');
+    shadowRoot.innerHTML = '<iframe class="surveyIframe" src="' + chrome.runtime.getURL('sandbox/survey.html') + '" data-css="' + cssUrl + '" style="border:none; width:100%; height:100%; background:transparent;"></iframe>';
+
+    let injectionEl = SEL_YT.commentInjectionSel ? commentEl.querySelector(SEL_YT.commentInjectionSel) : null;
+    if (injectionEl) {
+        injectionEl.insertAdjacentElement('afterbegin', surveyContainer);
+    } else {
+        commentEl.insertAdjacentElement('beforebegin', surveyContainer);
+    }
+
+    let commentCtx = availableContextsYouTube.find(function(c) { return c.name === 'youtube-comment'; });
+    commentCtx.renderSurvey(
+        extractYTCommentAuthor(commentEl),
+        commentId,
+        {
+            body:         function() { return extractYTCommentText(commentEl); },
+            media_urls:   function() { return []; },
+            post_metrics: function() { return extractYTCommentMetrics(commentEl); },
+            created_at:   function() { return extractYTCommentTimestamp(commentEl); },
+            video_id:     function() { return getVideoID(); }
+        }
+    );
+}
+
+function enableYTCommentObserver() {
+    let commentSel = SEL_YT.commentContainer;
+    let commentTag = commentSel ? commentSel.toUpperCase() : '';
+
+    [2000, 5000, 10000].forEach(function(d) {
+        setTimeout(function() {
+            document.querySelectorAll(commentSel).forEach(processYTCommentNode);
+        }, d);
+    });
+
+    if (_ytCommentObserver) return;
+    _ytCommentObserver = new MutationObserver(function(mutations) {
+        for (let mutation of mutations) {
+            mutation.addedNodes.forEach(function(node) {
+                if (node.nodeType !== 1) return;
+                if (node.tagName === commentTag) {
+                    processYTCommentNode(node);
+                } else {
+                    node.querySelectorAll(commentSel).forEach(processYTCommentNode);
+                }
+            });
+        }
+    });
+    _ytCommentObserver.observe(document.body, { childList: true, subtree: true });
+}
+
 // ── Channel page ──────────────────────────────────────────────────────────────
 
 function extractChannelProfile() {
@@ -215,7 +315,7 @@ function injectYouTubeChannelSurvey() {
 function initializeSurveys() {
     chrome.storage.local.get(['config', 'isEnabled', 'activeTargetList', 'clientID', 'isGuided', 'selectors', 'manipulationMaps'], function(result) {
         const _rawYT = (result.selectors && result.selectors.youtube) ? result.selectors.youtube : {};
-        SEL_YT = Object.assign({}, _rawYT.shared || {}, _rawYT.account || {}, _rawYT.post || {});
+        SEL_YT = Object.assign({}, _rawYT.shared || {}, _rawYT.account || {}, _rawYT.post || {}, _rawYT.comment || {});
         watchPostCounter('youtube', function() { return _processedCount_YT; });
 
         const currentPlatform = 'youtube';
@@ -281,6 +381,8 @@ function initializeSurveys() {
                     currentContext.renderSurvey(surveyID, null, {
                         user_profile: function() { return extractChannelProfile(); }
                     });
+                } else if (currentContext.name === 'youtube-comment') {
+                    _ytCommentCtxActive = true;
                 }
             }
         }
@@ -302,13 +404,22 @@ function initializeSurveys() {
                     }, 1000);
                 }
             }
+            if (_ytCommentCtxActive && checkVideoURL()) {
+                _injectedCommentIds.clear();
+                let commentSel = SEL_YT.commentContainer;
+                [2000, 5000, 10000].forEach(function(d) {
+                    setTimeout(function() {
+                        document.querySelectorAll(commentSel).forEach(processYTCommentNode);
+                    }, d);
+                });
+            }
         });
     });
 }
 
 window.__socialAnnotate__.platformDebugCapture = function(selectors, stored) {
     let raw = selectors.youtube || {};
-    let SEL_D = Object.assign({}, raw.shared || {}, raw.account || {}, raw.post || {});
+    let SEL_D = Object.assign({}, raw.shared || {}, raw.account || {}, raw.post || {}, raw.comment || {});
     let activeSurvey = stored && stored.config && stored.config.activeSurveys && stored.config.activeSurveys[0];
 
     function probe(field) {
@@ -322,16 +433,18 @@ window.__socialAnnotate__.platformDebugCapture = function(selectors, stored) {
         }
     }
 
-    let isUser = activeSurvey ? activeSurvey.endsWith('-user') : checkChannelURL();
-    let section = isUser ? (raw.account || {}) : (raw.post || {});
+    let isUser    = activeSurvey ? activeSurvey.endsWith('-user')    : checkChannelURL();
+    let isComment = activeSurvey ? activeSurvey === 'youtube-comment' : false;
+    let section = isUser ? (raw.account || {}) : isComment ? (raw.comment || {}) : (raw.post || {});
     return {
         platform: 'youtube',
         surveyType: activeSurvey || (isUser ? 'youtube-user' : 'youtube-video'),
         injectionStatus: {
-            userSurveyInjected: !!document.getElementById('surveyFormContainer'),
-            postSurveysInjected: document.querySelectorAll('.survey-container-post').length
+            userSurveyInjected:    !!document.getElementById('surveyFormContainer'),
+            postSurveysInjected:   document.querySelectorAll('.survey-container-post').length,
+            commentSurveysInjected: _injectedCommentIds.size
         },
-        extractedData: { userID: crawlUserName(), profile: isUser ? extractChannelProfile() : {} },
+        extractedData: { userID: crawlUserName(), videoID: getVideoID(), profile: isUser ? extractChannelProfile() : {} },
         selectorDiagnostics: Object.keys(section).map(probe)
     };
 };

@@ -95,6 +95,54 @@
       "metricsViews": null,
       "metricsQuote": null,
       "metricsViewsPattern": null
+    },
+    "reel": {
+      "shared": {
+        "appRoot": "#react-root",
+        "observerFilter": {
+          "attributes": false,
+          "childList": true,
+          "subtree": true
+        }
+      },
+      "account": {
+        "userDisplayName": null,
+        "userHandle": null,
+        "userAvatar": "header img[alt]",
+        "userProfileAvatar": null,
+        "userProfileSchema": null,
+        "userBanner": null,
+        "userBio": null,
+        "userHeadline": null,
+        "userVerified": null,
+        "userFollowers": null,
+        "userFollowing": null,
+        "userConnections": null,
+        "userLocation": null,
+        "userJoinDate": null,
+        "userUrl": null,
+        "userLink": "a[href]"
+      },
+      "post": {
+        "postContainer": "div[aria-label=\"Video player\"][role=\"group\"]",
+        "postAuthorLink": "a[aria-label$=\" reels\"][role=\"link\"]",
+        "postText": "span[dir=\"auto\"]",
+        "postImage": null,
+        "postVideo": "video",
+        "postTimestamp": null,
+        "postLink": null,
+        "cardWrapper": null,
+        "conversationMessages": null,
+        "messageContainer": null,
+        "copyableText": null,
+        "metricsReply": null,
+        "metricsRepost": null,
+        "metricsLike": null,
+        "metricsBookmark": null,
+        "metricsViews": null,
+        "metricsQuote": null,
+        "metricsViewsPattern": null
+      }
     }
   },
   "bluesky": {
@@ -339,54 +387,6 @@
       "metricsViewsPattern": null
     }
   },
-  "instagram-reel": {
-    "shared": {
-      "appRoot": "#react-root",
-      "observerFilter": {
-        "attributes": false,
-        "childList": true,
-        "subtree": true
-      }
-    },
-    "account": {
-      "userDisplayName": null,
-      "userHandle": null,
-      "userAvatar": "header img[alt]",
-      "userProfileAvatar": null,
-      "userProfileSchema": null,
-      "userBanner": null,
-      "userBio": null,
-      "userHeadline": null,
-      "userVerified": null,
-      "userFollowers": null,
-      "userFollowing": null,
-      "userConnections": null,
-      "userLocation": null,
-      "userJoinDate": null,
-      "userUrl": null,
-      "userLink": "a[href]"
-    },
-    "post": {
-      "postContainer": "div[aria-label=\"Video player\"][role=\"group\"]",
-      "postAuthorLink": "a[aria-label$=\" reels\"][role=\"link\"]",
-      "postText": "span[dir=\"auto\"]",
-      "postImage": null,
-      "postVideo": "video",
-      "postTimestamp": null,
-      "postLink": null,
-      "cardWrapper": null,
-      "conversationMessages": null,
-      "messageContainer": null,
-      "copyableText": null,
-      "metricsReply": null,
-      "metricsRepost": null,
-      "metricsLike": null,
-      "metricsBookmark": null,
-      "metricsViews": null,
-      "metricsQuote": null,
-      "metricsViewsPattern": null
-    }
-  },
   "mastodon": {
     "shared": {
       "appRoot": "#mastodon",
@@ -481,6 +481,15 @@
       "metricsViews": "ytd-video-view-count-renderer span.view-count, #count .view-count",
       "metricsQuote": null,
       "metricsViewsPattern": null
+    },
+    "comment": {
+      "commentContainer": "ytd-comment-view-model",
+      "commentContentSel": "#content-text",
+      "commentAuthorSel": "#author-text span, #author-text yt-formatted-string",
+      "commentIdLinkSel": "#published-time-text a[href]",
+      "commentTimestampSel": "#published-time-text a",
+      "commentLikeSel": "#vote-count-middle",
+      "commentInjectionSel": "#main"
     }
   },
   "facebook": {
@@ -488,7 +497,9 @@
       "appRoot": "[id^=mount]",
       "observerFilter": {
         "attributes": true,
-        "attributeFilter": ["data-virtualized"],
+        "attributeFilter": [
+          "data-virtualized"
+        ],
         "childList": true,
         "subtree": true
       }
@@ -588,7 +599,10 @@
   "reddit": {
     "shared": {
       "appRoot": "shreddit-app",
-      "observerFilter": { "childList": true, "subtree": true }
+      "observerFilter": {
+        "childList": true,
+        "subtree": true
+      }
     },
     "account": {
       "userDisplayName": "[data-testid='profile-display-name']",

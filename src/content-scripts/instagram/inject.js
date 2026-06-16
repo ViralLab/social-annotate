@@ -655,7 +655,7 @@ function initializeSurveys() {
         // Load selectors into the module-level variables
         const _rawIG = (result.selectors && result.selectors.instagram) ? result.selectors.instagram : {};
         SEL_IG = { ...(_rawIG.shared || {}), ...(_rawIG.account || {}), ...(_rawIG.post || {}) };
-        const _rawIGR = (result.selectors && result.selectors['instagram-reel']) ? result.selectors['instagram-reel'] : {};
+        const _rawIGR = (result.selectors && result.selectors.instagram && result.selectors.instagram.reel) ? result.selectors.instagram.reel : {};
         SEL_IGR = { ...(_rawIGR.shared || {}), ...(_rawIGR.account || {}), ...(_rawIGR.post || {}) };
         watchPostCounter('instagram', function () { return _processedCount_IG; });
 

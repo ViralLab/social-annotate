@@ -626,6 +626,36 @@ var config = {
                 ]
             }
         },
+        "youtube-comment": {
+            "socialMediaPlatform": "youtube",
+            "injectElement": {},
+            "studyID": "youtube-comment-study",
+            "mediaDownloadFolder": "",
+            "theme": "light",
+            "informedConsent": DEFAULT_CONSENT,
+            "screenNameList": [],
+            "surveyFormSchema": {
+                "schema": {
+                    "hatespeech": {
+                        "type": "string",
+                        "title": "Does this comment contain HateSpeech?",
+                        "enum": ["Yes", "No"],
+                        "required": true
+                    }
+                },
+                "form": [
+                    {
+                        "key": "hatespeech",
+                        "type": "radiobuttons"
+                    },
+                    {
+                        "type": "submit",
+                        "title": "Submit",
+                        "htmlClass": "surveySubmitBtn"
+                    }
+                ]
+            }
+        },
         "facebook-user": {
             "socialMediaPlatform": "facebook",
             "injectElement": {},

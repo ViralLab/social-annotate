@@ -512,7 +512,7 @@ if (!window.__socialAnnotate__._debugListenerAdded) {
     });
 }
 
-const _CAPTURED_KEYS = new Set(['body', 'created_at', 'media_urls', 'post_metrics', 'user_profile', 'subreddit', 'comment_depth', 'parent_post_id']);
+const _CAPTURED_KEYS = new Set(['body', 'created_at', 'media_urls', 'post_metrics', 'user_profile', 'subreddit', 'comment_depth', 'parent_post_id', 'video_id']);
 const _TOP_KEYS = new Set(['account_id', 'post_id', 'surveyType', 'studyID', 'clientID', 'submission_timestamp', 'survey_init_timestamp']);
 
 function restructureOutput(flat) {
@@ -642,6 +642,8 @@ function storeResults(surveyResults, socialMediaPlatform) {
                 insertKey = surveyResults.post_id;
             } else if (surveyType === 'youtube-user') {
                 insertKey = surveyResults.account_id;
+            } else if (surveyType === 'youtube-comment') {
+                insertKey = surveyResults.post_id;
             } else if (surveyType === 'facebook-user') {
                 insertKey = surveyResults.account_id;
             } else if (surveyType === 'facebook-post') {

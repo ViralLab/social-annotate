@@ -96,6 +96,11 @@
       "metricsQuote": null,
       "metricsViewsPattern": null
     },
+    "comment": {
+      "commentTimestampAnchor": "a[href*='/c/'][role='link']",
+      "commentText": "span[dir='auto']",
+      "commentAuthorLink": "a[role='link']:not([href*='/c/'])"
+    },
     "reel": {
       "shared": {
         "appRoot": "#react-root",

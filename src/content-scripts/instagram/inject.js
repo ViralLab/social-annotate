@@ -2,12 +2,16 @@
 const availableContextsInstagram = [
     new Context('instagram-user', injectInstagramUserSurvey, checkUserURL),
     new Context('instagram-post', () => {}, () => !isReelPage()),
-    new Context('instagram-reel', () => {}, isReelPage)
+    new Context('instagram-reel', () => {}, isReelPage),
+    new Context('instagram-comment', () => {}, () => true)
 ];
 
 // Selectors loaded from storage (populated by initializeSurveys)
 let SEL_IG = {};
 let SEL_IGR = {};
+let SEL_IGC = {};
+
+const _injectedIGComments = new Set();
 
 if (!window.__socialAnnotate__) window.__socialAnnotate__ = {};
 if (!window.__socialAnnotate__.instagramApiMediaMap) window.__socialAnnotate__.instagramApiMediaMap = {};
@@ -210,6 +214,170 @@ function _igFetchReelUrlFallback(postID, postOwner, postSurveyType) {
     });
 }
 
+function isPostOrReelPage() {
+    if (window.location.protocol === 'file:') return true;
+    let path = window.location.pathname;
+    return /^\/p\/[^/]+/.test(path) || /^\/reel\/[^/]+/.test(path);
+}
+
+function findCommentBlock(anchor, containerHint) {
+    // Strategy 1: div whose parent is UL (post-page comment list structure)
+    let el = anchor;
+    for (let i = 0; i < 15; i++) {
+        if (!el.parentElement) break;
+        el = el.parentElement;
+        if (el.tagName === 'DIV' && el.parentElement && el.parentElement.tagName === 'UL') {
+            console.log('[SA-IGC] findCommentBlock: UL-child strategy');
+            return el;
+        }
+        if (el.tagName === 'ARTICLE' || el.tagName === 'BODY') break;
+    }
+
+    // Strategy 2: use the observer's container hint (reel comment panel adds one div per comment)
+    if (containerHint && containerHint !== document.body && containerHint.contains && containerHint.contains(anchor)) {
+        let profileLink = containerHint.querySelector(SEL_IGC.commentAuthorLink || 'a[role="link"]:not([href*="/c/"])');
+        if (profileLink) {
+            console.log('[SA-IGC] findCommentBlock: containerHint strategy');
+            return containerHint;
+        }
+    }
+
+    // Strategy 3: walk up, track the OUTERMOST div that still has exactly 1 /c/ anchor
+    // (stops when parent contains multiple comment anchors — that's the list container)
+    el = anchor.parentElement;
+    let lastSingleAnchorDiv = null;
+    while (el && el !== document.body) {
+        if (el.tagName === 'DIV') {
+            let count = el.querySelectorAll(SEL_IGC.commentTimestampAnchor || 'a[href*="/c/"][role="link"]').length;
+            if (count === 1) {
+                lastSingleAnchorDiv = el;
+            } else if (count > 1) {
+                break;
+            }
+        }
+        el = el.parentElement;
+    }
+    if (lastSingleAnchorDiv && lastSingleAnchorDiv.querySelector(SEL_IGC.commentAuthorLink || 'a[role="link"]:not([href*="/c/"])')) {
+        console.log('[SA-IGC] findCommentBlock: outermost single-anchor strategy');
+        return lastSingleAnchorDiv;
+    }
+
+    console.log('[SA-IGC] findCommentBlock: all strategies failed for:', anchor.getAttribute('href'));
+    return null;
+}
+
+function extractInstagramCommentData(anchor, commentBlock) {
+    let href = anchor.getAttribute('href') || '';
+    let commentIdMatch = href.match(/\/c\/(\d+)/);
+    if (!commentIdMatch) return null;
+
+    // Replies: /p/POST/c/PARENT_ID/r/REPLY_ID/ — depth=1, parent comment = PARENT_ID
+    let replyIdMatch = href.match(/\/r\/(\d+)/);
+    let commentId        = replyIdMatch ? replyIdMatch[1] : commentIdMatch[1];
+    let commentDepth     = replyIdMatch ? 1 : 0;
+    let parentCommentId  = replyIdMatch ? commentIdMatch[1] : null;
+
+    let parentPostId = null;
+    let postMatch = href.match(/\/p\/([A-Za-z0-9_-]+)\/c\//);
+    if (postMatch) parentPostId = postMatch[1];
+    else { let reelMatch = href.match(/\/reel\/([A-Za-z0-9_-]+)\/c\//); if (reelMatch) parentPostId = reelMatch[1]; }
+
+    let author = null;
+    let authorLinkSel = SEL_IGC.commentAuthorLink || 'a[role="link"]:not([href*="/c/"])';
+    let authorLinks = commentBlock.querySelectorAll(authorLinkSel);
+    for (let link of authorLinks) {
+        let lhref = link.getAttribute('href') || '';
+        let m = lhref.match(/instagram\.com\/([a-zA-Z0-9_.]+)\/?$/) || lhref.match(/^\/([a-zA-Z0-9_.]+)\/?$/);
+        if (m && m[1]) { author = m[1]; break; }
+    }
+
+    let body = '';
+    let textSel = SEL_IGC.commentText || 'span[dir="auto"]';
+    commentBlock.querySelectorAll(textSel).forEach(function(span) {
+        if (span.closest('a')) return;
+        let txt = (span.innerText || span.textContent || '').trim();
+        if (txt.length > body.length) body = txt;
+    });
+
+    let timeEl = anchor.querySelector('time[datetime]');
+    let createdAt = timeEl ? timeEl.getAttribute('datetime') : null;
+
+    let likeCount = null;
+    let allSpans = commentBlock.querySelectorAll('span');
+    for (let span of allSpans) {
+        let txt = (span.innerText || span.textContent || '').trim();
+        let m = txt.match(/^([\d,]+)\s+like/i);
+        if (m) { likeCount = parseInt(m[1].replace(/,/g, ''), 10); break; }
+    }
+
+    let replyCount = null;
+    for (let span of allSpans) {
+        let txt = (span.innerText || span.textContent || '').trim();
+        let m = txt.match(/(?:View(?:\s+all)?\s+)?(\d+)\s+repl/i);
+        if (m) { replyCount = parseInt(m[1], 10); break; }
+    }
+
+    console.log('[SA-IGC] extractCommentData | id:', commentId, '| depth:', commentDepth, '| author:', author, '| parentPost:', parentPostId, '| parentComment:', parentCommentId, '| body:', body.slice(0, 60));
+    return { commentId, commentDepth, parentCommentId, parentPostId, author, body, createdAt, likeCount, replyCount };
+}
+
+function processInstagramCommentAnchor(anchor) {
+    let commentCtx = availableContextsInstagram.find(function(c) { return c.name === 'instagram-comment'; });
+    if (!commentCtx || !commentCtx.formTemplate) {
+        console.log('[SA-IGC] processInstagramCommentAnchor: context not ready | formTemplate:', commentCtx && commentCtx.formTemplate);
+        return;
+    }
+
+    let href = anchor.getAttribute('href') || '';
+    // Replies have /r/REPLY_ID after /c/PARENT_ID — use reply ID as the unique key
+    let replyIdMatch  = href.match(/\/r\/(\d+)/);
+    let commentIdMatch = href.match(/\/c\/(\d+)/);
+    if (!commentIdMatch) {
+        console.log('[SA-IGC] anchor has no /c/ pattern, skipping:', href);
+        return;
+    }
+    let commentId = replyIdMatch ? replyIdMatch[1] : commentIdMatch[1];
+
+    if (_injectedIGComments.has(commentId)) return;
+
+    let commentBlock = findCommentBlock(anchor);
+    if (!commentBlock) {
+        console.log('[SA-IGC] no commentBlock found for commentId:', commentId);
+        return;
+    }
+
+    let data = extractInstagramCommentData(anchor, commentBlock);
+    if (!data || !data.author) {
+        console.log('[SA-IGC] missing data for commentId:', commentId, '| data:', data);
+        return;
+    }
+
+    console.log('[SA-IGC] INJECTING survey | commentId:', commentId, '| author:', data.author);
+    _injectedIGComments.add(commentId);
+    _processedCount_IG++;
+
+    let surveyContainer = document.createElement('div');
+    surveyContainer.className = 'survey-container-comment';
+    surveyContainer.id = 'surveyFormContainer-' + commentId;
+    surveyContainer.style.cssText = 'width:100%;min-height:80px;display:block;overflow:visible;background:transparent;position:relative;z-index:100;box-sizing:border-box;zoom:0.85;';
+    let shadowRoot = surveyContainer.attachShadow({ mode: 'open' });
+    let cssUrl = chrome.runtime.getURL('content-scripts/instagram/inject.css');
+    shadowRoot.innerHTML = '<iframe class="surveyIframe" src="' + chrome.runtime.getURL('sandbox/survey.html') + '" data-css="' + cssUrl + '" style="border:none;width:100%;height:80px;background:transparent;"></iframe>';
+
+    commentBlock.prepend(surveyContainer);
+    console.log('[SA-IGC] container appended to commentBlock:', commentBlock.tagName, commentBlock.className.slice(0, 60));
+
+    commentCtx.renderSurvey(data.author, data.commentId, {
+        body:              function() { return data.body; },
+        created_at:        function() { return data.createdAt; },
+        media_urls:        function() { return []; },
+        post_metrics:      function() { return { like_count: data.likeCount, comment_count: data.replyCount, share_count: null, view_count: null, bookmark_count: null, quote_count: null }; },
+        parent_post_id:    function() { return data.parentPostId; },
+        comment_depth:     function() { return data.commentDepth; },
+        parent_comment_id: function() { return data.parentCommentId; }
+    });
+}
+
 function crawlUserName() {
     if (window.location.protocol === 'file:' || window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
         let handleEl = document.querySelector(SEL_IG.userHandle || 'header section h2, header h2');
@@ -268,6 +436,11 @@ function observeReelContainers() {
         var codeInUrl = extractReelShortcodeFromUrl(String(url || ''));
         console.log('[SA-R-1] pushState/replaceState fired | url code:', codeInUrl, '| currentReelShortcode (unchanged):', currentReelShortcode);
         setTimeout(processCurrentReel, 150);
+        // Re-scan for comments after SPA navigation (post modal open, reel-to-reel, etc.)
+        var _commentSel = SEL_IGC.commentTimestampAnchor || "a[href*='/c/'][role='link']";
+        [300, 1200, 2500].forEach(function(d) {
+            setTimeout(function() { document.querySelectorAll(_commentSel).forEach(processInstagramCommentAnchor); }, d);
+        });
     }
     history.pushState = function(state, title, url) {
         var r = origPush.apply(this, arguments);
@@ -746,6 +919,22 @@ function createObserver() {
             if (mutation.type === 'childList') {
                 mutation.addedNodes.forEach(node => {
                     if (node.nodeType === 1) { // ELEMENT_NODE
+                        // Check for comment anchors on any page (post, reel, or feed modal)
+                        let commentCtx = availableContextsInstagram.find(function(c) { return c.name === 'instagram-comment'; });
+                        if (commentCtx && commentCtx.formTemplate) {
+                            let commentSel = SEL_IGC.commentTimestampAnchor || "a[href*='/c/'][role='link']";
+                            if (node.matches && node.matches(commentSel)) {
+                                console.log('[SA-IGC] observer: direct comment anchor match', node.getAttribute('href'));
+                                processInstagramCommentAnchor(node);
+                            } else if (node.querySelectorAll) {
+                                let found = node.querySelectorAll(commentSel);
+                                if (found.length) console.log('[SA-IGC] observer: found', found.length, 'comment anchor(s) inside added node', node.tagName, node.className && node.className.slice(0,40));
+                                found.forEach(processInstagramCommentAnchor);
+                            }
+                        } else {
+                            console.log('[SA-IGC] observer: comment context not ready (formTemplate null), skipping node');
+                        }
+
                         if (isReelPage()) {
                             let reelSel = SEL_IGR.postContainer || 'div[aria-label="Video player"][role="group"]';
                             if (node.matches && node.matches(reelSel)) {
@@ -779,6 +968,7 @@ function initializeSurveys() {
         SEL_IG = { ...(_rawIG.shared || {}), ...(_rawIG.account || {}), ...(_rawIG.post || {}) };
         const _rawIGR = (result.selectors && result.selectors.instagram && result.selectors.instagram.reel) ? result.selectors.instagram.reel : {};
         SEL_IGR = { ...(_rawIGR.shared || {}), ...(_rawIGR.account || {}), ...(_rawIGR.post || {}) };
+        SEL_IGC = (_rawIG.comment) ? { ..._rawIG.comment } : {};
         watchPostCounter('instagram', function () { return _processedCount_IG; });
 
         // Load manipulation map for instagram-post
@@ -855,9 +1045,10 @@ function initializeSurveys() {
                 currentContext.formTemplate = config.surveyFormSchema;
                 currentContext.theme = config.theme || "light";
                 currentContext.submitAction = submitAction;
+                console.log('[SA-IGC] context activated:', currentContext.name);
 
-                if (currentContext.name === 'instagram-reel') {
-                    // No page-level injection; processCurrentReel() handles per-reel injection
+                if (currentContext.name === 'instagram-reel' || currentContext.name === 'instagram-comment') {
+                    // No page-level injection; per-item injection is handled by processInstagramCommentAnchor / processCurrentReel
                 } else {
                     currentContext.injectSurvey(config.injectElement);
                     if (currentContext.name === 'instagram-user') {
@@ -885,6 +1076,18 @@ function initializeSurveys() {
                 document.querySelectorAll(SEL_IG.postContainer || 'article').forEach(processInstagramArticleNode);
             }, 1500);
         }
+
+        // Scan for comment anchors already in the DOM (post/reel detail pages)
+        let commentSel = SEL_IGC.commentTimestampAnchor || "a[href*='/c/'][role='link']";
+        console.log('[SA-IGC] init scan | sel:', commentSel, '| found:', document.querySelectorAll(commentSel).length, '| url:', window.location.pathname);
+        document.querySelectorAll(commentSel).forEach(processInstagramCommentAnchor);
+        [1500, 3500].forEach(function(d) {
+            setTimeout(function() {
+                let found = document.querySelectorAll(commentSel);
+                console.log('[SA-IGC] delayed scan @' + d + 'ms | found:', found.length, '| url:', window.location.pathname);
+                found.forEach(processInstagramCommentAnchor);
+            }, d);
+        });
     });
 }
 
@@ -932,3 +1135,16 @@ window.__socialAnnotate__.platformDebugCapture = function(selectors, stored) {
 
 // Fire the survey initializer on script load — observer is started inside once formTemplate is ready
 initializeSurveys();
+
+// Re-initialize when the user toggles surveys in the popup (no page reload needed).
+// This is critical for instagram-comment: the comment section only appears after a user
+// click, so we must be ready before that click even if config changed after page load.
+chrome.storage.onChanged.addListener(function(changes, area) {
+    if (area !== 'local') return;
+    if (changes.config || changes.isEnabled) {
+        igObserver.disconnect();
+        availableContextsInstagram.forEach(function(ctx) { ctx.formTemplate = null; });
+        _injectedIGComments.clear();
+        initializeSurveys();
+    }
+});

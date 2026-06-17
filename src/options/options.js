@@ -111,7 +111,7 @@ function loadPage() {
             { label: 'Bluesky',     keys: ['bluesky-user', 'bluesky-post'] },
             { label: 'Mastodon',    keys: ['mastodon-user', 'mastodon-post'] },
             { label: 'TruthSocial', keys: ['truthsocial-user', 'truthsocial-post'] },
-            { label: 'Instagram',   keys: ['instagram-user', 'instagram-post', 'instagram-reel'] },
+            { label: 'Instagram',   keys: ['instagram-user', 'instagram-post', 'instagram-comment', 'instagram-reel'] },
             { label: 'TikTok',      keys: ['tiktok-user', 'tiktok-reel'] },
             { label: 'Facebook',    keys: ['facebook-user', 'facebook-post'] },
             { label: 'Telegram',    keys: ['telegram-post'] },

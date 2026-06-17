@@ -275,8 +275,8 @@
         "*://mastodon.social/*",
         "*://fosstodon.org/*",
         "file:///*",
-        "http://127.0.0.1/test_fixtures/mastadon/*",
-        "http://localhost/test_fixtures/mastadon/*"
+        "http://127.0.0.1/test_fixtures/mastodon/*",
+        "http://localhost/test_fixtures/mastodon/*"
       ],
       "run_at": "document_end",
       "css": [
@@ -381,9 +381,15 @@
     },
     {
       "matches": [
-        "*://www.reddit.com/*"
+        "*://www.reddit.com/*",
+        "http://127.0.0.1/test_fixtures/reddit/*",
+        "http://localhost/test_fixtures/reddit/*"
       ],
       "run_at": "document_end",
+      "css": [
+        "content-scripts/reddit/inject.css",
+        "dep/jsonform/deps/opt/bootstrap.css"
+      ],
       "js": [
         "dep/analytics.js",
         "dep/jsonform/deps/jquery.min.js",

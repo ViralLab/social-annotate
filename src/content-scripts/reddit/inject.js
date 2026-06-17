@@ -27,6 +27,7 @@ function checkRedditUserURL() {
 
 function checkRedditCommentURL() {
     if (window.location.protocol === 'file:') return true;
+    if (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') return true;
     return /\/r\/[^/]+\/comments\//.test(window.location.pathname) || checkRedditUserURL();
 }
 

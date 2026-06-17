@@ -192,6 +192,36 @@ var config = {
                 ]
             }
         },
+        "instagram-comment": {
+            "socialMediaPlatform": "instagram",
+            "injectElement": {},
+            "studyID": "instagram-comment-study",
+            "mediaDownloadFolder": "",
+            "theme": "light",
+            "informedConsent": DEFAULT_CONSENT,
+            "screenNameList": [],
+            "surveyFormSchema": {
+                "schema": {
+                    "hatespeech": {
+                        "type": "string",
+                        "title": "Does this comment contain HateSpeech?",
+                        "enum": ["Yes", "No"],
+                        "required": true
+                    }
+                },
+                "form": [
+                    {
+                        "key": "hatespeech",
+                        "type": "radiobuttons"
+                    },
+                    {
+                        "type": "submit",
+                        "title": "Submit",
+                        "htmlClass": "surveySubmitBtn"
+                    }
+                ]
+            }
+        },
         "bluesky-post": {
             "socialMediaPlatform": "bluesky",
             "injectElement": {},

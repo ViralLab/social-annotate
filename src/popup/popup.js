@@ -35,20 +35,25 @@ function refresh_page() {
     });
 }
 
-// ── Custom dropdown ───────────────────────────────────────
-let dropdownEl = document.getElementById('survey-dropdown');
-let triggerBtn = document.getElementById('dropdown-trigger');
-let menuList = document.getElementById('dropdown-menu');
+// ── Survey dropdowns ──────────────────────────────────────
+let platformDropdownEl = document.getElementById('platform-dropdown');
+let platformTrigger    = document.getElementById('platform-trigger');
+let platformMenu       = document.getElementById('platform-menu');
+let typeDropdownEl     = document.getElementById('type-dropdown');
+let typeTrigger        = document.getElementById('type-trigger');
+let typeMenu           = document.getElementById('type-menu');
 
-triggerBtn.addEventListener('click', function () {
-    dropdownEl.classList.toggle('open');
+platformTrigger.addEventListener('click', function () {
+    platformDropdownEl.classList.toggle('open');
+    typeDropdownEl.classList.remove('open');
 });
-
-// Close dropdown when clicking outside
+typeTrigger.addEventListener('click', function () {
+    typeDropdownEl.classList.toggle('open');
+    platformDropdownEl.classList.remove('open');
+});
 document.addEventListener('click', function (e) {
-    if (!dropdownEl.contains(e.target)) {
-        dropdownEl.classList.remove('open');
-    }
+    if (!platformDropdownEl.contains(e.target)) platformDropdownEl.classList.remove('open');
+    if (!typeDropdownEl.contains(e.target)) typeDropdownEl.classList.remove('open');
 });
 
 // ── Feed health ───────────────────────────────────────────
@@ -214,52 +219,104 @@ document.getElementById('nav-next').addEventListener('click', function () {
     }
 });
 
-// ── Populate dropdown ─────────────────────────────────────
+// ── Populate dropdowns ────────────────────────────────────
+var SURVEY_GROUPS = [
+    { label: 'X',           keys: ['x-user', 'x-post'] },
+    { label: 'Bluesky',     keys: ['bluesky-user', 'bluesky-post'] },
+    { label: 'Mastodon',    keys: ['mastodon-user', 'mastodon-post'] },
+    { label: 'TruthSocial', keys: ['truthsocial-user', 'truthsocial-post'] },
+    { label: 'Instagram',   keys: ['instagram-user', 'instagram-post', 'instagram-reel'] },
+    { label: 'TikTok',      keys: ['tiktok-user', 'tiktok-reel'] },
+    { label: 'Facebook',    keys: ['facebook-user', 'facebook-post'] },
+    { label: 'Telegram',    keys: ['telegram-post'] },
+    { label: 'WhatsApp',    keys: ['whatsapp-post'] },
+    { label: 'YouTube',     keys: ['youtube-user', 'youtube-video', 'youtube-comment'] },
+    { label: 'Reddit',      keys: ['reddit-user', 'reddit-post', 'reddit-comment'] },
+    { label: 'LinkedIn',    keys: ['linkedin-user', 'linkedin-post'] },
+];
+
+function getTypeLabel(surveyKey, group) {
+    let prefix = group.keys[0].slice(0, group.keys[0].lastIndexOf('-') + 1);
+    return surveyKey.startsWith(prefix) ? surveyKey.slice(prefix.length) : surveyKey;
+}
+
+var _surveysConfig = {};
+var _activeGroup = null;
+
+function selectSurvey(surveyKey) {
+    if (!_activeGroup) return;
+    document.getElementById('type-id').textContent = getTypeLabel(surveyKey, _activeGroup);
+    typeMenu.querySelectorAll('li').forEach(l => l.classList.remove('active'));
+    let li = typeMenu.querySelector('li[data-key="' + surveyKey + '"]');
+    if (li) li.classList.add('active');
+
+    chrome.storage.local.get('config', function (d) {
+        d.config.activeSurveys = [surveyKey];
+        let newTargetList = d.config.surveys[surveyKey] && d.config.surveys[surveyKey].screenNameList
+            ? [...d.config.surveys[surveyKey].screenNameList] : [];
+        chrome.storage.local.set({
+            'config': d.config,
+            'activeTargetList': newTargetList
+        }, function () {
+            updateAnnotationCount();
+            updateGuidedPanel();
+            updateMediaToggles(surveyKey);
+            refresh_page();
+        });
+    });
+}
+
+function populateTypeMenu(group, surveys, activeSurvey) {
+    typeMenu.innerHTML = '';
+    group.keys.filter(k => surveys[k]).forEach(function (key) {
+        let li = document.createElement('li');
+        li.textContent = getTypeLabel(key, group);
+        li.dataset.key = key;
+        if (key === activeSurvey) li.classList.add('active');
+        li.addEventListener('click', function () {
+            typeDropdownEl.classList.remove('open');
+            selectSurvey(this.dataset.key);
+        });
+        typeMenu.appendChild(li);
+    });
+}
+
 chrome.storage.local.get('config', function (data) {
     if (!data || !data.config || !data.config.surveys) return;
-    for (let key in data.config.surveys) {
-        let li = document.createElement('li');
-        li.textContent = key;
-        li.dataset.key = key;
-
-        li.addEventListener('click', function () {
-            let chosenSurvey = this.dataset.key;
-            document.getElementById('survey-id').textContent = chosenSurvey;
-            dropdownEl.classList.remove('open');
-
-            // Mark active
-            menuList.querySelectorAll('li').forEach(l => l.classList.remove('active'));
-            this.classList.add('active');
-
-            // Update stored config
-            chrome.storage.local.get('config', function (d) {
-                d.config.activeSurveys = [chosenSurvey];
-                let newTargetList = d.config.surveys[chosenSurvey] && d.config.surveys[chosenSurvey].screenNameList
-                    ? [...d.config.surveys[chosenSurvey].screenNameList] : [];
-
-                chrome.storage.local.set({
-                    'config': d.config,
-                    'activeTargetList': newTargetList
-                }, function () {
-                    updateAnnotationCount();
-                    updateGuidedPanel();
-                    updateMediaToggles(chosenSurvey);
-                    refresh_page();
-                });
-            });
-        });
-
-        menuList.appendChild(li);
-    }
-
-    // Set the default active survey
+    _surveysConfig = data.config.surveys;
     let activeSurvey = data.config.activeSurveys[0];
-    document.getElementById('survey-id').textContent = activeSurvey;
 
-    // Mark the active item in dropdown
-    menuList.querySelectorAll('li').forEach(li => {
-        if (li.dataset.key === activeSurvey) li.classList.add('active');
+    SURVEY_GROUPS.forEach(function (group) {
+        let groupKeys = group.keys.filter(k => _surveysConfig[k]);
+        if (groupKeys.length === 0) return;
+
+        let li = document.createElement('li');
+        li.textContent = group.label;
+        li.dataset.label = group.label;
+        li.addEventListener('click', function () {
+            _activeGroup = group;
+            document.getElementById('platform-id').textContent = group.label;
+            platformMenu.querySelectorAll('li').forEach(l => l.classList.remove('active'));
+            this.classList.add('active');
+            platformDropdownEl.classList.remove('open');
+
+            let firstKey = group.keys.find(k => _surveysConfig[k]);
+            populateTypeMenu(group, _surveysConfig, null);
+            if (firstKey) selectSurvey(firstKey);
+        });
+        platformMenu.appendChild(li);
     });
+
+    let activeGroup = SURVEY_GROUPS.find(g => g.keys.includes(activeSurvey));
+    if (activeGroup) {
+        _activeGroup = activeGroup;
+        document.getElementById('platform-id').textContent = activeGroup.label;
+        platformMenu.querySelectorAll('li').forEach(function (li) {
+            if (li.dataset.label === activeGroup.label) li.classList.add('active');
+        });
+        populateTypeMenu(activeGroup, _surveysConfig, activeSurvey);
+        document.getElementById('type-id').textContent = getTypeLabel(activeSurvey, activeGroup);
+    }
 
     updateAnnotationCount();
     updateGuidedPanel();

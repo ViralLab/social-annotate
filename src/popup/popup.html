@@ -28,12 +28,21 @@
   <!-- Survey selector -->
   <section class="survey-selector">
     <label class="selector-label">Active Survey</label>
-    <div class="custom-dropdown" id="survey-dropdown">
-      <button class="dropdown-trigger" id="dropdown-trigger">
-        <span id="survey-id">—</span>
-        <svg class="dropdown-caret" width="10" height="6" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
-      </button>
-      <ul class="dropdown-list" id="dropdown-menu"></ul>
+    <div class="survey-selector-row">
+      <div class="custom-dropdown" id="platform-dropdown">
+        <button class="dropdown-trigger" id="platform-trigger">
+          <span id="platform-id">—</span>
+          <svg class="dropdown-caret" width="10" height="6" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+        </button>
+        <ul class="dropdown-list" id="platform-menu"></ul>
+      </div>
+      <div class="custom-dropdown" id="type-dropdown">
+        <button class="dropdown-trigger" id="type-trigger">
+          <span id="type-id">—</span>
+          <svg class="dropdown-caret" width="10" height="6" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+        </button>
+        <ul class="dropdown-list" id="type-menu"></ul>
+      </div>
     </div>
   </section>
 

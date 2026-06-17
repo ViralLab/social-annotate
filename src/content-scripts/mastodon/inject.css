@@ -224,17 +224,17 @@ div.form-group .btn-default.active {
 }
 
 .surveySubmitBtn.ready-to-submit {
-	background: linear-gradient(135deg, #6364FF, #4f50d4) !important;
+	background: linear-gradient(135deg, #1d9bf0, #1a8cd8) !important;
 	border: none !important;
 	color: white !important;
-	box-shadow: 0 4px 16px rgba(99, 100, 255, 0.4) !important;
+	box-shadow: 0 4px 16px rgba(29, 155, 240, 0.4) !important;
 	animation: pulseBtn 2s infinite;
 }
 
 .surveySubmitBtn.ready-to-submit:hover {
 	transform: translateY(-2px) !important;
-	box-shadow: 0 8px 24px rgba(99, 100, 255, 0.6) !important;
-	background: linear-gradient(135deg, #7e7fff, #6364FF) !important;
+	box-shadow: 0 8px 24px rgba(29, 155, 240, 0.6) !important;
+	background: linear-gradient(135deg, #4cb0f9, #1d9bf0) !important;
 }
 
 .surveySubmitBtn.submitted {
@@ -252,9 +252,9 @@ div.form-group .btn-default.active {
 }
 
 @keyframes pulseBtn {
-    0% { box-shadow: 0 0 0 0 rgba(99, 100, 255, 0.6); }
-    70% { box-shadow: 0 0 0 12px rgba(99, 100, 255, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(99, 100, 255, 0); }
+    0% { box-shadow: 0 0 0 0 rgba(29, 155, 240, 0.6); }
+    70% { box-shadow: 0 0 0 12px rgba(29, 155, 240, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(29, 155, 240, 0); }
 }
 
 [data-theme="light"] div.form-group {

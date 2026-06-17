@@ -245,17 +245,17 @@ div.form-group .btn-default.active {
 
 /* Stage 2: BLUE — annotation selected, ready to submit */
 .surveySubmitBtn.ready-to-submit {
-	background: linear-gradient(135deg, #0085FF, #006ad5) !important;
+	background: linear-gradient(135deg, #1d9bf0, #1a8cd8) !important;
 	border: none !important;
 	color: white !important;
-	box-shadow: 0 4px 16px rgba(0, 133, 255, 0.4) !important;
+	box-shadow: 0 4px 16px rgba(29, 155, 240, 0.4) !important;
 	animation: pulseBtn 2s infinite;
 }
 
 .surveySubmitBtn.ready-to-submit:hover {
 	transform: translateY(-2px) !important;
-	box-shadow: 0 8px 24px rgba(0, 133, 255, 0.6) !important;
-	background: linear-gradient(135deg, #339dff, #0085FF) !important;
+	box-shadow: 0 8px 24px rgba(29, 155, 240, 0.6) !important;
+	background: linear-gradient(135deg, #4cb0f9, #1d9bf0) !important;
 }
 
 /* Stage 3: GREEN — successfully submitted */
@@ -274,9 +274,9 @@ div.form-group .btn-default.active {
 }
 
 @keyframes pulseBtn {
-    0% { box-shadow: 0 0 0 0 rgba(0, 133, 255, 0.6); }
-    70% { box-shadow: 0 0 0 12px rgba(0, 133, 255, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(0, 133, 255, 0); }
+    0% { box-shadow: 0 0 0 0 rgba(29, 155, 240, 0.6); }
+    70% { box-shadow: 0 0 0 12px rgba(29, 155, 240, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(29, 155, 240, 0); }
 }
 /* LIGHT THEME OVERRIDES */
 [data-theme="light"] div.form-group {

@@ -193,7 +193,7 @@ div.form-group .btn-default.active {
 }
 
 .surveySubmitBtn {
-	background: linear-gradient(135deg, #FF4500, #cc3700) !important;
+	background: linear-gradient(135deg, #F4212E, #c01822) !important;
 	border: none !important;
 	color: white !important;
 	font-weight: 700 !important;
@@ -203,7 +203,7 @@ div.form-group .btn-default.active {
 	margin: 0 !important;
 	cursor: pointer;
 	transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
-	box-shadow: 0 4px 14px rgba(255, 69, 0, 0.35) !important;
+	box-shadow: 0 4px 14px rgba(244, 33, 46, 0.35) !important;
 	flex: 0 0 auto !important;
 	display: flex;
 	align-items: center;
@@ -216,22 +216,22 @@ div.form-group .btn-default.active {
 
 .surveySubmitBtn:not(.ready-to-submit):not(.submitted):hover {
 	transform: translateY(-2px) !important;
-	box-shadow: 0 8px 20px rgba(255, 69, 0, 0.5) !important;
-	background: linear-gradient(135deg, #ff6a33, #FF4500) !important;
+	box-shadow: 0 8px 20px rgba(244, 33, 46, 0.5) !important;
+	background: linear-gradient(135deg, #ff4d58, #F4212E) !important;
 }
 
 .surveySubmitBtn.ready-to-submit {
-	background: linear-gradient(135deg, #FF4500, #cc3700) !important;
+	background: linear-gradient(135deg, #1d9bf0, #1a8cd8) !important;
 	border: none !important;
 	color: white !important;
-	box-shadow: 0 4px 16px rgba(255, 69, 0, 0.4) !important;
+	box-shadow: 0 4px 16px rgba(29, 155, 240, 0.4) !important;
 	animation: pulseBtn 2s infinite;
 }
 
 .surveySubmitBtn.ready-to-submit:hover {
 	transform: translateY(-2px) !important;
-	box-shadow: 0 8px 24px rgba(255, 69, 0, 0.6) !important;
-	background: linear-gradient(135deg, #ff6a33, #FF4500) !important;
+	box-shadow: 0 8px 24px rgba(29, 155, 240, 0.6) !important;
+	background: linear-gradient(135deg, #4cb0f9, #1d9bf0) !important;
 }
 
 .surveySubmitBtn.submitted {
@@ -249,9 +249,9 @@ div.form-group .btn-default.active {
 }
 
 @keyframes pulseBtn {
-	0%   { box-shadow: 0 0 0 0 rgba(255, 69, 0, 0.6); }
-	70%  { box-shadow: 0 0 0 12px rgba(255, 69, 0, 0); }
-	100% { box-shadow: 0 0 0 0 rgba(255, 69, 0, 0); }
+    0% { box-shadow: 0 0 0 0 rgba(29, 155, 240, 0.6); }
+    70% { box-shadow: 0 0 0 12px rgba(29, 155, 240, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(29, 155, 240, 0); }
 }
 
 [data-theme="light"] div.form-group {

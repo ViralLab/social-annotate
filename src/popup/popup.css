@@ -110,6 +110,13 @@ body {
   color: var(--text-3);
   margin-bottom: 6px;
 }
+.survey-selector-row {
+  display: flex;
+  gap: 8px;
+}
+.survey-selector-row #platform-dropdown { flex: 0 0 58%; }
+.survey-selector-row #type-dropdown { flex: 1; }
+
 .custom-dropdown { position: relative; }
 .dropdown-trigger {
   width: 100%;
@@ -153,6 +160,8 @@ body {
   z-index: 50;
   box-shadow: 0 8px 24px rgba(0,0,0,0.4);
   animation: dropIn 0.15s ease;
+  max-height: 260px;
+  overflow-y: auto;
 }
 .custom-dropdown.open .dropdown-list { display: block; }
 
@@ -171,6 +180,7 @@ body {
   cursor: pointer;
   transition: all var(--ease);
 }
+
 .dropdown-list li:hover {
   background: var(--accent-soft);
   color: var(--accent);

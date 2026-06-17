@@ -17,6 +17,10 @@ let _injectedCommentIds = new Set();
 let _channelInjected    = '';
 let _ytCommentObserver  = null;
 
+function _ctxAlive() {
+    try { return !!chrome.runtime.id; } catch(e) { return false; }
+}
+
 // ── URL helpers ───────────────────────────────────────────────────────────────
 
 function getVideoID() {
@@ -99,6 +103,7 @@ function extractVideoMedia() {
 }
 
 function injectVideoSurveyContainer(videoID) {
+    if (!_ctxAlive()) return;
     let surveyContainer = document.createElement('div');
     surveyContainer.className = 'survey-container-post';
     surveyContainer.setAttribute('id', 'surveyFormContainer-' + videoID);
@@ -174,6 +179,7 @@ function extractYTCommentMetrics(commentEl) {
 }
 
 function processYTCommentNode(commentEl) {
+    if (!_ctxAlive()) return;
     let commentId = extractYTCommentId(commentEl);
     if (!commentId || _injectedCommentIds.has(commentId)) return;
     _injectedCommentIds.add(commentId);
@@ -219,6 +225,7 @@ function enableYTCommentObserver() {
 
     if (_ytCommentObserver) return;
     _ytCommentObserver = new MutationObserver(function(mutations) {
+        if (!_ctxAlive()) { _ytCommentObserver.disconnect(); return; }
         for (let mutation of mutations) {
             mutation.addedNodes.forEach(function(node) {
                 if (node.nodeType !== 1) return;
@@ -291,6 +298,7 @@ function extractChannelProfile() {
 }
 
 function injectYouTubeChannelSurvey() {
+    if (!_ctxAlive()) return;
     let channelPath = window.location.pathname;
     if (_channelInjected === channelPath) return;
 
@@ -388,6 +396,7 @@ function initializeSurveys() {
         }
 
         document.addEventListener('yt-navigate-finish', function() {
+            if (!_ctxAlive()) return;
             if (_ytVideoCtxActive && checkVideoURL()) {
                 setTimeout(processVideoPage, 500);
             }

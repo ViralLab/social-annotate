@@ -1,5 +1,5 @@
 const availableContextsTikTok = [
-    new Context('tiktok-post', enablePostObserver, null),
+    new Context('tiktok-reel', enablePostObserver, null),
     new Context('tiktok-user', injectTikTokUserSurvey, checkUserURL)
 ];
 
@@ -23,7 +23,7 @@ window.addEventListener('mh:download-request', function(e) {
 
     let postID = detail.postID;
     let postOwner = detail.userID;
-    let postSurveyType = detail.surveyType || 'tiktok-post';
+    let postSurveyType = detail.surveyType || 'tiktok-reel';
 
     console.log('[SA inject] download | postID:', postID);
 
@@ -325,10 +325,10 @@ function initializeSurveys() {
         SEL_TT = Object.assign({}, _rawTT.shared || {}, _rawTT.account || {}, _rawTT.post || {});
         watchPostCounter('tiktok', function() { return _processedCount_TT; });
 
-        const _postConfTT = result.config && result.config.surveys && result.config.surveys['tiktok-post'];
+        const _postConfTT = result.config && result.config.surveys && result.config.surveys['tiktok-reel'];
         manipConfig_TT = (_postConfTT && _postConfTT.manipulation) || {};
-        if (manipConfig_TT.enabled && result.manipulationMaps && result.manipulationMaps['tiktok-post']) {
-            let fullMap = result.manipulationMaps['tiktok-post'];
+        if (manipConfig_TT.enabled && result.manipulationMaps && result.manipulationMaps['tiktok-reel']) {
+            let fullMap = result.manipulationMaps['tiktok-reel'];
             manipMapId_TT = (fullMap._meta && fullMap._meta.map_id) || '';
             for (let k in fullMap) { if (k !== '_meta') manipMap_TT[k] = fullMap[k]; }
         }
@@ -340,7 +340,7 @@ function initializeSurveys() {
         let isBasePlatform = window.location.pathname === '/' || window.location.pathname === '' || window.location.pathname.startsWith('/foryou');
         if (result.isEnabled && result.isGuided && result.activeTargetList && result.activeTargetList.length > 0 && isBasePlatform) {
             let activeSurvey = result.config.activeSurveys && result.config.activeSurveys.length > 0 ? result.config.activeSurveys[0] : null;
-            if (activeSurvey === 'tiktok-post' || activeSurvey === 'tiktok-user') {
+            if (activeSurvey === 'tiktok-reel' || activeSurvey === 'tiktok-user') {
                 let firstTarget = result.activeTargetList[0];
                 window.location.href = 'https://www.tiktok.com/' + firstTarget;
                 return;
@@ -405,7 +405,7 @@ function initializeSurveys() {
                 currentContext.submitAction = submitAction;
                 currentContext.injectSurvey(config.injectElement);
 
-                if (currentContext.name !== 'tiktok-post') {
+                if (currentContext.name !== 'tiktok-reel') {
                     _processedCount_TT++;
                     let surveyID = crawlUserName();
                     currentContext.renderSurvey(surveyID, null, {
@@ -437,7 +437,7 @@ window.__socialAnnotate__.platformDebugCapture = function(selectors, stored) {
     let section = isUser ? (raw.account || {}) : (raw.post || {});
     return {
         platform: 'tiktok',
-        surveyType: activeSurvey || (isUser ? 'tiktok-user' : 'tiktok-post'),
+        surveyType: activeSurvey || (isUser ? 'tiktok-user' : 'tiktok-reel'),
         injectionStatus: {
             userSurveyInjected: !!document.getElementById('surveyFormContainer'),
             postSurveysInjected: document.querySelectorAll('.survey-container-post').length

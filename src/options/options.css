@@ -201,6 +201,12 @@ html, body {
 }
 
 /* ── Survey Cards ───────────────────────────────────────── */
+.survey-group-sep {
+  border: none;
+  border-top: 1px solid var(--card-border);
+  margin: 8px 0 16px;
+}
+
 .survey-card {
   background: var(--card-bg);
   border: 1px solid var(--card-border);

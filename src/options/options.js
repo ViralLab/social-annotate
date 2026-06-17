@@ -106,11 +106,41 @@ function loadPage() {
         const downloadFolderEl = document.getElementById('download-folder');
         if (downloadFolderEl) downloadFolderEl.value = result.config.downloadFolder || '';
 
+        const SURVEY_GROUPS = [
+            { label: 'X',           keys: ['x-user', 'x-post'] },
+            { label: 'Bluesky',     keys: ['bluesky-user', 'bluesky-post'] },
+            { label: 'Mastodon',    keys: ['mastodon-user', 'mastodon-post'] },
+            { label: 'TruthSocial', keys: ['truthsocial-user', 'truthsocial-post'] },
+            { label: 'Instagram',   keys: ['instagram-user', 'instagram-post', 'instagram-reel'] },
+            { label: 'TikTok',      keys: ['tiktok-user', 'tiktok-reel'] },
+            { label: 'Facebook',    keys: ['facebook-user', 'facebook-post'] },
+            { label: 'Telegram',    keys: ['telegram-post'] },
+            { label: 'WhatsApp',    keys: ['whatsapp-post'] },
+            { label: 'YouTube',     keys: ['youtube-user', 'youtube-video', 'youtube-comment'] },
+            { label: 'Reddit',      keys: ['reddit-user', 'reddit-post', 'reddit-comment'] },
+            { label: 'LinkedIn',    keys: ['linkedin-user', 'linkedin-post'] },
+        ];
+
+        let orderedKeys = [];
         let html = '';
+        SURVEY_GROUPS.forEach(function (group) {
+            let groupKeys = group.keys.filter(k => result.config.surveys[k]);
+            if (groupKeys.length === 0) return;
+            if (orderedKeys.length > 0) html += '<hr class="survey-group-sep">';
+            groupKeys.forEach(function (key) {
+                html += buildSurveyCard(key, result.config.surveys[key]);
+                orderedKeys.push(key);
+            });
+        });
+        // Append any surveys not covered by the groups (future-proof)
         for (let key in result.config.surveys) {
-            let survey = result.config.surveys[key];
-            html += buildSurveyCard(key, survey);
+            if (!orderedKeys.includes(key)) {
+                html += '<hr class="survey-group-sep">';
+                html += buildSurveyCard(key, result.config.surveys[key]);
+                orderedKeys.push(key);
+            }
         }
+
         const sc = document.getElementById('survey-container');
         if (sc) sc.innerHTML = html;
 
@@ -135,7 +165,7 @@ function loadPage() {
         });
 
         // Populate field values and initialize builders
-        for (let key in result.config.surveys) {
+        for (let key of orderedKeys) {
             let survey = result.config.surveys[key];
             let studyIdEl = document.getElementById(key + '_study-id');
             if (studyIdEl) studyIdEl.value = survey.studyID || '';

@@ -319,13 +319,46 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             sendResponse({ status: "started" });
         });
     }
+    else if (message.action === 'fetchReelUrl') {
+        // Fallback for reels whose CDN URL was never intercepted by inject-api.js.
+        // Fetches the reel page with the user's session cookies and extracts og:video.
+        const shortcode = message.shortcode;
+        (async () => {
+            try {
+                console.log('[SA-BG] fetchReelUrl start | shortcode:', shortcode);
+                const res = await fetch(`https://www.instagram.com/reel/${shortcode}/`, {
+                    headers: {
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                        'Accept-Language': 'en-US,en;q=0.9',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    },
+                    credentials: 'include',
+                });
+                const html = await res.text();
+                // og:video appears as: property="og:video" content="URL" or reversed
+                const m = html.match(/property="og:video"\s+content="([^"]+)"|content="([^"]+)"\s+property="og:video"/);
+                const videoUrl = m && (m[1] || m[2]);
+                if (videoUrl) {
+                    console.log('[SA-BG] fetchReelUrl found og:video | shortcode:', shortcode);
+                    sendResponse({ url: videoUrl });
+                } else {
+                    console.warn('[SA-BG] fetchReelUrl: og:video not found | shortcode:', shortcode);
+                    sendResponse({ error: 'og:video not found' });
+                }
+            } catch (e) {
+                console.error('[SA-BG] fetchReelUrl error:', e.message);
+                sendResponse({ error: String(e) });
+            }
+        })();
+        return true; // keep channel open for async sendResponse
+    }
     else if (message.action === 'registerTikTokDownload') {
         // Pre-register an organized filename so onDeterminingFilename can route the
         // anchor-triggered download (from page context) into the right subfolder.
         let key = message.key;
         let userId = message.userId || 'unknown';
         let postId = message.postId || 'unknown';
-        let surveyType = message.surveyType || 'tiktok-post';
+        let surveyType = message.surveyType || 'tiktok-reel';
         let platform = surveyType.split('-')[0] || 'tiktok';
         chrome.storage.local.get(['config'], function(result) {
             let baseRoot = (result.config && result.config.downloadFolder && result.config.downloadFolder.trim())

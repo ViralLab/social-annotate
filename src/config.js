@@ -729,7 +729,7 @@ var config = {
                 ]
             }
         },
-        "tiktok-post": {
+        "tiktok-reel": {
             "socialMediaPlatform": "tiktok",
             "injectElement": {},
             "studyID": "tiktok-post-study",

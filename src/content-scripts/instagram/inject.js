@@ -12,6 +12,14 @@ let SEL_IGR = {};
 if (!window.__socialAnnotate__) window.__socialAnnotate__ = {};
 if (!window.__socialAnnotate__.instagramApiMediaMap) window.__socialAnnotate__.instagramApiMediaMap = {};
 
+// Pending downloads: shortcode → { postOwner, postSurveyType, timeoutId }
+// Registered when the API map has no URL at submit time; resolved when the map
+// is updated by a later API response (e.g. the batch arrives after submission).
+const _igPendingDownloads = {};
+// Tracks shortcodes where a downloadMedia message was already sent (prevents duplicates
+// when both the API-map path and the background og:video path succeed for the same reel).
+const _igResolvedDownloads = new Set();
+
 // ── Manipulation state ────────────────────────────────────
 let manipConfig_IG  = {};
 let manipMap_IG     = {};
@@ -28,6 +36,19 @@ document.addEventListener('mh:media-response-ig', function(e) {
         Object.keys(e.detail).forEach(k => {
             if (!window.__socialAnnotate__.instagramApiMediaMap[k]) window.__socialAnnotate__.instagramApiMediaMap[k] = [];
             window.__socialAnnotate__.instagramApiMediaMap[k].push(...e.detail[k]);
+            console.log('[SA-IG-1] API map updated | code:', k, '| urls:', window.__socialAnnotate__.instagramApiMediaMap[k]);
+            // Resolve any pending download waiting for this shortcode
+            if (_igPendingDownloads[k] && !_igResolvedDownloads.has(k)) {
+                var pd = _igPendingDownloads[k];
+                clearTimeout(pd.timeoutId);
+                delete _igPendingDownloads[k];
+                var urls = window.__socialAnnotate__.instagramApiMediaMap[k] || [];
+                console.log('[SA-IG-3] RESOLVING pending download for:', k, '| urls:', urls);
+                if (urls.length > 0) {
+                    _igResolvedDownloads.add(k);
+                    chrome.runtime.sendMessage({ action: 'downloadMedia', urls: urls, userId: pd.postOwner, postId: k, surveyType: pd.postSurveyType });
+                }
+            }
         });
     }
 });
@@ -35,8 +56,9 @@ document.addEventListener('mh:media-response-ig', function(e) {
 window.addEventListener('mh:download-request', function(e) {
     let detail = e.detail;
     if (!detail) return;
-    
+
     let initialSurveyType = detail.surveyType || 'instagram-post';
+    console.log('[SA-DL-1] download-request fired | surveyType:', initialSurveyType, '| postID:', detail.postID, '| userID:', detail.userID);
 
     if (initialSurveyType === 'instagram-user') {
         let userID = detail.userID;
@@ -54,51 +76,139 @@ window.addEventListener('mh:download-request', function(e) {
         return;
     }
 
-    if (!detail.postID) return;
-    
+    if (!detail.postID) { console.warn('[SA-DL-2] no postID in detail, aborting'); return; }
+
     let postID = detail.postID;
     let postOwner = detail.userID;
     let postSurveyType = detail.surveyType || 'instagram-post';
-    
+
     let containerName = 'surveyFormContainer-' + postID;
     let surveyContainer = document.getElementById(containerName);
     let injectNode = surveyContainer
         ? (surveyContainer.closest('article') || surveyContainer.nextElementSibling)
         : null;
-    
+    console.log('[SA-DL-3] container found:', !!surveyContainer, '| injectNode found:', !!injectNode);
+
     let urlsToDownload = [];
     if (injectNode) {
         urlsToDownload = extractInstagramMedia(injectNode);
+        console.log('[SA-DL-4] DOM extraction urls:', urlsToDownload);
     }
-    
-    // Supplement with intercepted API URLs to get native .mp4s!
-    if (window.__socialAnnotate__ && window.__socialAnnotate__.instagramApiMediaMap && window.__socialAnnotate__.instagramApiMediaMap[postID]) {
-        let apiVids = window.__socialAnnotate__.instagramApiMediaMap[postID];
-        if (apiVids.length > 0) {
-            // Strip out any Blob streams since we successfully found the raw MP4 from the API
-            urlsToDownload = urlsToDownload.filter(u => !u.startsWith('[Blob Stream]'));
-            urlsToDownload.push(...apiVids);
+
+    // For reels: the "Video player" div is an overlay container — the <video> element
+    // is a sibling, not a child. Query the document for the currently playing video.
+    // This covers service-worker-cached reels whose CDN URLs bypass inject-api.js.
+    if (postSurveyType === 'instagram-reel') {
+        var allVids = document.querySelectorAll('video');
+        var reelVideo = null;
+        // First pass: find an actually-playing video with a CDN URL
+        for (var _vi = 0; _vi < allVids.length; _vi++) {
+            var _v = allVids[_vi];
+            var _vs = _v.currentSrc || _v.src || '';
+            if (!_v.paused && _vs && !_vs.startsWith('blob:') && !_vs.startsWith('data:')) {
+                reelVideo = _v; break;
+            }
+        }
+        // Second pass: settle for any loaded CDN video (paused is fine)
+        if (!reelVideo) {
+            for (var _vi = 0; _vi < allVids.length; _vi++) {
+                var _v = allVids[_vi];
+                var _vs = _v.currentSrc || _v.src || '';
+                if (_vs && !_vs.startsWith('blob:') && !_vs.startsWith('data:') && _v.readyState >= 2) {
+                    reelVideo = _v; break;
+                }
+            }
+        }
+        if (reelVideo) {
+            var vsrc = reelVideo.currentSrc || reelVideo.src;
+            console.log('[SA-DL-4b] found reel video.currentSrc (CDN):', vsrc);
+            urlsToDownload.push(vsrc);
+        } else {
+            // All videos are blob/MSE — note it for debugging; API map handles this case
+            var _blobVid = Array.prototype.find.call(allVids, function(v) { return !v.paused; });
+            console.log('[SA-DL-4b] no CDN video found | blob/MSE playing:', !!_blobVid, '| total videos:', allVids.length);
+            if (_blobVid) urlsToDownload.push('[Blob Stream] ' + (_blobVid.currentSrc || _blobVid.src));
         }
     }
-    
+
+    // Supplement with intercepted API URLs to get native .mp4s!
+    const fullApiMap = (window.__socialAnnotate__ && window.__socialAnnotate__.instagramApiMediaMap) || {};
+    console.log('[SA-DL-5] API map entry for postID "' + postID + '":', fullApiMap[postID] || 'EMPTY/MISSING');
+
+    if (fullApiMap[postID] && fullApiMap[postID].length > 0) {
+        let apiVids = fullApiMap[postID];
+        urlsToDownload = urlsToDownload.filter(u => !u.startsWith('[Blob Stream]'));
+        urlsToDownload.push(...apiVids);
+    }
+
     // Deduplicate array
     urlsToDownload = [...new Set(urlsToDownload)];
-    
+
     if (urlsToDownload && urlsToDownload.length > 0) {
         let validUrls = urlsToDownload.filter(u => !u.startsWith('[Blob Stream]'));
         let blobs = urlsToDownload.filter(u => u.startsWith('[Blob Stream]'));
-        
+
         if (validUrls.length > 0) {
+            console.log('[SA-DL-8] SENDING DOWNLOAD | postId:', postID, '| urls:', validUrls);
             chrome.runtime.sendMessage({ action: 'downloadMedia', urls: validUrls, userId: postOwner || 'user', postId: postID, surveyType: postSurveyType });
         } else if (blobs.length > 0) {
-            console.warn("This video is an active stream (Blob) and cannot be natively downloaded.");
+            console.warn('[SA-DL-9] only blob URLs, registering pending download for:', postID);
+            _igPendingDownloads[postID] = {
+                postOwner: postOwner || 'user',
+                postSurveyType,
+                timeoutId: setTimeout(function() {
+                    delete _igPendingDownloads[postID];
+                    console.warn('[SA-DL-TIMEOUT] no CDN URL arrived within 8s for:', postID);
+                }, 8000)
+            };
+            _igFetchReelUrlFallback(postID, postOwner, postSurveyType);
         } else {
-            console.log("No supported media found.");
+            console.log('[SA-DL-9] no supported media found for postID:', postID);
         }
     } else {
-        console.log("No media found on this post.");
+        // No URLs at all — API map was empty at submit time. Register pending download
+        // in case the API batch response arrives shortly after (common for the first reel).
+        console.log('[SA-DL-9] API map empty at submit, registering pending download for:', postID);
+        _igPendingDownloads[postID] = {
+            postOwner: postOwner || 'user',
+            postSurveyType,
+            timeoutId: setTimeout(function() {
+                delete _igPendingDownloads[postID];
+                console.warn('[SA-DL-TIMEOUT] no CDN URL arrived within 8s for:', postID);
+            }, 8000)
+        };
+        _igFetchReelUrlFallback(postID, postOwner, postSurveyType);
     }
 });
+
+function _igFetchReelUrlFallback(postID, postOwner, postSurveyType) {
+    console.log('[SA-DL-BG] asking background to fetch og:video for:', postID);
+    // Capture owner/type in closure so they remain available even after the 8s timeout
+    // clears _igPendingDownloads[postID].
+    var _owner = postOwner || 'user';
+    var _type = postSurveyType;
+    chrome.runtime.sendMessage({ action: 'fetchReelUrl', shortcode: postID }, function(response) {
+        if (chrome.runtime.lastError) {
+            console.warn('[SA-DL-BG] sendMessage error:', chrome.runtime.lastError.message);
+            return;
+        }
+        console.log('[SA-DL-BG] background response for', postID, ':', response);
+        if (response && response.url) {
+            if (_igResolvedDownloads.has(postID)) {
+                // API-map path already fired a download; cancel any lingering pending entry.
+                if (_igPendingDownloads[postID]) { clearTimeout(_igPendingDownloads[postID].timeoutId); delete _igPendingDownloads[postID]; }
+                console.log('[SA-DL-BG] already downloaded via API map, skipping og:video for:', postID);
+                return;
+            }
+            _igResolvedDownloads.add(postID);
+            if (_igPendingDownloads[postID]) { clearTimeout(_igPendingDownloads[postID].timeoutId); delete _igPendingDownloads[postID]; }
+            console.log('[SA-DL-BG] DOWNLOADING via og:video | postId:', postID, '| url:', response.url);
+            chrome.runtime.sendMessage({ action: 'downloadMedia', urls: [response.url], userId: _owner, postId: postID, surveyType: _type });
+        } else {
+            console.warn('[SA-DL-BG] background fetch failed | postId:', postID, '| error:', response && response.error);
+        }
+    });
+}
 
 function crawlUserName() {
     if (window.location.protocol === 'file:' || window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
@@ -151,10 +261,12 @@ function observeReelContainers() {
     var origPush    = history.pushState;
     var origReplace = history.replaceState;
     function onNav(url) {
-        if (url) {
-            var code = extractReelShortcodeFromUrl(String(url));
-            if (code) currentReelShortcode = code;
-        }
+        // Don't update currentReelShortcode here. Instagram fires pushState for the
+        // next reel before the user finishes scrolling to it, so updating the module
+        // variable eagerly causes surveys to be rendered with the wrong shortcode.
+        // processCurrentReel reads the URL only when the dominant container actually changes.
+        var codeInUrl = extractReelShortcodeFromUrl(String(url || ''));
+        console.log('[SA-R-1] pushState/replaceState fired | url code:', codeInUrl, '| currentReelShortcode (unchanged):', currentReelShortcode);
         setTimeout(processCurrentReel, 150);
     }
     history.pushState = function(state, title, url) {
@@ -256,17 +368,16 @@ function extractReelMedia(containerEl) {
 }
 
 function processCurrentReel() {
-    if (!currentReelShortcode) return;
+    if (!currentReelShortcode) { console.log('[SA-R-2] processCurrentReel: no currentReelShortcode, aborting'); return; }
 
     var reelCtx = availableContextsInstagram.find(c => c.name === 'instagram-reel');
-    if (!reelCtx || !reelCtx.formTemplate) return;
+    if (!reelCtx || !reelCtx.formTemplate) { console.log('[SA-R-2] processCurrentReel: reel context not ready'); return; }
 
     var sel = SEL_IGR.postContainer || 'div[aria-label="Video player"][role="group"]';
     var containers = document.querySelectorAll(sel);
+    console.log('[SA-R-2] processCurrentReel fired | containers found:', containers.length, '| currentReelShortcode:', currentReelShortcode, '| url:', window.location.href);
 
     // Find the container whose center is closest to the viewport center.
-    // Using "first overlapping" is too loose — partially-scrolled-away containers
-    // still overlap and prevent the reset from firing on the next reel.
     var vpMid = window.innerHeight / 2;
     var bestEl = null, bestDist = Infinity;
     for (var i = 0; i < containers.length; i++) {
@@ -275,20 +386,30 @@ function processCurrentReel() {
         var dist = Math.abs((rect.top + rect.bottom) / 2 - vpMid);
         if (dist < bestDist) { bestDist = dist; bestEl = containers[i]; }
     }
-    if (!bestEl) return;
+    if (!bestEl) { console.log('[SA-R-3] no visible container found, aborting'); return; }
+
+    var containerChanged = bestEl !== _currentReelEl;
+    console.log('[SA-R-3] dominant container changed:', containerChanged);
 
     // Reset when the dominant container changes (works even if URL stays the same).
-    if (bestEl !== _currentReelEl) {
+    // Read the shortcode from the URL at this moment — onNav no longer updates
+    // currentReelShortcode eagerly, so the URL here reflects the reel that is
+    // actually dominant in the viewport.
+    if (containerChanged) {
         _currentReelEl = bestEl;
         document.querySelectorAll('div.survey-container-reel').forEach(function(el) { el.remove(); });
         var code = extractReelShortcodeFromUrl(window.location.href);
+        var prevShortcode = currentReelShortcode;
         if (code) currentReelShortcode = code;
-        else currentReelShortcode = 'reel-' + Date.now(); // fallback if URL didn't update
+        else currentReelShortcode = 'reel-' + Date.now();
+        console.log('[SA-R-4] shortcode updated | prev:', prevShortcode, '→ new:', currentReelShortcode);
     }
 
-    if (document.getElementById('surveyFormContainer-' + currentReelShortcode)) return;
+    var alreadyInjected = !!document.getElementById('surveyFormContainer-' + currentReelShortcode);
+    if (alreadyInjected) return;
 
     var postOwner = getReelAuthor(bestEl);
+    console.log('[SA-R-6] postOwner resolved:', postOwner);
     if (!postOwner) return;
 
     if (manipConfig_IGR.enabled && manipMap_IGR[currentReelShortcode]) {
@@ -335,17 +456,18 @@ function processCurrentReel() {
 
     var shortcode = currentReelShortcode;
     var containerRef = bestEl;
+    console.log('[SA-R-7] INJECTING SURVEY | shortcode:', shortcode, '| owner:', postOwner);
     injectInstagramReelSurvey(shortcode);
     reelCtx.renderSurvey(postOwner, shortcode, {
         body:         () => extractReelText(containerRef),
         media_urls:   () => {
             var urls = extractReelMedia(containerRef);
-            if (window.__socialAnnotate__.instagramApiMediaMap && window.__socialAnnotate__.instagramApiMediaMap[shortcode]) {
-                let apiVids = window.__socialAnnotate__.instagramApiMediaMap[shortcode];
-                if (apiVids.length > 0) {
-                    urls = urls.filter(u => !u.startsWith('[Blob Stream]'));
-                    urls.push(...apiVids);
-                }
+            var apiMap = window.__socialAnnotate__.instagramApiMediaMap || {};
+            console.log('[SA-R-8] media_urls lazy called | shortcode:', shortcode, '| DOM urls:', urls, '| API map entry:', apiMap[shortcode] || 'EMPTY');
+            if (apiMap[shortcode] && apiMap[shortcode].length > 0) {
+                let apiVids = apiMap[shortcode];
+                urls = urls.filter(u => !u.startsWith('[Blob Stream]'));
+                urls.push(...apiVids);
             }
             return [...new Set(urls)];
         },

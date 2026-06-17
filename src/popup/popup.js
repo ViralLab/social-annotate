@@ -192,7 +192,7 @@ function navigateToTarget(target) {
                     }
 
                     chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-                        chrome.tabs.update(tabs[0].id, { url: baseUrl + target });
+                        chrome.tabs.update(tabs[0].id, { url: baseUrl + target.replace(/^\/+/, '') });
                     });
 
                     updateGuidedPanel();
@@ -297,6 +297,12 @@ chrome.storage.local.get(['isGuided'], function (data) {
 toggleGuided.addEventListener('change', function () {
     chrome.storage.local.set({ 'isGuided': toggleGuided.checked }, function () {
         updateGuidedPanel();
+        if (toggleGuided.checked) {
+            chrome.storage.local.get(['activeTargetList'], function (data) {
+                let remaining = data.activeTargetList || [];
+                if (remaining.length > 0) navigateToTarget(remaining[0]);
+            });
+        }
     });
 });
 

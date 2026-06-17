@@ -247,7 +247,7 @@ class Context {
                 token: ctxToken,
                 surveyType: this.name,
                 theme: freshTheme,
-                enableDownload: (this.name === 'x-post' || this.name === 'instagram-post' || this.name === 'bluesky-post' || this.name === 'whatsapp-post' || this.name === 'linkedin-post' || this.name === 'linkedin-user' || this.name === 'tiktok-post')
+                enableDownload: (this.name === 'x-post' || this.name === 'instagram-post' || this.name === 'bluesky-post' || this.name === 'whatsapp-post' || this.name === 'linkedin-post' || this.name === 'linkedin-user' || this.name === 'tiktok-reel')
             }, '*');
         };
 
@@ -630,7 +630,7 @@ function storeResults(surveyResults, socialMediaPlatform) {
                 insertKey = surveyResults.post_id;
             } else if (surveyType === 'linkedin-user') {
                 insertKey = surveyResults.account_id;
-            } else if (surveyType === 'tiktok-post') {
+            } else if (surveyType === 'tiktok-reel') {
                 insertKey = surveyResults.post_id;
             } else if (surveyType === 'tiktok-user') {
                 insertKey = surveyResults.account_id;

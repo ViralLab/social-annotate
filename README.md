@@ -14,15 +14,20 @@ Human-labeled data is at the core of computational social science and content mo
 
 ## Supported Platforms
 
-| Platform | Post Annotation | User/Profile Annotation |
-|---|:---:|:---:|
-| X / Twitter | ✅ | ✅ |
-| Instagram | ✅ | ✅ |
-| Bluesky | ✅ | ✅ |
-| WhatsApp Web | ✅ | — |
-| Telegram Web | ✅ | — |
-| LinkedIn | ✅ | ✅ |
-| Truth Social | ✅ | ✅ |
+| Platform | Posts | Accounts | Comments | Videos / Reels |
+|---|:---:|:---:|:---:|:---:|
+| <img src="src/images/x.png" width="16"> X / Twitter | ✅ | ✅ | | |
+| <img src="src/images/tiktok.png" width="16"> TikTok | ✅ | ✅ | | ✅ |
+| <img src="src/images/instagram.png" width="16"> Instagram | ✅ | ✅ | ✅ | ✅ |
+| <img src="src/images/facebook.png" width="16"> Facebook | ✅ | ✅ | | |
+| <img src="src/images/bluesky.png" width="16"> Bluesky | ✅ | ✅ | | |
+| <img src="src/images/mastodon.png" width="16"> Mastodon | ✅ | ✅ | | |
+| <img src="src/images/truthsocial.png" width="16"> Truth Social | ✅ | ✅ | | |
+| <img src="src/images/linkedin.png" width="16"> LinkedIn | ✅ | ✅ | | |
+| <img src="src/images/reddit.png" width="16"> Reddit | ✅ | ✅ | ✅ | |
+| <img src="src/images/youtube.png" width="16"> YouTube | ✅ | ✅ | ✅ | ✅ |
+| <img src="src/images/whatsapp.png" width="16"> WhatsApp Web | ✅ | | | |
+| <img src="src/images/telegram.png" width="16"> Telegram Web | ✅ | ✅ | | |
 
 ---
 

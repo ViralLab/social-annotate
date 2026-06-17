@@ -4,7 +4,7 @@ Each platform agent imports from here and exports a PlatformAgent instance.
 """
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Callable, Optional
 from pydantic import BaseModel, Field
 from bs4 import BeautifulSoup
@@ -211,7 +211,7 @@ def make_to_nested(platform: str) -> Callable:
         base_account = base.get("account", {})
         base_post = base.get("post", {})
 
-        return {
+        output = {
             platform: {
                 "shared": {
                     "appRoot": result.appRoot,
@@ -262,6 +262,12 @@ def make_to_nested(platform: str) -> Callable:
                 },
             }
         }
+        # Preserve any extra sub-sections from the existing selectors (e.g. "comment", "reel")
+        # that this healer doesn't regenerate, so they aren't wiped on each heal run.
+        for key, val in base.items():
+            if key not in ("shared", "account", "post"):
+                output[platform][key] = val
+        return output
     return to_nested
 
 
@@ -281,3 +287,7 @@ class PlatformAgent:
     prompt_template: str
     offline_selectors: list[str]
     block_spa_scripts: bool = True
+    # Key used in selectors.json (defaults to `name` when None)
+    selectors_key: str | None = None
+    # Extra HTML attributes to preserve during HTML pruning for the LLM
+    extra_keep_attrs: frozenset = field(default_factory=frozenset)

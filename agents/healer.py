@@ -108,7 +108,7 @@ _DATA_ATTR_RE = re.compile(r"^data-")
 _ATTR_MAX_LEN = 200
 
 
-def _prune_html(html: str, hint_selectors: list[str] | None = None) -> str:
+def _prune_html(html: str, hint_selectors: list[str] | None = None, extra_keep_attrs: frozenset | None = None) -> str:
     """
     Smart HTML pruning for LLM selector extraction.
 
@@ -167,10 +167,11 @@ def _prune_html(html: str, hint_selectors: list[str] | None = None) -> str:
             root = best_child
 
     # Step 3: strip attribute noise — keep only what the LLM needs for selectors
+    keep = _KEEP_ATTRS | (extra_keep_attrs or frozenset())
     for tag in (root or soup).find_all(True):
         kept = {}
         for attr, val in list(tag.attrs.items()):
-            if attr in _KEEP_ATTRS or _DATA_ATTR_RE.match(attr):
+            if attr in keep or _DATA_ATTR_RE.match(attr):
                 v = " ".join(val) if isinstance(val, list) else str(val)
                 kept[attr] = v[:_ATTR_MAX_LEN] + "…" if len(v) > _ATTR_MAX_LEN else v
         tag.attrs = kept
@@ -294,7 +295,11 @@ class SelectorHealer:
     def _step2_extract_selectors(self, html: str) -> Any:
         print("\n── Step 2: LLM selector extraction ──")
 
-        pruned = _prune_html(html, hint_selectors=self.platform_agent.offline_selectors)
+        pruned = _prune_html(
+            html,
+            hint_selectors=self.platform_agent.offline_selectors,
+            extra_keep_attrs=self.platform_agent.extra_keep_attrs,
+        )
         print(f"  HTML: {len(html):,} chars → pruned: {len(pruned):,} chars")
 
         soup = BeautifulSoup(html, "html.parser")
@@ -638,8 +643,9 @@ class SelectorHealer:
                     out[key] = v
             return out
 
-        old_flat = _flatten(existing.get(self.platform, {}))
-        new_flat = _flatten(new_selectors.get(self.platform, {}))
+        _sel_key = self.platform_agent.selectors_key or self.platform
+        old_flat = _flatten(existing.get(_sel_key, {}))
+        new_flat = _flatten(new_selectors.get(_sel_key, {}))
 
         changed = [
             (k, old_flat.get(k), new_flat.get(k))

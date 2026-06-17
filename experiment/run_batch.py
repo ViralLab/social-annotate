@@ -97,6 +97,27 @@ FIXTURES = [
     # TruthSocial
     ("test_fixtures/truthsocial/post/truthsocial_sample.html", "truthsocial", "2026", "", None, None, False),
     ("test_fixtures/truthsocial/user/truthsocial_sample.html", "truthsocial", "2026", "", None, "truthsocial-user", False),
+
+    # TikTok
+    ("test_fixtures/tiktok/post/TikTok - Make Your Day.html", "tiktok", "2026",
+     "This is a TikTok For You feed. Posts use data-e2e attributes. "
+     "Each article[data-e2e='recommend-list-item-container'] shares the same parent — this is expected.",
+     True, None, False),
+    ("test_fixtures/tiktok/user/(7)cznburak (@cznburak) _ TikTok.html", "tiktok-user", "2026",
+     "This is a TikTok user profile page. Use data-e2e attributes for all selectors.",
+     True, "tiktok-user", False),
+
+    # Mastodon
+    ("test_fixtures/mastodon/post/Home - Mastodon.html", "mastodon", "2026",
+     "This is a Mastodon v4.x home timeline. Posts use .status__wrapper containers. "
+     "Do NOT use class names that include 'account__header' — those were removed in v4.", None, None, False),
+
+    # Reddit
+    ("test_fixtures/reddit/feed/Reddit - The heart of the internet.html", "reddit-feed", "2026",
+     "This is a Reddit home feed. Posts are <shreddit-post> custom elements.", None, None, False),
+    ("test_fixtures/reddit/comments/Future reality TV star Don Trump relaxing circa 1980. _ r_UtterlyUniquePhotos.html",
+     "reddit-post", "2026",
+     "This is a Reddit post detail/comments page. Comments use <shreddit-comment> custom elements.", None, None, False),
 ]
 
 

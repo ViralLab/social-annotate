@@ -1,0 +1,67 @@
+{
+  "timestamp": "20260617_190618",
+  "mode": "full",
+  "results": [
+    {
+      "record": {
+        "fixture": "test_fixtures/bluesky/post/bluesky2026.html",
+        "platform": "bluesky",
+        "year": "2026",
+        "duration_s": 154.6,
+        "llm_extracted": true,
+        "browser_loaded": true,
+        "surveys_injected": 59,
+        "form_accessible": true,
+        "form_submitted": true,
+        "data_validated": true,
+        "success": true,
+        "failure_step": null,
+        "error": null
+      },
+      "detail": {
+        "fixture": "/Users/alinajafi/Documents/social-annotate-plus/test_fixtures/bluesky/post/bluesky2026.html",
+        "offline_post_count": 59,
+        "offline_warnings": [],
+        "selectors": {
+          "appRoot": "body",
+          "postContainer": "[data-testid^=\"feedItem-\"]",
+          "postText": "[data-testid=\"postText\"]",
+          "postImage": null,
+          "postVideo": null,
+          "postTimestamp": "a[href*=\"/post/\"][data-tooltip]",
+          "postTimestampAttr": "data-tooltip",
+          "cardWrapper": null,
+          "metricsReply": "replyBtn",
+          "metricsRepost": "button[aria-label=\"Repost or quote post\"]",
+          "metricsLike": "likeBtn",
+          "metricsBookmark": "postBookmarkBtn",
+          "userDisplayName": "a[href*=\"/profile/\"][aria-label=\"View profile\"]:first-of-type",
+          "userHandle": "a[href*=\"/profile/\"][aria-label=\"View profile\"]:last-of-type",
+          "userAvatar": "[data-testid=\"userAvatarImage\"] img",
+          "userProfileAvatar": null,
+          "userBanner": null,
+          "userBio": null,
+          "userHeadline": null,
+          "userVerified": null,
+          "userFollowers": null,
+          "userFollowing": null,
+          "userConnections": null,
+          "userLocation": null,
+          "userJoinDate": null,
+          "userUrl": null
+        },
+        "llm_attempts": 0,
+        "browser_loaded": true,
+        "resource_404s": [],
+        "survey_containers": 59,
+        "survey_iframes": 59,
+        "screenshot_path": "/Users/alinajafi/Documents/social-annotate-plus/experiment/results/selectors/bluesky2026_injection.png",
+        "form_frames": 59,
+        "form_submitted": true,
+        "submission_validated": true,
+        "output_path": "/Users/alinajafi/Documents/social-annotate-plus/experiment/results/selectors/bluesky2026_selectors.json",
+        "error": null
+      }
+    }
+  ]
+}

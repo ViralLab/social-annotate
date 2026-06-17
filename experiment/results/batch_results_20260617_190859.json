@@ -1,0 +1,67 @@
+{
+  "timestamp": "20260617_190859",
+  "mode": "full",
+  "results": [
+    {
+      "record": {
+        "fixture": "test_fixtures/whatsapp/post/WhatsApp-mark-channel.html",
+        "platform": "whatsapp",
+        "year": "2026",
+        "duration_s": 30.2,
+        "llm_extracted": true,
+        "browser_loaded": true,
+        "surveys_injected": 4,
+        "form_accessible": true,
+        "form_submitted": true,
+        "data_validated": true,
+        "success": true,
+        "failure_step": null,
+        "error": null
+      },
+      "detail": {
+        "fixture": "/Users/alinajafi/Documents/social-annotate-plus/test_fixtures/whatsapp/post/WhatsApp-mark-channel.html",
+        "offline_post_count": 4,
+        "offline_warnings": [],
+        "selectors": {
+          "appRoot": "body",
+          "postContainer": "[data-testid^='conv-msg-']",
+          "postText": "[data-testid='selectable-text']",
+          "postImage": "[data-testid='image-thumb'] img",
+          "postVideo": null,
+          "postTimestamp": ".copyable-text[data-pre-plain-text]",
+          "postTimestampAttr": "data-pre-plain-text",
+          "cardWrapper": null,
+          "metricsReply": null,
+          "metricsRepost": null,
+          "metricsLike": "[data-testid='reaction-bubble']",
+          "metricsBookmark": null,
+          "userDisplayName": "span[aria-label]",
+          "userHandle": null,
+          "userAvatar": null,
+          "userProfileAvatar": null,
+          "userBanner": null,
+          "userBio": null,
+          "userHeadline": null,
+          "userVerified": null,
+          "userFollowers": null,
+          "userFollowing": null,
+          "userConnections": null,
+          "userLocation": null,
+          "userJoinDate": null,
+          "userUrl": null
+        },
+        "llm_attempts": 0,
+        "browser_loaded": true,
+        "resource_404s": [],
+        "survey_containers": 4,
+        "survey_iframes": 4,
+        "screenshot_path": "/Users/alinajafi/Documents/social-annotate-plus/experiment/results/selectors/WhatsApp-mark-channel_injection.png",
+        "form_frames": 4,
+        "form_submitted": true,
+        "submission_validated": true,
+        "output_path": "/Users/alinajafi/Documents/social-annotate-plus/experiment/results/selectors/WhatsApp-mark-channel_selectors.json",
+        "error": null
+      }
+    }
+  ]
+}

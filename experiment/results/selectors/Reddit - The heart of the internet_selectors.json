@@ -1,0 +1,61 @@
+{
+  "reddit": {
+    "shared": {
+      "appRoot": "shreddit-app",
+      "observerFilter": {
+        "childList": true,
+        "subtree": true
+      }
+    },
+    "account": {
+      "userDisplayName": "[data-testid='profile-display-name']",
+      "userAvatar": "[data-testid='profile-icon']",
+      "userBio": null,
+      "userFollowers": null,
+      "userKarma": "[data-testid='karma-number']",
+      "userCakeDay": "time[data-testid='cake-day']",
+      "userCakeDayDateAttr": "datetime",
+      "userContributions": "faceplate-number[number]",
+      "userContributionsNumberAttr": "number"
+    },
+    "post": {
+      "postContainer": "shreddit-post",
+      "postIdAttr": "id",
+      "postIdPrefix": "t3_",
+      "postTitleAttr": "post-title",
+      "postAuthorAttr": "author",
+      "postScoreAttr": "score",
+      "postCommentCountAttr": "comment-count",
+      "postTimestampAttr": "created-timestamp",
+      "postPermalinkAttr": "permalink",
+      "postText": "shreddit-post-text-body .md",
+      "postVideoPlayer": null,
+      "postImage": null,
+      "metricsLike": null,
+      "metricsReply": null,
+      "metricsRepost": null
+    },
+    "comment": {
+      "commentContainer": "shreddit-comment",
+      "commentIdAttr": "thingid",
+      "commentIdPrefix": "t1_",
+      "commentAuthorAttr": "author",
+      "commentScoreAttr": "score",
+      "commentTimestampAttr": "created",
+      "commentDepthAttr": "depth",
+      "commentCollapsedAttr": "collapsed",
+      "commentContentSlot": "[slot='comment']",
+      "profileCommentContainer": "shreddit-profile-comment",
+      "profileCommentIdAttr": "comment-id",
+      "profileCommentHrefAttr": "href",
+      "profileCommentAuthorSel": "shreddit-overflow-menu[author-name]",
+      "profileCommentAuthorNameAttr": "author-name",
+      "profileCommentScoreSel": "shreddit-comment-action-row[score]",
+      "profileCommentTimestampSel": "faceplate-timeago[ts]",
+      "subredditURLPattern": "/r/([^/?#]+)",
+      "parentPostIdURLPattern": "/comments/([^/?#]+)",
+      "commentContentSel": "[id*='-post-rtjson-content']",
+      "commentText": "[id*='-post-rtjson-content'], [slot='comment'] div[dir='auto'], [slot='comment']"
+    }
+  }
+}

@@ -11,7 +11,7 @@
     "account": {
       "userDisplayName": "[data-testid=\"account\"] p.font-semibold",
       "userHandle": "[data-testid=\"account\"] p.text-muted-foreground",
-      "userAvatar": "[data-testid=\"account\"] img",
+      "userAvatar": "[data-testid=\"account\"] a[title] img",
       "userProfileAvatar": null,
       "userProfileSchema": null,
       "userBanner": null,
@@ -27,7 +27,7 @@
       "userLink": null
     },
     "post": {
-      "postContainer": ".status-public",
+      "postContainer": "div[data-testid=\"status\"]",
       "postText": "[data-testid=\"markup\"]",
       "postImage": ".media-gallery img",
       "postVideo": null,
@@ -38,10 +38,10 @@
       "conversationMessages": null,
       "messageContainer": null,
       "copyableText": null,
-      "metricsReply": "[data-testid=\"status-action-bar\"] button[aria-label=\"Reply\"]",
-      "metricsRepost": "[data-testid=\"status-action-bar\"] button[aria-label=\"ReTruth\"]",
-      "metricsLike": "[data-testid=\"status-action-bar\"] button[aria-label=\"Like\"]",
-      "metricsBookmark": "[data-testid=\"status-action-bar\"] button[aria-label=\"Bookmark\"]",
+      "metricsReply": "button[aria-label=\"Reply\"]",
+      "metricsRepost": "button[aria-label=\"ReTruth\"]",
+      "metricsLike": "button[aria-label=\"Like\"]",
+      "metricsBookmark": "button[aria-label=\"Bookmark\"]",
       "metricsViews": null,
       "metricsQuote": null,
       "metricsViewsPattern": "views?"

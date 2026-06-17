@@ -1,0 +1,56 @@
+{
+  "timestamp": "20260617_184347",
+  "mode": "full",
+  "results": [
+    {
+      "record": {
+        "fixture": "test_fixtures/reddit/feed/Reddit - The heart of the internet.html",
+        "platform": "reddit-feed",
+        "year": "2026",
+        "duration_s": 65.3,
+        "llm_extracted": true,
+        "browser_loaded": true,
+        "surveys_injected": 28,
+        "form_accessible": true,
+        "form_submitted": true,
+        "data_validated": true,
+        "success": true,
+        "failure_step": null,
+        "error": null
+      },
+      "detail": {
+        "fixture": "/Users/alinajafi/Documents/social-annotate-plus/test_fixtures/reddit/feed/Reddit - The heart of the internet.html",
+        "offline_post_count": 28,
+        "offline_warnings": [],
+        "selectors": {
+          "postContainer": "shreddit-post",
+          "postIdAttr": "id",
+          "postIdPrefix": "t3_",
+          "postTitleAttr": "post-title",
+          "postAuthorAttr": "author",
+          "postScoreAttr": "score",
+          "postCommentCountAttr": "comment-count",
+          "postTimestampAttr": "created-timestamp",
+          "postPermalinkAttr": "permalink",
+          "postText": "shreddit-post-text-body .md",
+          "postVideoPlayer": null,
+          "postImage": null,
+          "subredditURLPattern": "/r/([^/?#]+)"
+        },
+        "llm_attempts": 0,
+        "browser_loaded": true,
+        "resource_404s": [
+          "https://preview.redd.it/first-world-trillionaire-reached-out-to-reddits-ceo-asking-v0-5r6aekxyl27h1.jpeg?width=640&crop=smart&auto=webp&s=899a442c3cc6f8339ffa5e61f85e31cab429345a"
+        ],
+        "survey_containers": 28,
+        "survey_iframes": 28,
+        "screenshot_path": "/Users/alinajafi/Documents/social-annotate-plus/experiment/results/selectors/Reddit - The heart of the internet_injection.png",
+        "form_frames": 28,
+        "form_submitted": true,
+        "submission_validated": true,
+        "output_path": "/Users/alinajafi/Documents/social-annotate-plus/experiment/results/selectors/Reddit - The heart of the internet_selectors.json",
+        "error": null
+      }
+    }
+  ]
+}

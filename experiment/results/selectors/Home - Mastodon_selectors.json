@@ -1,7 +1,7 @@
 {
-  "bluesky": {
+  "mastodon": {
     "shared": {
-      "appRoot": "body",
+      "appRoot": "#mastodon",
       "observerFilter": {
         "attributes": false,
         "childList": true,
@@ -9,9 +9,9 @@
       }
     },
     "account": {
-      "userDisplayName": "a[href*=\"/profile/\"][aria-label=\"View profile\"]:first-of-type",
-      "userHandle": "a[href*=\"/profile/\"][aria-label=\"View profile\"]:last-of-type",
-      "userAvatar": "[data-testid=\"userAvatarImage\"] img",
+      "userDisplayName": ".status__display-name .display-name__html",
+      "userHandle": ".status__display-name .display-name__account",
+      "userAvatar": ".status__avatar img",
       "userProfileAvatar": null,
       "userProfileSchema": null,
       "userBanner": null,
@@ -27,21 +27,21 @@
       "userLink": null
     },
     "post": {
-      "postContainer": "[data-testid^=\"feedItem-\"]",
-      "postText": "[data-testid=\"postText\"]",
+      "postContainer": ".status__wrapper",
+      "postText": ".status__content__text",
       "postImage": null,
       "postVideo": null,
-      "postTimestamp": "a[href*=\"/post/\"][data-tooltip]",
-      "postTimestampAttr": "data-tooltip",
+      "postTimestamp": "a.status__relative-time time",
+      "postTimestampAttr": "title",
       "postLink": null,
-      "cardWrapper": null,
+      "cardWrapper": ".status-card",
       "conversationMessages": null,
       "messageContainer": null,
       "copyableText": null,
-      "metricsReply": "replyBtn",
-      "metricsRepost": "button[aria-label=\"Repost or quote post\"]",
-      "metricsLike": "likeBtn",
-      "metricsBookmark": "postBookmarkBtn",
+      "metricsReply": ".status__action-bar button[title='Reply']",
+      "metricsRepost": ".status__action-bar button[title='Boost or quote']",
+      "metricsLike": ".status__action-bar button[title='Favorite']",
+      "metricsBookmark": ".status__action-bar button[title='Bookmark']",
       "metricsViews": null,
       "metricsQuote": null,
       "metricsViewsPattern": "views?"

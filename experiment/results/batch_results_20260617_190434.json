@@ -1,0 +1,74 @@
+{
+  "timestamp": "20260617_190434",
+  "mode": "full",
+  "results": [
+    {
+      "record": {
+        "fixture": "test_fixtures/bluesky/post/bluesky_2023.html",
+        "platform": "bluesky",
+        "year": "2023",
+        "duration_s": 65.3,
+        "llm_extracted": true,
+        "browser_loaded": true,
+        "surveys_injected": 11,
+        "form_accessible": true,
+        "form_submitted": true,
+        "data_validated": true,
+        "success": true,
+        "failure_step": null,
+        "error": null
+      },
+      "detail": {
+        "fixture": "/Users/alinajafi/Documents/social-annotate-plus/test_fixtures/bluesky/post/bluesky_2023.html",
+        "offline_post_count": 25,
+        "offline_warnings": [],
+        "selectors": {
+          "appRoot": "body",
+          "postContainer": "[data-testid^=\"feedItem-by-\"]",
+          "postText": "[data-testid=\"postText\"]",
+          "postImage": "[data-testid=\"contentHider-embed\"] img",
+          "postVideo": null,
+          "postTimestamp": "a[data-tooltip][href*=\"/post/\"]",
+          "postTimestampAttr": "data-tooltip",
+          "cardWrapper": null,
+          "metricsReply": "replyBtn",
+          "metricsRepost": "button[aria-label=\"Repost or quote post\"]",
+          "metricsLike": "likeBtn",
+          "metricsBookmark": null,
+          "userDisplayName": "a[href*=\"/profile/\"]:not([href*=\"/post/\"])",
+          "userHandle": "a[href*=\"/profile/\"]:not([href*=\"/post/\"]) span",
+          "userAvatar": "[data-testid=\"userAvatarImage\"] img",
+          "userProfileAvatar": null,
+          "userBanner": null,
+          "userBio": null,
+          "userHeadline": null,
+          "userVerified": null,
+          "userFollowers": null,
+          "userFollowing": null,
+          "userConnections": null,
+          "userLocation": null,
+          "userJoinDate": null,
+          "userUrl": null
+        },
+        "llm_attempts": 0,
+        "browser_loaded": true,
+        "resource_404s": [
+          "http://127.0.0.1:56471/test_fixtures/bluesky/post/images/web-screenshot.svg",
+          "http://127.0.0.1:56471/test_fixtures/bluesky/post/fonts/Iconochive-Regular.woff",
+          "http://127.0.0.1:56471/test_fixtures/bluesky/post/fonts/Iconochive-Regular.ttf",
+          "http://127.0.0.1:56471/test_fixtures/bluesky/post/images/web-screenshot.svg",
+          "http://127.0.0.1:56471/test_fixtures/bluesky/post/fonts/Iconochive-Regular.woff",
+          "http://127.0.0.1:56471/test_fixtures/bluesky/post/fonts/Iconochive-Regular.ttf"
+        ],
+        "survey_containers": 11,
+        "survey_iframes": 11,
+        "screenshot_path": "/Users/alinajafi/Documents/social-annotate-plus/experiment/results/selectors/bluesky_2023_injection.png",
+        "form_frames": 11,
+        "form_submitted": true,
+        "submission_validated": true,
+        "output_path": "/Users/alinajafi/Documents/social-annotate-plus/experiment/results/selectors/bluesky_2023_selectors.json",
+        "error": null
+      }
+    }
+  ]
+}

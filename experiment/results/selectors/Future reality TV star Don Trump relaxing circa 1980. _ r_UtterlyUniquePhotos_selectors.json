@@ -1,0 +1,61 @@
+{
+  "reddit": {
+    "shared": {
+      "appRoot": "shreddit-app",
+      "observerFilter": {
+        "childList": true,
+        "subtree": true
+      }
+    },
+    "account": {
+      "userDisplayName": "[data-testid='profile-display-name']",
+      "userAvatar": "[data-testid='profile-icon']",
+      "userBio": null,
+      "userFollowers": null,
+      "userKarma": "[data-testid='karma-number']",
+      "userCakeDay": "time[data-testid='cake-day']",
+      "userCakeDayDateAttr": "datetime",
+      "userContributions": "faceplate-number[number]",
+      "userContributionsNumberAttr": "number"
+    },
+    "post": {
+      "postContainer": "shreddit-post",
+      "postIdAttr": "id",
+      "postIdPrefix": "t3_",
+      "postTitleAttr": "post-title",
+      "postAuthorAttr": "author",
+      "postScoreAttr": "score",
+      "postCommentCountAttr": "comment-count",
+      "postTimestampAttr": "created-timestamp",
+      "postPermalinkAttr": "permalink",
+      "postText": "[slot='text-body'] .md",
+      "postVideoPlayer": "shreddit-player",
+      "postImage": "[slot='thumbnail'] img, [slot='media'] img",
+      "metricsLike": null,
+      "metricsReply": null,
+      "metricsRepost": null
+    },
+    "comment": {
+      "profileCommentContainer": "shreddit-profile-comment",
+      "profileCommentIdAttr": "comment-id",
+      "profileCommentHrefAttr": "href",
+      "profileCommentAuthorSel": "shreddit-overflow-menu[author-name]",
+      "profileCommentAuthorNameAttr": "author-name",
+      "profileCommentScoreSel": "shreddit-comment-action-row[score]",
+      "profileCommentTimestampSel": "faceplate-timeago[ts]",
+      "commentContainer": "shreddit-comment",
+      "commentIdAttr": "thingid",
+      "commentIdPrefix": "t1_",
+      "commentAuthorAttr": "author",
+      "commentScoreAttr": "score",
+      "commentTimestampAttr": "created",
+      "commentDepthAttr": "depth",
+      "commentCollapsedAttr": "collapsed",
+      "commentContentSlot": "[slot='comment']",
+      "commentContentSel": "[id*='-post-rtjson-content']",
+      "commentText": "[id*='-post-rtjson-content'] p, [id*='-post-rtjson-content']",
+      "subredditURLPattern": "/r/([^/?#]+)",
+      "parentPostIdURLPattern": "/comments/([^/?#]+)"
+    }
+  }
+}

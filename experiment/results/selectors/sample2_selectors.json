@@ -1,7 +1,7 @@
 {
   "telegram": {
     "shared": {
-      "appRoot": "#root",
+      "appRoot": "body#root",
       "observerFilter": {
         "attributes": false,
         "childList": true,
@@ -9,10 +9,10 @@
       }
     },
     "account": {
-      "userDisplayName": ".message-title .sender-title",
+      "userDisplayName": ".sender-title",
       "userHandle": null,
-      "userAvatar": ".message-title .Avatar img",
-      "userProfileAvatar": null,
+      "userAvatar": ".forward-avatar img",
+      "userProfileAvatar": ".ChatInfo .Avatar img",
       "userProfileSchema": null,
       "userBanner": null,
       "userBio": null,
@@ -27,10 +27,10 @@
       "userLink": null
     },
     "post": {
-      "postContainer": ".message-content-wrapper",
+      "postContainer": ".Message.message-list-item",
       "postText": ".text-content",
-      "postImage": ".media-inner canvas.thumbnail",
-      "postVideo": null,
+      "postImage": ".media-inner canvas, .media-inner img",
+      "postVideo": ".media-inner video",
       "postTimestamp": ".message-time",
       "postTimestampAttr": "title",
       "postLink": null,
@@ -38,8 +38,8 @@
       "conversationMessages": null,
       "messageContainer": null,
       "copyableText": null,
-      "metricsReply": null,
-      "metricsRepost": "button[aria-label=\"Forward\"]",
+      "metricsReply": ".message-views",
+      "metricsRepost": ".message-action-buttons button[title='Forward']",
       "metricsLike": null,
       "metricsBookmark": null,
       "metricsViews": null,

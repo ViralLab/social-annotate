@@ -1,0 +1,66 @@
+{
+  "timestamp": "20260617_185913",
+  "mode": "full",
+  "results": [
+    {
+      "record": {
+        "fixture": "test_fixtures/reddit/comments/Future reality TV star Don Trump relaxing circa 1980. _ r_UtterlyUniquePhotos.html",
+        "platform": "reddit-post",
+        "year": "2026",
+        "duration_s": 25.8,
+        "llm_extracted": true,
+        "browser_loaded": true,
+        "surveys_injected": 0,
+        "form_accessible": false,
+        "form_submitted": false,
+        "data_validated": false,
+        "success": false,
+        "failure_step": "Step 6: Survey injection",
+        "error": null
+      },
+      "detail": {
+        "fixture": "/Users/alinajafi/Documents/social-annotate-plus/test_fixtures/reddit/comments/Future reality TV star Don Trump relaxing circa 1980. _ r_UtterlyUniquePhotos.html",
+        "offline_post_count": 100,
+        "offline_warnings": [],
+        "selectors": {
+          "postContainer": "shreddit-post",
+          "postIdAttr": "id",
+          "postIdPrefix": "t3_",
+          "postTitleAttr": "post-title",
+          "postAuthorAttr": "author",
+          "postScoreAttr": "score",
+          "postCommentCountAttr": "comment-count",
+          "postTimestampAttr": "created-timestamp",
+          "postPermalinkAttr": "permalink",
+          "postText": "[slot='text-body'] .md",
+          "postVideoPlayer": "shreddit-player",
+          "postImage": "[slot='thumbnail'] img, [slot='media'] img",
+          "commentContainer": "shreddit-comment",
+          "commentIdAttr": "thingid",
+          "commentIdPrefix": "t1_",
+          "commentAuthorAttr": "author",
+          "commentScoreAttr": "score",
+          "commentTimestampAttr": "created",
+          "commentDepthAttr": "depth",
+          "commentCollapsedAttr": "collapsed",
+          "commentContentSlot": "[slot='comment']",
+          "commentContentSel": "[id*='-post-rtjson-content']",
+          "commentText": "[id*='-post-rtjson-content'] p, [id*='-post-rtjson-content']",
+          "subredditURLPattern": "/r/([^/?#]+)",
+          "parentPostIdURLPattern": "/comments/([^/?#]+)"
+        },
+        "llm_attempts": 0,
+        "browser_loaded": true,
+        "resource_404s": [],
+        "survey_containers": 0,
+        "survey_iframes": 0,
+        "screenshot_path": "/Users/alinajafi/Documents/social-annotate-plus/experiment/results/selectors/Future reality TV star Don Trump relaxing circa 1980. _ r_UtterlyUniquePhotos_injection.png",
+        "form_frames": 0,
+        "form_submitted": false,
+        "submission_validated": false,
+        "output_path": "/Users/alinajafi/Documents/social-annotate-plus/experiment/results/selectors/Future reality TV star Don Trump relaxing circa 1980. _ r_UtterlyUniquePhotos_selectors.json",
+        "error": null
+      }
+    }
+  ]
+}

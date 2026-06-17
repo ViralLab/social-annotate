@@ -9,8 +9,8 @@
       }
     },
     "account": {
-      "userDisplayName": "a[href*=\"/profile/\"]",
-      "userHandle": "a[href*=\"/profile/\"] span",
+      "userDisplayName": "a[href*=\"/profile/\"]:not([href*=\"/post/\"])",
+      "userHandle": "a[href*=\"/profile/\"]:not([href*=\"/post/\"]) span",
       "userAvatar": "[data-testid=\"userAvatarImage\"] img",
       "userProfileAvatar": null,
       "userProfileSchema": null,
@@ -27,9 +27,9 @@
       "userLink": null
     },
     "post": {
-      "postContainer": "[data-testid^=\"feedItem-\"]",
+      "postContainer": "[data-testid^=\"feedItem-by-\"]",
       "postText": "[data-testid=\"postText\"]",
-      "postImage": "[data-expoimage=\"true\"] img",
+      "postImage": "[data-testid=\"contentHider-embed\"] img",
       "postVideo": null,
       "postTimestamp": "a[data-tooltip][href*=\"/post/\"]",
       "postTimestampAttr": "data-tooltip",
@@ -39,7 +39,7 @@
       "messageContainer": null,
       "copyableText": null,
       "metricsReply": "replyBtn",
-      "metricsRepost": "button[aria-label^=\"Repost\"]",
+      "metricsRepost": "button[aria-label=\"Repost or quote post\"]",
       "metricsLike": "likeBtn",
       "metricsBookmark": null,
       "metricsViews": null,

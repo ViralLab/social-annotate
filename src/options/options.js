@@ -445,8 +445,8 @@ function buildSurveyCard(key, survey) {
         'reddit-user':       'Reddit usernames',
     };
     let annotationHint = annotationHints[key] || 'Comma-separated identifiers';
-    const noManipulationPlatforms = ['tiktok', 'facebook', 'youtube', 'mastodon', 'reddit'];
-    let hasManipulation = !noManipulationPlatforms.some(function(p) { return key.startsWith(p); });
+    const noManipulationPlatforms = ['tiktok', 'youtube'];
+    let hasManipulation = !noManipulationPlatforms.some(function(p) { return key.startsWith(p); }) && !key.endsWith('-user');
     return `
 <div class="survey-card" id="card_${key}">
   <div class="card-header">

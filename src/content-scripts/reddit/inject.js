@@ -18,6 +18,11 @@ let _injectedPosts    = new Set();
 let _injectedComments = new Set();
 let _userInjected     = '';
 
+let manipConfig_RD  = {};
+let manipMap_RD     = {};
+let manipMapId_RD   = '';
+let manipApplied_RD = {};
+
 // ── URL helpers ───────────────────────────────────────────────────────────────
 
 function checkRedditUserURL() {
@@ -174,6 +179,39 @@ function processRedditPostNode(postEl) {
     _processedCount_RD++;
 
     let author = postEl.getAttribute(SEL_RD.postAuthorAttr || 'author') || '';
+
+    if (manipConfig_RD.enabled && manipMap_RD[postId]) {
+        let entry = manipMap_RD[postId];
+        let textSelectors = (SEL_RD.postText || '').split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+        let textEl = null;
+        for (let i = 0; i < textSelectors.length; i++) {
+            textEl = postEl.querySelector(textSelectors[i]);
+            if (textEl) break;
+        }
+        if (textEl) {
+            let rewrittenText = entry.rewritten_text;
+            let originalText  = entry.original_text || '';
+            textEl.textContent = rewrittenText;
+            if (manipConfig_RD.mode === 'aware') {
+                let isOriginal = false;
+                let toggleBtn = document.createElement('button');
+                toggleBtn.textContent = '👁 Show original';
+                toggleBtn.setAttribute('data-sa-manip-toggle', '1');
+                toggleBtn.style.cssText = 'display:block;margin-left:auto;margin-bottom:4px;padding:2px 10px;font-size:11px;cursor:pointer;border-radius:4px;background:rgba(255,69,0,0.08);color:rgb(255,69,0);border:1px solid rgba(255,69,0,0.25);';
+                toggleBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    isOriginal = !isOriginal;
+                    textEl.textContent = isOriginal ? originalText : rewrittenText;
+                    toggleBtn.textContent = isOriginal ? '✏ Show rewritten' : '👁 Show original';
+                });
+                textEl.parentNode.insertBefore(toggleBtn, textEl);
+            }
+            let meta = { applied: true, label: entry.prompt_label || '', map_id: manipMapId_RD };
+            if (manipConfig_RD.logOriginal) meta.original_text = originalText;
+            manipApplied_RD[postId] = meta;
+        }
+    }
+
     let cssUrl = chrome.runtime.getURL('content-scripts/reddit/inject.css');
 
     let surveyContainer = document.createElement('div');
@@ -474,6 +512,17 @@ function initializeSurveys() {
         SEL_RD = Object.assign({}, _rawRD.shared || {}, _rawRD.account || {}, _rawRD.post || {}, _rawRD.comment || {});
         watchPostCounter('reddit', function() { return _processedCount_RD; });
 
+        // Load manipulation map for reddit-post
+        let _postConfRD = result.config.surveys && result.config.surveys['reddit-post'];
+        manipConfig_RD = (_postConfRD && _postConfRD.manipulation) || {};
+        if (manipConfig_RD.enabled && result.manipulationMaps && result.manipulationMaps['reddit-post']) {
+            let fullMap = result.manipulationMaps['reddit-post'];
+            manipMapId_RD = (fullMap._meta && fullMap._meta.map_id) || '';
+            let entries = Object.assign({}, fullMap);
+            delete entries._meta;
+            manipMap_RD = entries;
+        }
+
         for (let index = 0; index < availableContextsReddit.length; ++index) {
             let currentContext = availableContextsReddit[index];
             let contextFlag = result.config.activeSurveys.includes(currentContext.name);
@@ -508,6 +557,18 @@ function initializeSurveys() {
                                 window.dispatchEvent(evt);
                             }
                         });
+                    }
+
+                    if (ctx.name === 'reddit-post') {
+                        let _ma = manipApplied_RD[values.post_id];
+                        if (_ma) {
+                            values.manipulation_applied = true;
+                            values.manipulation_label   = _ma.label;
+                            values.manipulation_map_id  = _ma.map_id;
+                            if (_ma.original_text !== undefined) values.manipulation_original_text = _ma.original_text;
+                        } else {
+                            values.manipulation_applied = false;
+                        }
                     }
 
                     storeResults(values, 'reddit');

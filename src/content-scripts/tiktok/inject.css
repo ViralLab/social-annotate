@@ -13,7 +13,7 @@ div.survey-container-user {
 	background-color: transparent;
 	position: fixed;
 	bottom: 0;
-	z-index: 99;
+	z-index: 9999;
 }
 
 /* Positioned at the top of [data-e2e="feed-video"] which is position:relative in TikTok's layout */

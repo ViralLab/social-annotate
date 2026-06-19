@@ -249,7 +249,7 @@
   },
   "telegram": {
     "shared": {
-      "appRoot": null,
+      "appRoot": "body",
       "observerFilter": {
         "attributes": false,
         "childList": true,
@@ -257,7 +257,7 @@
       }
     },
     "account": {
-      "userDisplayName": ".fullName",
+      "userDisplayName": ".ChatInfo .fullName",
       "userHandle": null,
       "userAvatar": ".Avatar__media",
       "userProfileAvatar": null,
@@ -291,7 +291,8 @@
       "metricsBookmark": null,
       "metricsViews": ".message-views",
       "metricsQuote": null,
-      "metricsViewsPattern": null
+      "metricsViewsPattern": null,
+      "messageSignature": ".message-signature"
     }
   },
   "truthsocial": {

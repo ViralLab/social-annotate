@@ -303,15 +303,16 @@ function extractMessageDetails(messageNode) {
     if (!postID) return null;
 
     let userID = 'unknown';
-    const nameNode = messageNode.querySelector(SEL_TG.userDisplayName || '.fullName');
-    if (nameNode) {
-        userID = nameNode.textContent.trim();
+    // Channels: each message has a .message-signature with the channel/author name
+    const sigNode = messageNode.querySelector(SEL_TG.messageSignature || '.message-signature');
+    if (sigNode && sigNode.textContent.trim()) {
+        userID = sigNode.textContent.trim();
     } else {
-        const headerName = document.querySelector(SEL_TG.userDisplayName || '.fullName');
-        if (headerName) {
+        // DMs / groups: read from the chat header — scoped to .ChatInfo to avoid
+        // matching the logged-in user's own name in the sidebar account menu
+        const headerName = document.querySelector(SEL_TG.userDisplayName || '.ChatInfo .fullName');
+        if (headerName && headerName.textContent.trim()) {
             userID = headerName.textContent.trim();
-        } else {
-            userID = 'User';
         }
     }
 

@@ -68,7 +68,7 @@ window.addEventListener('mh:download-request', function(e) {
         let userID = detail.userID;
         chrome.storage.local.get(['isProfileDownloadEnabled'], function(res) {
             if (res.isProfileDownloadEnabled) {
-                let avatarEl = document.querySelector(SEL_IG.userAvatar || 'header img[alt]');
+                let avatarEl = getInstagramProfileAvatarEl();
                 if (avatarEl && avatarEl.src) {
                     chrome.runtime.sendMessage({ action: 'downloadMedia', urls: [avatarEl.src], userId: userID || 'user', postId: 'profile', surveyType: initialSurveyType });
                 } else {
@@ -380,7 +380,7 @@ function processInstagramCommentAnchor(anchor) {
 
 function crawlUserName() {
     if (window.location.protocol === 'file:' || window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
-        let handleEl = document.querySelector(SEL_IG.userHandle || 'header section h2, header h2');
+        let handleEl = document.querySelector(SEL_IG.userHandle || 'section h2[dir="auto"], header h2');
         if (handleEl) {
             let text = handleEl.textContent.trim().replace(/^@/, '');
             if (text) return text;
@@ -392,6 +392,91 @@ function crawlUserName() {
     temp = temp[temp.length - 1];
     temp = temp.split('/')[0].split('?')[0];
     return temp;
+}
+
+function getInstagramProfileAvatarEl() {
+    let username = crawlUserName();
+    if (username && username !== 'local-test-user') {
+        let el = document.querySelector(`img[alt="${username}'s profile picture"]`);
+        if (el) return el;
+    }
+    // Fallback: first profile picture not in nav/header (avoids logged-in user's avatar)
+    let all = document.querySelectorAll(SEL_IG.userAvatar || 'img[alt*="profile picture"]');
+    for (let img of all) {
+        if (!img.closest('nav') && !img.closest('header')) return img;
+    }
+    return all[0] || null;
+}
+
+function extractUserProfile() {
+    let profile = {};
+
+    // Handle — URL is canonical on a profile page
+    try {
+        let urlHandle = crawlUserName();
+        if (urlHandle && urlHandle !== 'local-test-user') {
+            profile.handle = '@' + urlHandle;
+        } else {
+            let el = document.querySelector(SEL_IG.userHandle || 'section h2[dir="auto"]');
+            if (el) profile.handle = el.textContent.trim();
+        }
+    } catch (e) { /* skip */ }
+
+    // Display name — first span[dir=auto] not inside <a>, not bio, not a stat
+    try {
+        let spans = document.querySelectorAll('section span[dir="auto"]');
+        for (let s of spans) {
+            if (s.closest('a') || s.closest(SEL_IG.userBio || '._aade')) continue;
+            let text = s.textContent.trim();
+            if (!text || /^[\d,.][\d,.KMBkmb\s]*\s+(posts?|followers?|following)$/i.test(text)) continue;
+            profile.profile_name = text;
+            break;
+        }
+    } catch (e) { /* skip */ }
+
+    // Bio
+    try {
+        let el = document.querySelector(SEL_IG.userBio || '._aade');
+        if (el) profile.bio = el.textContent.trim();
+    } catch (e) { /* skip */ }
+
+    // Followers / Following / Posts counts.
+    // Primary: CSS selectors from SEL_IG (work on live pages where hrefs are real paths).
+    // Fallback: text-pattern scan of all span[dir="auto"] (handles saved pages where
+    // hrefs are "#", and filters out the "Followed by..." mutual section via digit check).
+    try {
+        let isCountText = function(text) { return /^[\d,.]/.test(text); };
+
+        let followersEl = SEL_IG.userFollowers ? document.querySelector(SEL_IG.userFollowers) : null;
+        if (followersEl && isCountText(followersEl.textContent.trim()))
+            profile.followersCount = followersEl.textContent.trim();
+
+        let followingEl = SEL_IG.userFollowing ? document.querySelector(SEL_IG.userFollowing) : null;
+        if (followingEl && isCountText(followingEl.textContent.trim()))
+            profile.followingCount = followingEl.textContent.trim();
+
+        // Text-pattern scan covers cases where CSS selectors didn't match
+        if (!profile.followersCount || !profile.followingCount || !profile.postsCount) {
+            let spans = document.querySelectorAll('span[dir="auto"]');
+            for (let s of spans) {
+                let text = s.textContent.trim();
+                if (!profile.followersCount && /^[\d,.][\d,.KMBkmb\s]*\s+followers?$/i.test(text))
+                    profile.followersCount = text;
+                else if (!profile.followingCount && /^[\d,.][\d,.KMBkmb\s]*\s+following$/i.test(text))
+                    profile.followingCount = text;
+                else if (!profile.postsCount && /^[\d,.][\d,.KMBkmb\s]*\s+posts?$/i.test(text) && !s.closest('a'))
+                    profile.postsCount = text;
+            }
+        }
+    } catch (e) { /* skip */ }
+
+    // Avatar — match by username to avoid picking the logged-in user's nav avatar
+    try {
+        let el = getInstagramProfileAvatarEl();
+        if (el && el.src) profile.profile_img_url = el.src;
+    } catch (e) { /* skip */ }
+
+    return profile;
 }
 
 
@@ -1054,7 +1139,9 @@ function initializeSurveys() {
                     if (currentContext.name === 'instagram-user') {
                         _processedCount_IG++;
                         let surveyID = crawlUserName();
-                        currentContext.renderSurvey(surveyID);
+                        currentContext.renderSurvey(surveyID, null, {
+                            user_profile: () => extractUserProfile()
+                        });
                     }
                 }
             }

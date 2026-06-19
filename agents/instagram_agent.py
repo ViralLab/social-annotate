@@ -25,23 +25,101 @@ RULES:
 4. metricsLike / metricsReply: Instagram hides exact counts. Use aria-label selectors
    such as [aria-label*="like"] or [aria-label*="comment"] scoped inside each article.
    Set to null if engagement counts are genuinely absent.
-5. Instagram does NOT show follower counts in the feed — userFollowers / userFollowing
-   may be null for feed snapshots.
-6. Profile-page selectors may be null if this is a feed snapshot.
+5. userFollowers / userFollowing: target the FOLLOWER COUNT and FOLLOWING COUNT links,
+   NOT the "Followed by [names]..." mutual-followers section. On live pages the count
+   links use href ending in /followers/ or /following/. Use: a[href$="/followers/"] and
+   a[href$="/following/"]. Set null only if the count links are genuinely absent.
+6. All other profile-page selectors (userHandle, userBio, userAvatar) are preserved
+   automatically from the existing file — leave them null in your response.
 {context_section}{error_section}
 --- PRUNED HTML START ---
 {html}
 --- PRUNED HTML END ---
 """
 
-_to_nested = make_to_nested("instagram")
+def _ig_post_to_nested(result: BaseSelectorResult, existing: dict | None = None) -> dict:
+    """
+    Custom to_nested for the Instagram post/feed agent.
+
+    Profile-page account selectors (userHandle, userBio, userAvatar, etc.) are preserved
+    from the existing file rather than regenerated from feed HTML — the feed DOM doesn't
+    contain a profile header, so the LLM would return null and overwrite good values.
+
+    userFollowers / userFollowing use href$= selectors targeting the count links on live
+    pages. On saved fixtures hrefs are "#" so the JS text-pattern scan acts as fallback.
+    """
+    base = (existing or {}).get("instagram", {})
+    base_shared  = base.get("shared", {})
+    base_account = base.get("account", {})
+    base_post    = base.get("post", {})
+
+    output: dict = {
+        "instagram": {
+            "shared": {
+                "appRoot": result.appRoot,
+                "observerFilter": base_shared.get("observerFilter") or {
+                    "attributes": False,
+                    "childList": True,
+                    "subtree": True,
+                },
+            },
+            "account": {
+                # Preserve all existing profile-page selectors — the healer only runs
+                # on feed HTML where these elements don't exist.
+                "userDisplayName":  base_account.get("userDisplayName"),
+                "userHandle":       base_account.get("userHandle"),
+                "userAvatar":       base_account.get("userAvatar"),
+                "userProfileAvatar": base_account.get("userProfileAvatar"),
+                "userProfileSchema": base_account.get("userProfileSchema"),
+                "userBanner":       base_account.get("userBanner"),
+                "userBio":          base_account.get("userBio"),
+                "userHeadline":     base_account.get("userHeadline"),
+                "userVerified":     base_account.get("userVerified"),
+                # On live pages these link to /followers/ and /following/ paths.
+                # On saved fixtures hrefs are "#" so the JS text-pattern scan is the fallback.
+                "userFollowers":    result.userFollowers,
+                "userFollowing":    result.userFollowing,
+                "userConnections":  base_account.get("userConnections"),
+                "userLocation":     base_account.get("userLocation"),
+                "userJoinDate":     base_account.get("userJoinDate"),
+                "userUrl":          base_account.get("userUrl"),
+                "userLink":         base_account.get("userLink"),
+            },
+            "post": {
+                "postContainer":     result.postContainer,
+                "postText":          result.postText,
+                "postImage":         result.postImage,
+                "postVideo":         result.postVideo,
+                "postTimestamp":     result.postTimestamp,
+                "postTimestampAttr": result.postTimestampAttr,
+                "postLink":          None,
+                "cardWrapper":       result.cardWrapper,
+                "conversationMessages": None,
+                "messageContainer":  None,
+                "copyableText":      None,
+                "metricsReply":      result.metricsReply,
+                "metricsRepost":     result.metricsRepost,
+                "metricsLike":       result.metricsLike,
+                "metricsBookmark":   result.metricsBookmark,
+                "metricsViews":      None,
+                "metricsQuote":      None,
+                "metricsViewsPattern": base_post.get("metricsViewsPattern") or "views?",
+            },
+        }
+    }
+    # Preserve extra sub-sections (e.g. "comment", "reel") that this agent doesn't touch.
+    for key, val in base.items():
+        if key not in ("shared", "account", "post"):
+            output["instagram"][key] = val
+    return output
+
 
 INSTAGRAM_PLATFORM_AGENT = PlatformAgent(
     name="instagram",
     survey_type="instagram-post",
     schema_class=BaseSelectorResult,
     validate_fn=generic_validate,
-    to_nested_fn=_to_nested,
+    to_nested_fn=_ig_post_to_nested,
     prompt_template=_POST_PROMPT,
     offline_selectors=[
         "article",

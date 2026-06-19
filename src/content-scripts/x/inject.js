@@ -274,11 +274,15 @@ function extractUserProfile() {
         }
     } catch (e) { /* skip */ }
 
-    // Handle / @username
+    // Handle / @username — URL is the canonical source on a profile page.
+    // DOM selectors (SEL.userHandle) can match retweet author elements in the feed.
     try {
-        let handleEl = document.querySelector(SEL.userHandle || '[data-testid="UserName"] a[href] span');
-        if (handleEl) {
-            profile.handle = handleEl.textContent.trim();
+        let urlHandle = crawlUserName();
+        if (urlHandle && urlHandle !== 'local-test-user') {
+            profile.handle = '@' + urlHandle;
+        } else {
+            let handleEl = document.querySelector(SEL.userHandle || '[data-testid="UserName"] a[href] span');
+            if (handleEl) profile.handle = handleEl.textContent.trim();
         }
     } catch (e) { /* skip */ }
 

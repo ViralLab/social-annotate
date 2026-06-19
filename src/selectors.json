@@ -13,7 +13,7 @@
     },
     "account": {
       "userDisplayName": "[data-testid=\"User-Name\"]",
-      "userHandle": "[data-testid=\"User-Name\"] a[href][tabindex=\"-1\"] span",
+      "userHandle": "[data-testid=\"UserName\"] div[tabindex=\"-1\"]",
       "userAvatar": "[data-testid=\"Tweet-User-Avatar\"] img[src*=\"profile_images\"]",
       "userProfileAvatar": "[data-testid^=\"UserAvatar-Container-\"]",
       "userProfileSchema": "script[data-testid=\"UserProfileSchema-test\"]",

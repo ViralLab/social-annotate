@@ -1,0 +1,49 @@
+name: Package & Release Extension
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v1.0.1)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve tag
+        id: meta
+        run: |
+          TAG="${GITHUB_REF_NAME:-${{ github.event.inputs.tag }}}"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "zip=social-annotate-${TAG}.zip" >> $GITHUB_OUTPUT
+
+      - name: Package src/ into ZIP
+        run: zip -r "${{ steps.meta.outputs.zip }}" src/ -x "*.DS_Store" "*__MACOSX*" "*.map"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: Social Annotate ${{ steps.meta.outputs.tag }}
+          body: |
+            ## Install
+
+            1. Download **${{ steps.meta.outputs.zip }}** below.
+            2. Unzip it.
+            3. Open `chrome://extensions`, enable **Developer mode**.
+            4. Click **Load unpacked** and select the `src/` folder.
+
+            Full docs: https://virallab.github.io/social-annotate/installation/
+          files: ${{ steps.meta.outputs.zip }}
+          draft: false
+          prerelease: false

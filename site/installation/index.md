@@ -2,24 +2,32 @@
 
 Social Annotate is distributed as an unpacked Chrome extension (Manifest V3). No Chrome Web Store listing is required.
 
-## Getting Started
+## Download
 
-**Requirements:** Google Chrome (or any Chromium-based browser).
+<a href="https://github.com/ViralLab/social-annotate/releases/latest" target="_blank" style="display:inline-block;padding:10px 24px;background:#646cff;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;">⬇ Download Latest Release</a>
 
-Clone the repository:
-
-```bash
-git clone https://github.com/ViralLab/social-annotate.git
-cd social-annotate
-```
+Download the ZIP from the [Releases page](https://github.com/ViralLab/social-annotate/releases/latest), unzip it, then follow the steps below.
 
 ## Load the Extension
 
 1. Open Chrome and navigate to `chrome://extensions`.
 2. Enable **Developer mode** using the toggle in the top-right corner.
 3. Click **Load unpacked**.
-4. Select the **`src/`** folder inside this repository.
+4. Select the **`src/`** folder from the unzipped download.
 5. The Social Annotate icon will appear in your Chrome toolbar.
+
+## Getting Started (from source)
+
+**Requirements:** Google Chrome (or any Chromium-based browser).
+
+Clone the repository if you prefer to work from source:
+
+```bash
+git clone https://github.com/ViralLab/social-annotate.git
+cd social-annotate
+```
+
+Then follow the Load the Extension steps above, pointing at the `src/` folder in the repo.
 
 > Reload the extension from `chrome://extensions` any time you change source files.
 

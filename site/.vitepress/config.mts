@@ -5,6 +5,11 @@ export default defineConfig({
   description: 'Self-Healing Browser Extension to Annotate and Collect Social Media Data',
   base: '/social-annotate/',
   appearance: 'dark',
+  head: [
+    ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
+    ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
+    ['link', { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,700;0,800;1,700&display=swap' }],
+  ],
   lastUpdated: true,
   cleanUrls: true,
   ignoreDeadLinks: true,

@@ -1,0 +1,110 @@
+/* ── Global background ── */
+:root {
+  --vp-font-family-base: 'Inter', system-ui, -apple-system, sans-serif;
+  --vp-c-bg: #0a0a0a;
+  --vp-c-bg-soft: #111111;
+  --vp-c-bg-mute: #1a1a1a;
+  --vp-c-border: #1e1e1e;
+  --vp-c-divider: #1a1a1a;
+  --vp-c-text-1: #e0e0e0;
+  --vp-c-text-2: #888888;
+  --vp-c-text-3: #555555;
+  --vp-c-brand-1: #ffffff;
+  --vp-c-brand-2: #cccccc;
+}
+
+/* ── Navbar ── */
+.VPNav {
+  border-bottom: 1px solid #1a1a1a !important;
+  background: rgba(10, 10, 10, 0.9) !important;
+  backdrop-filter: blur(10px);
+}
+.VPNavBar {
+  background: transparent !important;
+}
+.VPNavBarTitle .title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0;
+  color: #e8e0d0 !important;
+}
+
+/* Gold # prefix on the logo, matching plainmarkdown.com */
+.VPNavBarTitle .title::before {
+  content: '# ';
+  color: #c9a860;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  font-weight: 400;
+}
+.VPNavBarMenuLink {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #666 !important;
+  transition: color 0.15s;
+}
+.VPNavBarMenuLink:hover,
+.VPNavBarMenuLink.active {
+  color: #e0e0e0 !important;
+}
+
+/* ── layout: page removes default padding — restore it ── */
+.VPPage {
+  padding-top: 0 !important;
+}
+
+/* ── Sidebar ── */
+.VPSidebar {
+  background: #0a0a0a !important;
+  border-right: 1px solid #1a1a1a !important;
+}
+.VPSidebarItem .text {
+  font-size: 13.5px;
+  color: #666;
+}
+.VPSidebarItem.is-active .text {
+  color: #e0e0e0;
+}
+
+/* ── Doc pages ── */
+.VPDoc {
+  background: #0a0a0a;
+}
+.vp-doc h1, .vp-doc h2, .vp-doc h3 {
+  font-family: 'Playfair Display', Georgia, serif;
+  letter-spacing: 0;
+  color: #e8e8e8;
+}
+.vp-doc h2 {
+  border-top: 1px solid #1a1a1a;
+}
+.vp-doc a {
+  color: #aaa;
+}
+.vp-doc a:hover {
+  color: #fff;
+}
+.vp-doc code {
+  background: #111;
+  border: 1px solid #1e1e1e;
+  color: #aaa;
+}
+.vp-doc div[class*='language-'] {
+  border: 1px solid #1e1e1e;
+  border-radius: 8px;
+  background: #0d0d0d !important;
+}
+
+/* ── Footer ── */
+.VPFooter {
+  border-top: 1px solid #1a1a1a !important;
+  background: #0a0a0a !important;
+  font-size: 13px !important;
+  color: #444 !important;
+}
+
+/* ── Selection ── */
+::selection {
+  background: rgba(255, 255, 255, 0.12);
+}

@@ -14,6 +14,11 @@ let manipMap_TS     = {};
 let manipMapId_TS   = '';
 let manipApplied_TS     = {};
 let _processedCount_TS     = 0;
+const _inFlight_TS = new Set();
+
+// ── User intervention state ───────────────────────────────
+let manipConfig_TSU  = {};
+let manipApplied_TSU = {};
 registerHealthCounter(function () { return _processedCount_TS; });
 
 // ---------------------------------------------------------------------------
@@ -63,6 +68,34 @@ function _tsMetricsFromApi(data) {
     return metrics;
 }
 
+function _tsToggleBtn(textEl, originalNodes, rewrittenText) {
+    if (manipConfig_TS.mode !== 'aware') return;
+    let isOriginal = false;
+    let toggleBtn = document.createElement('button');
+    toggleBtn.textContent = '👁 Show original';
+    toggleBtn.setAttribute('data-sa-interv-toggle', '1');
+    toggleBtn.style.cssText = [
+        'display:block','margin-left:auto','margin-bottom:4px',
+        'padding:2px 10px','font-size:11px','line-height:1.6',
+        'cursor:pointer','border-radius:4px',
+        'background:rgba(29,155,240,0.08)','color:rgb(29,155,240)',
+        'border:1px solid rgba(29,155,240,0.25)',
+        'font-family:-apple-system,BlinkMacSystemFont,sans-serif',
+    ].join(';');
+    toggleBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        isOriginal = !isOriginal;
+        if (isOriginal) {
+            textEl.textContent = '';
+            originalNodes.forEach(function (n) { textEl.appendChild(n.cloneNode(true)); });
+        } else {
+            textEl.textContent = rewrittenText;
+        }
+        toggleBtn.textContent = isOriginal ? '✏ Show rewritten' : '👁 Show original';
+    });
+    textEl.parentNode.insertBefore(toggleBtn, textEl);
+}
+
 window.addEventListener('mh:download-request', async function(e) {
     let detail = e.detail;
     if (!detail) return;
@@ -104,99 +137,140 @@ window.addEventListener('mh:download-request', async function(e) {
     }
 });
 
-function processPostNode(postNode) {
+async function processPostNode(postNode) {
     _processedCount_TS++;
     let insertElement = postNode;
-    if (insertElement && insertElement.getElementsByClassName('survey-container-post').length === 0) {
-        let postDetails = extractPostDetails(postNode);
+    if (!insertElement || insertElement.getElementsByClassName('survey-container-post').length > 0) return;
 
-        if (postDetails && postDetails.postID) {
-            // Kick off API fetch immediately — data will be ready long before form submit
-            fetchTruthSocialPostData(postDetails.postID);
+    let postDetails = extractPostDetails(postNode);
+    if (!postDetails || !postDetails.postID) return;
+    if (_inFlight_TS.has(postDetails.postID)) return;
 
-            // ── Manipulation DOM patch ────────────────────────────
-            if (manipConfig_TS.enabled && manipMap_TS[postDetails.postID]) {
-                let entry   = manipMap_TS[postDetails.postID];
-                let textEl  = postNode.querySelector(SEL_TS.postText || '[data-testid="status-content"] [data-testid="markup"]');
-                if (textEl) {
-                    let rewrittenText = entry.rewritten_text;
-                    let originalText  = entry.original_text || '';
-                    textEl.textContent = rewrittenText;
-                    if (manipConfig_TS.mode === 'aware') {
-                        let isOriginal = false;
-                        let toggleBtn  = document.createElement('button');
-                        toggleBtn.textContent = '👁 Show original';
-                        toggleBtn.setAttribute('data-sa-manip-toggle', '1');
-                        toggleBtn.style.cssText = [
-                            'display:block','margin-left:auto','margin-bottom:4px',
-                            'padding:2px 10px','font-size:11px','line-height:1.6',
-                            'cursor:pointer','border-radius:4px',
-                            'background:rgba(29,155,240,0.08)','color:rgb(29,155,240)',
-                            'border:1px solid rgba(29,155,240,0.25)',
-                            'font-family:-apple-system,BlinkMacSystemFont,sans-serif',
-                        ].join(';');
-                        toggleBtn.addEventListener('click', function (e) {
-                            e.stopPropagation();
-                            isOriginal = !isOriginal;
-                            textEl.textContent = isOriginal ? originalText : rewrittenText;
-                            toggleBtn.textContent = isOriginal ? '✏ Show rewritten' : '👁 Show original';
-                        });
-                        textEl.parentNode.insertBefore(toggleBtn, textEl);
-                    }
-                    let meta = { applied: true, label: entry.prompt_label || '', map_id: manipMapId_TS };
-                    if (manipConfig_TS.logOriginal) meta.original_text = originalText;
-                    manipApplied_TS[postDetails.postID] = meta;
-                }
-                if (entry.replacement_image) {
-                    let avatarImg = postNode.querySelector(SEL_TS.postAuthorAvatar || '.status__avatar img, img[src*="avatar"]');
-                    if (avatarImg) { avatarImg.src = entry.replacement_image; avatarImg.srcset = ''; }
-                }
+    // Kick off API fetch early — data will be ready before form submit
+    fetchTruthSocialPostData(postDetails.postID);
+
+    // ── Live API path ────────────────────────────────────────
+    if (manipConfig_TS.enabled && manipConfig_TS.source === 'api' && manipConfig_TS.endpoint && window.__sa_intervApi) {
+        _inFlight_TS.add(postDetails.postID);
+
+        function _tsApplyResult(result, targetNode) {
+            let textEl = targetNode.querySelector(SEL_TS.postText || '[data-testid="status-content"] [data-testid="markup"]');
+            if (textEl && result.rewritten_text) {
+                let originalNodes = Array.from(textEl.childNodes).map(function (n) { return n.cloneNode(true); });
+                textEl.textContent = result.rewritten_text;
+                _tsToggleBtn(textEl, originalNodes, result.rewritten_text);
             }
-            // ─────────────────────────────────────────────────────
+        }
+
+        // If already cached (e.g. navigated from feed to post detail), apply synchronously
+        let cached = window.__sa_intervApi.getCached(postDetails.postID);
+        if (cached) {
+            _tsApplyResult(cached, postNode);
+            _inFlight_TS.delete(postDetails.postID);
+            injectTruthSocialPostSurvey(insertElement, postDetails.postID);
+            availableContextsTruthSocial[0].renderSurvey(postDetails.postOwner, postDetails.postID, {
+                body: () => cached.rewritten_text,
+                media_urls: () => extractPostMedia(postNode),
+                post_metrics: () => extractPostMetrics(postNode),
+                created_at: () => { let t = postNode.querySelector(SEL_TS.postTimestamp || 'a[href*="/posts/"] time') || postNode.querySelector('time[datetime]'); return t ? t.getAttribute('datetime') : null; }
+            });
+            return;
+        }
+
+        let overlay = window.__sa_intervApi.createOverlay(postNode, manipConfig_TS.mode);
+        let doRetry = function () { _inFlight_TS.delete(postDetails.postID); overlay.remove(); processPostNode(postNode); };
+        try {
+            let apiData = _tsApiCache[postDetails.postID];
+            let body = apiData && apiData.content ? _tsStripHtml(apiData.content) : extractPostTextContent(postNode);
+            let media_urls = apiData ? _tsMediaUrlsFromApi(apiData) : extractPostMedia(postNode);
+            let post_metrics = apiData ? _tsMetricsFromApi(apiData) : extractPostMetrics(postNode);
+            let tsTime = postNode.querySelector(SEL_TS.postTimestamp || 'a[href*="/posts/"] time') || postNode.querySelector('time[datetime]');
+            let created_at = (apiData && apiData.created_at) ? apiData.created_at : (tsTime ? (tsTime.getAttribute(SEL_TS.postTimestampAttr || 'datetime') || null) : null);
+            let postData = { post_id: postDetails.postID, account_id: postDetails.postOwner, body, created_at, media_urls, post_metrics };
+
+            let result = await window.__sa_intervApi.queuePost(postData);
+
+            let meta = { applied: true, label: result.prompt_label || '', map_id: result.map_id || window.__sa_intervApi.getMapId() };
+            if (manipConfig_TS.logOriginal) meta.original_text = body;
+            if (result.extras) meta.extras = result.extras;
+            manipApplied_TS[postDetails.postID] = meta;
+
+            overlay.parentNode && overlay.parentNode.removeChild(overlay);
+            _inFlight_TS.delete(postDetails.postID);
+
+            // Re-query after overlay removal — framework may have re-rendered during the await
+            _tsApplyResult(result, postNode);
 
             injectTruthSocialPostSurvey(insertElement, postDetails.postID);
-            availableContextsTruthSocial[0].renderSurvey(
-                postDetails.postOwner,
-                postDetails.postID,
-                {
-                    body: () => {
-                        const api = _tsApiCache[postDetails.postID];
-                        if (api && api.content) return _tsStripHtml(api.content);
-                        return extractPostTextContent(postNode);
-                    },
-                    media_urls: () => {
-                        const api = _tsApiCache[postDetails.postID];
-                        const apiUrls = _tsMediaUrlsFromApi(api);
-                        if (apiUrls.length > 0) return apiUrls;
-                        return extractPostMedia(postNode);
-                    },
-                    post_metrics: () => {
-                        const api = _tsApiCache[postDetails.postID];
-                        if (api) return _tsMetricsFromApi(api);
-                        return extractPostMetrics(postNode);
-                    },
-                    created_at: () => {
-                        const api = _tsApiCache[postDetails.postID];
-                        if (api && api.created_at) return api.created_at;
-                        let t = postNode.querySelector(SEL_TS.postTimestamp || 'a[href*="/posts/"] time') || postNode.querySelector('time[datetime]');
-                        if (!t) return null;
-                        let attr = SEL_TS.postTimestampAttr || 'datetime';
-                        return t.getAttribute(attr) || null;
-                    }
-                }
-            );
+            availableContextsTruthSocial[0].renderSurvey(postDetails.postOwner, postDetails.postID, {
+                body: () => result.rewritten_text || body,
+                media_urls: () => media_urls,
+                post_metrics: () => post_metrics,
+                created_at: () => created_at
+            });
+        } catch (err) {
+            overlay.showError(doRetry);
+        }
+        return;
+    }
+
+    // ── Map path ─────────────────────────────────────────────
+    if (manipConfig_TS.enabled && manipConfig_TS.source !== 'api' && manipMap_TS[postDetails.postID]) {
+        let entry  = manipMap_TS[postDetails.postID];
+        let textEl = postNode.querySelector(SEL_TS.postText || '[data-testid="status-content"] [data-testid="markup"]');
+        if (textEl) {
+            let originalNodes = Array.from(textEl.childNodes).map(function (n) { return n.cloneNode(true); });
+            textEl.textContent = entry.rewritten_text;
+            _tsToggleBtn(textEl, originalNodes, entry.rewritten_text);
+            let meta = { applied: true, label: entry.prompt_label || '', map_id: manipMapId_TS };
+            if (manipConfig_TS.logOriginal) meta.original_text = entry.original_text || '';
+            manipApplied_TS[postDetails.postID] = meta;
+        }
+        if (entry.replacement_image) {
+            let avatarImg = postNode.querySelector(SEL_TS.postAuthorAvatar || '.status__avatar img, img[src*="avatar"]');
+            if (avatarImg) { avatarImg.src = entry.replacement_image; avatarImg.srcset = ''; }
         }
     }
+
+    // ── Normal path (also reached after map manipulation) ────
+    injectTruthSocialPostSurvey(insertElement, postDetails.postID);
+    availableContextsTruthSocial[0].renderSurvey(postDetails.postOwner, postDetails.postID, {
+        body: () => {
+            const api = _tsApiCache[postDetails.postID];
+            if (api && api.content) return _tsStripHtml(api.content);
+            return extractPostTextContent(postNode);
+        },
+        media_urls: () => {
+            const api = _tsApiCache[postDetails.postID];
+            const apiUrls = _tsMediaUrlsFromApi(api);
+            if (apiUrls.length > 0) return apiUrls;
+            return extractPostMedia(postNode);
+        },
+        post_metrics: () => {
+            const api = _tsApiCache[postDetails.postID];
+            if (api) return _tsMetricsFromApi(api);
+            return extractPostMetrics(postNode);
+        },
+        created_at: () => {
+            const api = _tsApiCache[postDetails.postID];
+            if (api && api.created_at) return api.created_at;
+            let t = postNode.querySelector(SEL_TS.postTimestamp || 'a[href*="/posts/"] time') || postNode.querySelector('time[datetime]');
+            if (!t) return null;
+            return t.getAttribute(SEL_TS.postTimestampAttr || 'datetime') || null;
+        }
+    });
 }
 
 // On the thread/detail page the focal post uses a "detailed status" component that is
 // NOT wrapped in [data-testid="status"]. Find it by locating a [data-testid="status-content"]
 // that has no [data-testid="status"] ancestor — that's always the focal/expanded post.
 function applyManipToFocalPost() {
+    // API mode handles posts via processPostNode; focal post manipulation only applies to map source
+    if (!manipConfig_TS.enabled || manipConfig_TS.source === 'api') return;
     let m = window.location.pathname.match(/\/@[^/]+\/posts\/([^/?#]+)/);
     if (!m) return;
     let focalId = m[1];
-    if (!manipConfig_TS.enabled || !manipMap_TS[focalId] || manipApplied_TS[focalId]) return;
+    if (!manipMap_TS[focalId] || manipApplied_TS[focalId]) return;
 
     // Strategy 1: id="status-FOCALID" (feed-style render on detail page)
     let textEl = null;
@@ -207,7 +281,6 @@ function applyManipToFocalPost() {
     }
 
     // Strategy 2: first [data-testid="status-content"] NOT inside [data-testid="status"]
-    // This is the "detailed status" component Truth Social uses for the focal post.
     if (!textEl) {
         let allContents = document.querySelectorAll(SEL_TS.postTextContainer || '[data-testid="status-content"]');
         for (let el of allContents) {
@@ -221,34 +294,12 @@ function applyManipToFocalPost() {
     if (!textEl) return;
 
     let entry = manipMap_TS[focalId];
-    let rewrittenText = entry.rewritten_text;
-    let originalText  = entry.original_text || '';
-    textEl.textContent = rewrittenText;
-
-    if (manipConfig_TS.mode === 'aware') {
-        let isOriginal = false;
-        let toggleBtn  = document.createElement('button');
-        toggleBtn.textContent = '👁 Show original';
-        toggleBtn.setAttribute('data-sa-manip-toggle', '1');
-        toggleBtn.style.cssText = [
-            'display:block','margin-left:auto','margin-bottom:4px',
-            'padding:2px 10px','font-size:11px','line-height:1.6',
-            'cursor:pointer','border-radius:4px',
-            'background:rgba(29,155,240,0.08)','color:rgb(29,155,240)',
-            'border:1px solid rgba(29,155,240,0.25)',
-            'font-family:-apple-system,BlinkMacSystemFont,sans-serif',
-        ].join(';');
-        toggleBtn.addEventListener('click', function (e) {
-            e.stopPropagation();
-            isOriginal = !isOriginal;
-            textEl.textContent = isOriginal ? originalText : rewrittenText;
-            toggleBtn.textContent = isOriginal ? '✏ Show rewritten' : '👁 Show original';
-        });
-        textEl.parentNode.insertBefore(toggleBtn, textEl);
-    }
+    let originalNodes = Array.from(textEl.childNodes).map(function (n) { return n.cloneNode(true); });
+    textEl.textContent = entry.rewritten_text;
+    _tsToggleBtn(textEl, originalNodes, entry.rewritten_text);
 
     let meta = { applied: true, label: entry.prompt_label || '', map_id: manipMapId_TS };
-    if (manipConfig_TS.logOriginal) meta.original_text = originalText;
+    if (manipConfig_TS.logOriginal) meta.original_text = entry.original_text || '';
     manipApplied_TS[focalId] = meta;
 }
 
@@ -448,6 +499,11 @@ function extractUserProfile() {
     } catch (e) {}
 
     try {
+        let bioEl = document.querySelector(SEL_TS.userBio || 'div.mt-6.space-y-3 > p[data-markup="true"]');
+        if (bioEl) profile.bio = bioEl.textContent.trim();
+    } catch (e) {}
+
+    try {
         let followersEl = document.querySelector(SEL_TS.userFollowers || '[data-testid="followers-button"]');
         if (followersEl) {
             let text = followersEl.textContent.trim();
@@ -479,6 +535,127 @@ function extractUserProfile() {
 
     return profile;
 }
+
+// ── User intervention helpers ─────────────────────────────
+
+function _tsuGetFieldEl(field) {
+    switch (field) {
+        case 'profile_name':
+            return document.querySelector(SEL_TS.userDisplayName || 'h1.text-xl, div.px-4 p.text-lg');
+        case 'handle':
+            return document.querySelector(SEL_TS.userHandle || 'main p.text-muted-foreground[style="direction: ltr;"]');
+        case 'followers_count': {
+            let btn = document.querySelector(SEL_TS.userFollowers || '[data-testid="followers-button"]');
+            if (!btn) return null;
+            let children = btn.querySelectorAll('span, div, p');
+            for (let s of children) {
+                if (s.childElementCount === 0 && /^[\d,.KMBkmb]+$/.test(s.textContent.trim())) return s;
+            }
+            return btn;
+        }
+        case 'following_count': {
+            let btn = document.querySelector(SEL_TS.userFollowing || '[data-testid="following-button"]');
+            if (!btn) return null;
+            let children = btn.querySelectorAll('span, div, p');
+            for (let s of children) {
+                if (s.childElementCount === 0 && /^[\d,.KMBkmb]+$/.test(s.textContent.trim())) return s;
+            }
+            return btn;
+        }
+        case 'bio':
+            return document.querySelector(SEL_TS.userBio || 'div.mt-6.space-y-3 > p[data-markup="true"]');
+    }
+    return null;
+}
+
+function _tsuToggleBtn(fieldEl, originalText, rewrittenText) {
+    let isOriginal = false;
+    let btn = document.createElement('button');
+    btn.textContent = '👁 Show original';
+    btn.setAttribute('data-sa-interv-toggle', '1');
+    btn.style.cssText = [
+        'display:inline-block','margin-left:6px','padding:1px 8px','font-size:11px',
+        'line-height:1.6','cursor:pointer','border-radius:4px','vertical-align:middle',
+        'background:rgba(29,155,240,0.08)','color:rgb(29,155,240)',
+        'border:1px solid rgba(29,155,240,0.25)',
+        'font-family:-apple-system,BlinkMacSystemFont,sans-serif',
+    ].join(';');
+    btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        isOriginal = !isOriginal;
+        fieldEl.textContent = isOriginal ? originalText : rewrittenText;
+        btn.textContent = isOriginal ? '✏ Show rewritten' : '👁 Show original';
+    });
+    let container = fieldEl.closest('a') || fieldEl.closest('button');
+    let insertAfter = container || fieldEl;
+    insertAfter.parentNode.insertBefore(btn, insertAfter.nextSibling);
+}
+
+async function _applyTSUserIntervention(userID, profile) {
+    if (!manipConfig_TSU.enabled || !manipConfig_TSU.endpoint) return;
+    let fields = manipConfig_TSU.fields || {};
+    let fieldsToIntervene = Object.keys(fields).filter(function(f) { return fields[f]; });
+    if (fieldsToIntervene.length === 0) return;
+
+    let removeOverlay = _createUserInterventionOverlay();
+
+    let payload = {
+        survey_type: 'truthsocial-user',
+        platform: 'truthsocial',
+        account_id: userID,
+        profile_name: profile.profile_name || null,
+        handle: profile.handle || null,
+        followers_count: profile.followersCount || null,
+        following_count: profile.followingCount || null,
+        bio: profile.bio || null,
+        fields_to_intervene: fieldsToIntervene
+    };
+
+    let result;
+    try {
+        let response = await fetch(manipConfig_TSU.endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!response.ok) { removeOverlay(); return; }
+        result = await response.json();
+    } catch (e) { removeOverlay(); return; }
+
+    let originalValues = {};
+
+    function applyFields() {
+        let appliedAny = false;
+        for (let field of fieldsToIntervene) {
+            if (!result[field]) continue;
+            let el = _tsuGetFieldEl(field);
+            if (!el) continue;
+            if (originalValues[field] === undefined) originalValues[field] = el.textContent;
+            if (el.textContent === result[field]) { appliedAny = true; continue; }
+            el.textContent = result[field];
+            appliedAny = true;
+            if (manipConfig_TSU.mode === 'aware') {
+                let container = el.closest('a') || el.closest('button');
+                let checkAfter = container || el;
+                let next = checkAfter.nextSibling;
+                let hasToggle = next && next.nodeType === 1 && next.getAttribute && next.getAttribute('data-sa-interv-toggle');
+                if (!hasToggle) _tsuToggleBtn(el, originalValues[field], result[field]);
+            }
+        }
+        if (appliedAny) removeOverlay();
+    }
+
+    applyFields();
+    [200, 600, 1500].forEach(function(delay) { setTimeout(applyFields, delay); });
+
+    let appliedFields = {};
+    for (let field of fieldsToIntervene) {
+        if (result[field]) appliedFields[field] = { original: originalValues[field] || '', rewritten: result[field] };
+    }
+    manipApplied_TSU[userID] = { applied: true, fields: appliedFields };
+}
+
+// ─────────────────────────────────────────────────────────
 
 function injectTruthSocialUserSurvey(injectElement, userID) {
     let surveyContainer = document.createElement('div');
@@ -525,13 +702,21 @@ function initializeSurveys() {
         SEL_TS = { ...(_rawTS.shared || {}), ...(_rawTS.account || {}), ...(_rawTS.post || {}) };
         watchPostCounter('truthsocial', function () { return _processedCount_TS; });
 
+        // Load manipulation config for truthsocial-user
+        const _userConfTS = result.config && result.config.surveys && result.config.surveys['truthsocial-user'];
+        manipConfig_TSU = (_userConfTS && _userConfTS.manipulation) || {};
+
         // Load manipulation map for truthsocial-post
         const _postConfTS = result.config && result.config.surveys && result.config.surveys['truthsocial-post'];
         manipConfig_TS = (_postConfTS && _postConfTS.manipulation) || {};
-        if (manipConfig_TS.enabled && result.manipulationMaps && result.manipulationMaps['truthsocial-post']) {
-            let fullMap = result.manipulationMaps['truthsocial-post'];
-            manipMapId_TS = (fullMap._meta && fullMap._meta.map_id) || '';
-            for (let k in fullMap) { if (k !== '_meta') manipMap_TS[k] = fullMap[k]; }
+        if (manipConfig_TS.enabled) {
+            if (manipConfig_TS.source !== 'api' && result.manipulationMaps && result.manipulationMaps['truthsocial-post']) {
+                let fullMap = result.manipulationMaps['truthsocial-post'];
+                manipMapId_TS = (fullMap._meta && fullMap._meta.map_id) || '';
+                for (let k in fullMap) { if (k !== '_meta') manipMap_TS[k] = fullMap[k]; }
+            } else if (manipConfig_TS.source === 'api' && manipConfig_TS.endpoint && window.__sa_intervApi) {
+                window.__sa_intervApi.init({ endpoint: manipConfig_TS.endpoint, survey_type: 'truthsocial-post', platform: 'truthsocial', mode: manipConfig_TS.mode, logOriginal: manipConfig_TS.logOriginal });
+            }
         }
 
         tsRoot = document.getElementById('root') || document.querySelector(SEL_TS.appRoot || '#root') || document.body;
@@ -600,15 +785,22 @@ function initializeSurveys() {
                             });
                         }
 
-                        // Attach manipulation metadata
+                        // Attach intervention metadata
                         let _ma = manipApplied_TS[values.post_id];
+                        let _maU = manipApplied_TSU[values.account_id];
                         if (_ma) {
-                            values.manipulation_applied = true;
-                            values.manipulation_label   = _ma.label;
-                            values.manipulation_map_id  = _ma.map_id;
+                            values.intervention_applied = true;
+                            values.intervention_label   = _ma.label;
+                            values.intervention_map_id  = _ma.map_id;
                             if (_ma.original_text !== undefined) values.original_text = _ma.original_text;
+                            if (_ma.extras) values.intervention_extras = _ma.extras;
+                        } else if (_maU) {
+                            values.intervention_applied = true;
+                            values.intervention_label   = 'user-intervention';
+                            values.intervention_map_id  = '';
+                            values.intervention_extras  = _maU.fields;
                         } else {
-                            values.manipulation_applied = false;
+                            values.intervention_applied = false;
                         }
 
                         storeResults(values, currentPlatform);
@@ -626,6 +818,10 @@ function initializeSurveys() {
                     currentContext.renderSurvey(surveyID, null, {
                         user_profile: () => extractUserProfile()
                     });
+                    if (currentContext.name === 'truthsocial-user' && manipConfig_TSU.enabled) {
+                        let profile = extractUserProfile();
+                        _applyTSUserIntervention(surveyID, profile);
+                    }
                 }
             }
         }

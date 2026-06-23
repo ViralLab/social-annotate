@@ -33,6 +33,9 @@ let manipConfig_IGR = {};
 let manipMap_IGR    = {};
 let manipMapId_IGR  = '';
 let manipApplied_IGR = {};
+let manipConfig_IGC = {};
+let manipApplied_IGC = {};
+const _inFlight_IGC = new Set();
 let _processedCount_IG     = 0;
 registerHealthCounter(function () { return _processedCount_IG; });
 document.addEventListener('mh:media-response-ig', function(e) {
@@ -294,7 +297,8 @@ function extractInstagramCommentData(anchor, commentBlock) {
     let body = '';
     let textSel = SEL_IGC.commentText || 'span[dir="auto"]';
     commentBlock.querySelectorAll(textSel).forEach(function(span) {
-        if (span.closest('a')) return;
+        if (span.closest('a') || span.closest('button') || span.closest('[role="button"]')) return;
+        if (span.querySelector('div') || span.querySelector('time')) return;
         let txt = (span.innerText || span.textContent || '').trim();
         if (txt.length > body.length) body = txt;
     });
@@ -321,7 +325,91 @@ function extractInstagramCommentData(anchor, commentBlock) {
     return { commentId, commentDepth, parentCommentId, parentPostId, author, body, createdAt, likeCount, replyCount };
 }
 
-function processInstagramCommentAnchor(anchor) {
+function _igcTextEl(commentBlock) {
+    let textSel = SEL_IGC.commentText || 'span[dir="auto"]';
+    let best = null, longest = 0;
+    commentBlock.querySelectorAll(textSel).forEach(function(span) {
+        if (span.closest('a') || span.closest('button') || span.closest('[role="button"]')) return;
+        // Skip structural spans: username containers have nested <div>s,
+        // timestamp spans contain <time>. Real comment text spans have neither.
+        if (span.querySelector('div') || span.querySelector('time')) return;
+        let txt = (span.innerText || span.textContent || '').trim();
+        if (txt.length > longest) { longest = txt.length; best = span; }
+    });
+    return best;
+}
+
+function _igcToggleBtn(textEl, originalNodes, rewrittenText, mode, commentBlock) {
+    if (mode !== 'aware') return;
+    let isOriginal = false;
+    let toggleBtn = document.createElement('button');
+    toggleBtn.textContent = '👁 Show original';
+    toggleBtn.setAttribute('data-sa-interv-toggle', '1');
+    toggleBtn.style.cssText = [
+        'display:block','margin-left:auto','margin-bottom:4px',
+        'padding:2px 10px','font-size:11px','line-height:1.6',
+        'cursor:pointer','border-radius:4px',
+        'background:rgba(193,53,132,0.08)','color:rgb(193,53,132)',
+        'border:1px solid rgba(193,53,132,0.25)',
+        'font-family:-apple-system,BlinkMacSystemFont,sans-serif',
+    ].join(';');
+    toggleBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        isOriginal = !isOriginal;
+        if (isOriginal) {
+            textEl.textContent = '';
+            originalNodes.forEach(function(n) { textEl.appendChild(n.cloneNode(true)); });
+        } else {
+            textEl.textContent = rewrittenText;
+        }
+        toggleBtn.textContent = isOriginal ? '✏ Show rewritten' : '👁 Show original';
+    });
+    // Insert before the survey container within commentBlock to avoid
+    // landing inside the "View all replies" div (which shares textEl's parent).
+    let surveyContainer = commentBlock && commentBlock.querySelector('.survey-container-comment');
+    if (surveyContainer) {
+        commentBlock.insertBefore(toggleBtn, surveyContainer);
+    } else if (commentBlock) {
+        commentBlock.insertBefore(toggleBtn, commentBlock.firstChild);
+    } else {
+        textEl.parentNode.insertBefore(toggleBtn, textEl);
+    }
+}
+
+function _igcApplyResult(result, commentBlock, mode) {
+    let textEl = _igcTextEl(commentBlock);
+    if (textEl && result.rewritten_text) {
+        let originalNodes = Array.from(textEl.childNodes).map(function(n) { return n.cloneNode(true); });
+        textEl.textContent = result.rewritten_text;
+        _igcToggleBtn(textEl, originalNodes, result.rewritten_text, mode, commentBlock);
+    }
+}
+
+function _injectIGCommentSurvey(commentBlock, commentId) {
+    let surveyContainer = document.createElement('div');
+    surveyContainer.className = 'survey-container-comment';
+    surveyContainer.id = 'surveyFormContainer-' + commentId;
+    surveyContainer.style.cssText = 'width:100%;min-height:40px;display:block;overflow:visible;background:transparent;position:relative;z-index:100;box-sizing:border-box;zoom:0.85;';
+    let shadowRoot = surveyContainer.attachShadow({ mode: 'open' });
+    let cssUrl = chrome.runtime.getURL('content-scripts/instagram/inject.css');
+    shadowRoot.innerHTML = '<iframe class="surveyIframe" src="' + chrome.runtime.getURL('sandbox/survey.html') + '" data-css="' + cssUrl + '" style="border:none;width:100%;height:60px;background:transparent;"></iframe>';
+    commentBlock.prepend(surveyContainer);
+    console.log('[SA-IGC] container appended to commentBlock:', commentBlock.tagName, commentBlock.className.slice(0, 60));
+}
+
+function _renderIGCommentSurvey(commentCtx, data, commentId) {
+    commentCtx.renderSurvey(data.author, commentId, {
+        body:              function() { return data.body; },
+        created_at:        function() { return data.createdAt; },
+        media_urls:        function() { return []; },
+        post_metrics:      function() { return { like_count: data.likeCount, comment_count: data.replyCount, share_count: null, view_count: null, bookmark_count: null, quote_count: null }; },
+        parent_post_id:    function() { return data.parentPostId; },
+        comment_depth:     function() { return data.commentDepth; },
+        parent_comment_id: function() { return data.parentCommentId; }
+    });
+}
+
+async function processInstagramCommentAnchor(anchor) {
     let commentCtx = availableContextsInstagram.find(function(c) { return c.name === 'instagram-comment'; });
     if (!commentCtx || !commentCtx.formTemplate) {
         console.log('[SA-IGC] processInstagramCommentAnchor: context not ready | formTemplate:', commentCtx && commentCtx.formTemplate);
@@ -353,29 +441,67 @@ function processInstagramCommentAnchor(anchor) {
     }
 
     console.log('[SA-IGC] INJECTING survey | commentId:', commentId, '| author:', data.author);
+
+    // ── API path ──────────────────────────────────────────────────────────────
+    if (manipConfig_IGC.enabled && manipConfig_IGC.source === 'api' && manipConfig_IGC.endpoint && window.__sa_intervApi) {
+        if (_inFlight_IGC.has(commentId)) return;
+        _inFlight_IGC.add(commentId);
+        _injectedIGComments.add(commentId);
+        _processedCount_IG++;
+
+        const cached = window.__sa_intervApi.getCached(commentId);
+        if (cached) {
+            _inFlight_IGC.delete(commentId);
+            _injectIGCommentSurvey(commentBlock, commentId);
+            _igcApplyResult(cached, commentBlock, manipConfig_IGC.mode);
+            _renderIGCommentSurvey(commentCtx, data, commentId);
+            return;
+        }
+
+        const overlay = window.__sa_intervApi.createOverlay(commentBlock, manipConfig_IGC.mode);
+        const doRetry = function() {
+            _inFlight_IGC.delete(commentId);
+            _injectedIGComments.delete(commentId);
+            overlay.remove();
+            processInstagramCommentAnchor(anchor);
+        };
+        try {
+            const postData = {
+                post_id:        commentId,
+                account_id:     data.author,
+                body:           data.body,
+                post_metrics:   { like_count: data.likeCount, comment_count: data.replyCount, share_count: null, view_count: null, bookmark_count: null, quote_count: null },
+                created_at:     data.createdAt,
+                parent_post_id: data.parentPostId
+            };
+            const result = await window.__sa_intervApi.queuePost(postData);
+
+            const meta = { applied: true, label: result.prompt_label || '', map_id: result.map_id || window.__sa_intervApi.getMapId() };
+            if (manipConfig_IGC.logOriginal) meta.original_text = data.body;
+            const extras = {};
+            for (const k in result) {
+                if (!['post_id', 'rewritten_text', 'map_id', 'prompt_label'].includes(k)) extras[k] = result[k];
+            }
+            if (Object.keys(extras).length > 0) meta.extras = extras;
+            manipApplied_IGC[commentId] = meta;
+
+            overlay.parentNode && overlay.parentNode.removeChild(overlay);
+            _inFlight_IGC.delete(commentId);
+
+            _injectIGCommentSurvey(commentBlock, commentId);
+            _igcApplyResult(result, commentBlock, manipConfig_IGC.mode);
+            _renderIGCommentSurvey(commentCtx, data, commentId);
+        } catch(err) {
+            overlay.showError(doRetry);
+        }
+        return;
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     _injectedIGComments.add(commentId);
     _processedCount_IG++;
-
-    let surveyContainer = document.createElement('div');
-    surveyContainer.className = 'survey-container-comment';
-    surveyContainer.id = 'surveyFormContainer-' + commentId;
-    surveyContainer.style.cssText = 'width:100%;min-height:80px;display:block;overflow:visible;background:transparent;position:relative;z-index:100;box-sizing:border-box;zoom:0.85;';
-    let shadowRoot = surveyContainer.attachShadow({ mode: 'open' });
-    let cssUrl = chrome.runtime.getURL('content-scripts/instagram/inject.css');
-    shadowRoot.innerHTML = '<iframe class="surveyIframe" src="' + chrome.runtime.getURL('sandbox/survey.html') + '" data-css="' + cssUrl + '" style="border:none;width:100%;height:80px;background:transparent;"></iframe>';
-
-    commentBlock.prepend(surveyContainer);
-    console.log('[SA-IGC] container appended to commentBlock:', commentBlock.tagName, commentBlock.className.slice(0, 60));
-
-    commentCtx.renderSurvey(data.author, data.commentId, {
-        body:              function() { return data.body; },
-        created_at:        function() { return data.createdAt; },
-        media_urls:        function() { return []; },
-        post_metrics:      function() { return { like_count: data.likeCount, comment_count: data.replyCount, share_count: null, view_count: null, bookmark_count: null, quote_count: null }; },
-        parent_post_id:    function() { return data.parentPostId; },
-        comment_depth:     function() { return data.commentDepth; },
-        parent_comment_id: function() { return data.parentCommentId; }
-    });
+    _injectIGCommentSurvey(commentBlock, commentId);
+    _renderIGCommentSurvey(commentCtx, data, commentId);
 }
 
 function crawlUserName() {
@@ -690,7 +816,7 @@ function processCurrentReel() {
                 let isOriginal = false;
                 let toggleBtn  = document.createElement('button');
                 toggleBtn.textContent = '👁 Show original';
-                toggleBtn.setAttribute('data-sa-manip-toggle', '1');
+                toggleBtn.setAttribute('data-sa-interv-toggle', '1');
                 toggleBtn.style.cssText = [
                     'display:block','margin-left:auto','margin-bottom:4px',
                     'padding:2px 10px','font-size:11px','line-height:1.6',
@@ -877,7 +1003,7 @@ function processInstagramArticleNode(articleNode) {
                         let isOriginal = false;
                         let toggleBtn  = document.createElement('button');
                         toggleBtn.textContent = '👁 Show original';
-                        toggleBtn.setAttribute('data-sa-manip-toggle', '1');
+                        toggleBtn.setAttribute('data-sa-interv-toggle', '1');
                         toggleBtn.style.cssText = [
                             'display:block','margin-left:auto','margin-bottom:4px',
                             'padding:2px 10px','font-size:11px','line-height:1.6',
@@ -1074,6 +1200,13 @@ function initializeSurveys() {
             for (let k in fullMap) { if (k !== '_meta') manipMap_IGR[k] = fullMap[k]; }
         }
 
+        // Load config for instagram-comment API intervention
+        const _commentConfIG = result.config && result.config.surveys && result.config.surveys['instagram-comment'];
+        manipConfig_IGC = (_commentConfIG && _commentConfIG.manipulation) || {};
+        if (manipConfig_IGC.enabled && manipConfig_IGC.source === 'api' && manipConfig_IGC.endpoint && window.__sa_intervApi) {
+            window.__sa_intervApi.init({ endpoint: manipConfig_IGC.endpoint, survey_type: 'instagram-comment', platform: 'instagram', mode: manipConfig_IGC.mode, logOriginal: manipConfig_IGC.logOriginal });
+        }
+
         const currentPlatform = 'instagram';
         for (let index = 0; index < availableContextsInstagram.length; ++index) {
             let currentContext = availableContextsInstagram[index];
@@ -1094,16 +1227,19 @@ function initializeSurveys() {
                         values.surveyType = currentContext.name;
                         values.studyID = studyID;
 
-                        // Attach manipulation metadata (reel uses its own applied map)
-                        let _manipApplied = currentContext.name === 'instagram-reel' ? manipApplied_IGR : manipApplied_IG;
+                        // Attach intervention metadata (each context has its own applied map)
+                        let _manipApplied = currentContext.name === 'instagram-reel' ? manipApplied_IGR
+                            : currentContext.name === 'instagram-comment' ? manipApplied_IGC
+                            : manipApplied_IG;
                         let _ma = _manipApplied[values.post_id];
                         if (_ma) {
-                            values.manipulation_applied = true;
-                            values.manipulation_label   = _ma.label;
-                            values.manipulation_map_id  = _ma.map_id;
+                            values.intervention_applied = true;
+                            values.intervention_label   = _ma.label;
+                            values.intervention_map_id  = _ma.map_id;
                             if (_ma.original_text !== undefined) values.original_text = _ma.original_text;
+                            if (_ma.extras) values.intervention_extras = _ma.extras;
                         } else {
-                            values.manipulation_applied = false;
+                            values.intervention_applied = false;
                         }
 
                         storeResults(values, currentPlatform);

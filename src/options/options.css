@@ -694,20 +694,26 @@ html, body {
 .manip-settings-row {
   display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;
 }
-.manip-mode-toggle {
+.manip-mode-toggle,
+.manip-source-toggle {
   display: inline-flex; gap: 2px;
   background: var(--input-bg); border: 1px solid var(--card-border);
   border-radius: var(--r-sm); padding: 3px;
   margin-top: 8px;
 }
-.manip-mode-btn {
+.manip-mode-btn,
+.manip-source-btn {
   background: none; border: none; color: var(--text-muted);
   font-family: var(--font); font-size: 12px; font-weight: 500;
   padding: 5px 16px; border-radius: 4px; cursor: pointer;
   transition: all var(--ease); white-space: nowrap;
 }
-.manip-mode-btn:hover { color: var(--text-secondary); }
-.manip-mode-btn.active { background: var(--accent); color: #fff; }
+.manip-mode-btn:hover,
+.manip-source-btn:hover { color: var(--text-secondary); }
+.manip-mode-btn.active,
+.manip-source-btn.active { background: var(--accent); color: #fff; }
+.manip-source-icon { width: 14px; height: 14px; vertical-align: middle; margin-right: 4px; }
+.manip-source-btn.active .manip-source-icon { filter: brightness(0) invert(1); }
 .manip-mode-desc {
   margin-top: 6px; font-size: 11px; color: var(--text-muted); font-style: italic;
 }

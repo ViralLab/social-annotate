@@ -214,10 +214,30 @@ function loadPage() {
                     if (descEl) descEl.textContent = mode === 'aware' ? 'Annotator can toggle to see original text' : 'Annotator sees rewritten text only';
                 }
             }
-            let manipLogEl = document.getElementById(key + '_manip-log-original');
-            if (manipLogEl) manipLogEl.checked = !!manip.logOriginal;
+            // Source toggle (map vs api)
+            let src = manip.source || 'map';
+            let manipSourceEl = document.getElementById(key + '_manip-source');
+            if (manipSourceEl) {
+                manipSourceEl.value = src;
+                let card = document.getElementById('card_' + key);
+                if (card) {
+                    card.querySelectorAll('.manip-source-btn').forEach(b => b.classList.toggle('active', b.dataset.value === src));
+                }
+                let mapSection = document.getElementById(key + '_manip-map-section');
+                let apiSection = document.getElementById(key + '_manip-api-section');
+                if (mapSection) mapSection.style.display = src === 'map' ? '' : 'none';
+                if (apiSection) apiSection.style.display = src === 'api' ? '' : 'none';
+            }
+            let intervEndpointEl = document.getElementById(key + '_interv-endpoint');
+            if (intervEndpointEl) intervEndpointEl.value = manip.endpoint || '';
             let loadedMap = result.manipulationMaps && result.manipulationMaps[key];
             showManipMapStatus(key, loadedMap || null);
+            // User intervention field checkboxes
+            let uiFieldsLoaded = manip.fields || {};
+            ['profile_name','handle','followers_count','following_count','bio'].forEach(function(f) {
+                let fEl = document.getElementById(key + '_ui-field-' + f);
+                if (fEl) fEl.checked = !!uiFieldsLoaded[f];
+            });
 
             // Wire card-level tabs
             wireCardTabs(key);
@@ -231,6 +251,8 @@ function loadPage() {
             wireManipulationUpload(key);
             // Wire manip mode pill buttons
             wireManipModeToggle(key);
+            // Wire source toggle (map vs api)
+            wireManipSourceToggle(key);
         }
     });
 }
@@ -404,6 +426,24 @@ function wireManipModeToggle(key) {
     });
 }
 
+function wireManipSourceToggle(key) {
+    let card = document.getElementById('card_' + key);
+    if (!card) return;
+    card.querySelectorAll('.manip-source-btn').forEach(btn => {
+        btn.addEventListener('click', function () {
+            let val = this.dataset.value;
+            let hiddenEl = document.getElementById(key + '_manip-source');
+            if (hiddenEl) hiddenEl.value = val;
+            card.querySelectorAll('.manip-source-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            let mapSection = document.getElementById(key + '_manip-map-section');
+            let apiSection = document.getElementById(key + '_manip-api-section');
+            if (mapSection) mapSection.style.display = val === 'map' ? '' : 'none';
+            if (apiSection) apiSection.style.display = val === 'api' ? '' : 'none';
+        });
+    });
+}
+
 function showManipMapStatus(key, map) {
     let statusEl = document.getElementById(key + '_manip-status');
     if (!statusEl) return;
@@ -445,8 +485,10 @@ function buildSurveyCard(key, survey) {
         'reddit-user':       'Reddit usernames',
     };
     let annotationHint = annotationHints[key] || 'Comma-separated identifiers';
-    const noManipulationPlatforms = ['tiktok', 'youtube'];
-    let hasManipulation = !noManipulationPlatforms.some(function(p) { return key.startsWith(p); }) && !key.endsWith('-user');
+    const noManipulationKeys = new Set(['tiktok-post', 'youtube-video', 'youtube-user']);
+    const userInterventionKeys = new Set(['x-user', 'bluesky-user', 'truthsocial-user', 'mastodon-user']);
+    let hasManipulation = !noManipulationKeys.has(key) && (!key.endsWith('-user') || userInterventionKeys.has(key));
+    let isUserInterv = userInterventionKeys.has(key);
     return `
 <div class="survey-card" id="card_${key}">
   <div class="card-header">
@@ -462,7 +504,7 @@ function buildSurveyCard(key, survey) {
       <button class="card-tab-btn active" data-card-tab="${key}_tab_basic">Basic</button>
       <button class="card-tab-btn" data-card-tab="${key}_tab_consent">Consent</button>
       <button class="card-tab-btn" data-card-tab="${key}_tab_form">Form</button>
-      ${hasManipulation ? `<button class="card-tab-btn" data-card-tab="${key}_tab_manipulation">Manipulation</button>` : ''}
+      ${hasManipulation ? `<button class="card-tab-btn" data-card-tab="${key}_tab_manipulation">Intervention</button>` : ''}
     </div>
 
     <!-- Basic -->
@@ -547,9 +589,64 @@ function buildSurveyCard(key, survey) {
     <div class="card-tab-pane" id="${key}_tab_manipulation">
       <div class="field-group">
         <label class="manip-toggle-label" style="margin-bottom:16px;">
-          <input type="checkbox" id="${key}_manip-enabled"> Enable Manipulation
+          <input type="checkbox" id="${key}_manip-enabled"> Enable Intervention
         </label>
-        <div class="manip-settings-row">
+
+        ${isUserInterv ? `
+        <!-- User intervention: API endpoint + field selection -->
+        <div class="field-group" style="margin-bottom:16px;">
+          <label class="field-label" for="${key}_interv-endpoint">
+            API Endpoint
+            <span class="field-hint">POST { survey_type, platform, account_id, profile fields, fields_to_intervene } → { field: rewritten_value, … }</span>
+          </label>
+          <input type="text" class="field-input" id="${key}_interv-endpoint" placeholder="http://localhost:5001/user-intervene">
+        </div>
+
+        <div class="field-group" style="margin-bottom:16px;">
+          <label class="field-label">Fields to Intervene</label>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="${key}_ui-field-profile_name" style="margin:0;"> Profile Name</label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="${key}_ui-field-handle" style="margin:0;"> Username / Handle</label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="${key}_ui-field-followers_count" style="margin:0;"> Follower Count</label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="${key}_ui-field-following_count" style="margin:0;"> Following Count</label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="${key}_ui-field-bio" style="margin:0;"> Bio / Description</label>
+          </div>
+        </div>
+        ` : `
+        <!-- Post intervention: source toggle + map/API sections -->
+        <div class="field-group" style="margin-bottom:16px;">
+          <label class="field-label">Source</label>
+          <input type="hidden" id="${key}_manip-source" value="map">
+          <div class="manip-source-toggle" data-key="${key}">
+            <button type="button" class="manip-source-btn active" data-value="map"><img src="${chrome.runtime.getURL('images/icon-json.png')}" class="manip-source-icon"> Map</button>
+            <button type="button" class="manip-source-btn" data-value="api"><img src="${chrome.runtime.getURL('images/icon-live.png')}" class="manip-source-icon"> Live API</button>
+          </div>
+        </div>
+
+        <div id="${key}_manip-map-section">
+          <label class="field-label">Intervention Map
+            <span class="field-hint">JSON from manipulation/rewriter.py or any external tool</span>
+          </label>
+          <div class="annotation-upload-row">
+            <input type="file" id="${key}_manip-file" class="file-input" accept=".json">
+            <label for="${key}_manip-file" class="btn-upload-list">📂 Load map</label>
+            <button class="btn-clear-map" data-key="${key}">✕ Clear</button>
+          </div>
+          <div class="manip-map-status" id="${key}_manip-status">No map loaded.</div>
+        </div>
+
+        <div id="${key}_manip-api-section" style="display:none;">
+          <div class="field-group" style="margin-top:4px;">
+            <label class="field-label" for="${key}_interv-endpoint">
+              API Endpoint
+              <span class="field-hint">Receives POST { survey_type, platform, posts:[…] } → { results:[{ post_id, rewritten_text, … }] }</span>
+            </label>
+            <input type="text" class="field-input" id="${key}_interv-endpoint" placeholder="http://localhost:5001/intervene">
+          </div>
+        </div>
+        `}
+
+        <div class="manip-settings-row" style="margin-top:16px;">
           <div class="field-group" style="margin:0;">
             <label class="field-label">Study Mode</label>
             <input type="hidden" id="${key}_manip-mode" value="blind">
@@ -559,21 +656,7 @@ function buildSurveyCard(key, survey) {
             </div>
             <div class="manip-mode-desc" id="${key}_manip-mode-desc">Annotator sees rewritten text only</div>
           </div>
-          <div class="field-group" style="margin:0;display:flex;align-items:center;padding-top:24px;">
-            <label class="manip-toggle-label">
-              <input type="checkbox" id="${key}_manip-log-original"> Log original text in annotations
-            </label>
-          </div>
         </div>
-        <label class="field-label" style="margin-top:16px;">Manipulation Map
-          <span class="field-hint">JSON from manipulation/rewriter.py or any external tool</span>
-        </label>
-        <div class="annotation-upload-row">
-          <input type="file" id="${key}_manip-file" class="file-input" accept=".json">
-          <label for="${key}_manip-file" class="btn-upload-list">📂 Load map</label>
-          <button class="btn-clear-map" data-key="${key}">✕ Clear</button>
-        </div>
-        <div class="manip-map-status" id="${key}_manip-status">No map loaded.</div>
       </div>
     </div>` : ''}
 
@@ -1031,15 +1114,28 @@ function saveOptionsPage() {
                 };
             }
             // Manipulation settings
-            let manipEnabledSave = document.getElementById(key + '_manip-enabled');
-            let manipModeSave    = document.getElementById(key + '_manip-mode');
-            let manipLogSave     = document.getElementById(key + '_manip-log-original');
+            let manipEnabledSave  = document.getElementById(key + '_manip-enabled');
+            let manipModeSave     = document.getElementById(key + '_manip-mode');
+            let manipSourceSave   = document.getElementById(key + '_manip-source');
+            let intervEndpointSave = document.getElementById(key + '_interv-endpoint');
             if (manipEnabledSave) {
                 configData.surveys[key].manipulation = {
                     enabled:     manipEnabledSave.checked,
+                    source:      manipSourceSave ? manipSourceSave.value : 'map',
                     mode:        manipModeSave ? manipModeSave.value : 'blind',
-                    logOriginal: manipLogSave ? manipLogSave.checked : false,
+                    logOriginal: true,
+                    endpoint:    (intervEndpointSave && intervEndpointSave.value.trim()) || (key.endsWith('-user') ? 'http://localhost:5001/user-intervene' : 'http://localhost:5001/intervene')
                 };
+                // User intervention field checkboxes
+                let uiFields = {};
+                ['profile_name','handle','followers_count','following_count','bio'].forEach(function(f) {
+                    let fEl = document.getElementById(key + '_ui-field-' + f);
+                    if (fEl) uiFields[f] = fEl.checked;
+                });
+                if (Object.keys(uiFields).length > 0) {
+                    configData.surveys[key].manipulation.fields = uiFields;
+                    configData.surveys[key].manipulation.source = 'api';
+                }
             }
 
             // Read from visual builder or JSON textarea depending on mode

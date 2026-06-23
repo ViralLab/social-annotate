@@ -15,6 +15,7 @@ let manipMap_LI     = {};
 let manipMapId_LI   = '';
 let manipApplied_LI     = {};
 let _processedCount_LI     = 0;
+const _inFlight_LI  = new Set();
 registerHealthCounter(function () { return _processedCount_LI; });
 
 // Cache of CDN video URLs captured by inject-api.js (MAIN world)
@@ -127,75 +128,171 @@ window.addEventListener('mh:download-request', function(e) {
     }
 });
 
-function processPostNode(postNode) {
+function _liTextEl(postNode) {
+    return postNode.querySelector(SEL_LI.postText || '[data-testid="expandable-text-box"]')
+        || postNode.querySelector('.update-components-text')
+        || postNode.querySelector('.feed-shared-update-v2__description');
+}
+
+function _liToggleBtn(textEl, originalNodes, rewrittenText, mode) {
+    if (mode !== 'aware') return;
+    let isOriginal = false;
+    let toggleBtn  = document.createElement('button');
+    toggleBtn.textContent = '👁 Show original';
+    toggleBtn.setAttribute('data-sa-interv-toggle', '1');
+    toggleBtn.style.cssText = [
+        'display:block','margin-left:auto','margin-bottom:4px',
+        'padding:2px 10px','font-size:11px','line-height:1.6',
+        'cursor:pointer','border-radius:4px',
+        'background:rgba(10,102,194,0.08)','color:rgb(10,102,194)',
+        'border:1px solid rgba(10,102,194,0.25)',
+        'font-family:-apple-system,BlinkMacSystemFont,sans-serif',
+    ].join(';');
+    toggleBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        isOriginal = !isOriginal;
+        if (isOriginal) {
+            textEl.textContent = '';
+            originalNodes.forEach(function(n) { textEl.appendChild(n.cloneNode(true)); });
+        } else {
+            textEl.textContent = rewrittenText;
+        }
+        toggleBtn.textContent = isOriginal ? '✏ Show rewritten' : '👁 Show original';
+    });
+    textEl.parentNode.insertBefore(toggleBtn, textEl);
+}
+
+function _liApplyResult(result, postNode, mode) {
+    let textEl = _liTextEl(postNode);
+    if (textEl && result.rewritten_text) {
+        let originalNodes = Array.from(textEl.childNodes).map(function(n) { return n.cloneNode(true); });
+        textEl.textContent = result.rewritten_text;
+        _liToggleBtn(textEl, originalNodes, result.rewritten_text, mode);
+    }
+}
+
+async function processPostNode(postNode) {
     _processedCount_LI++;
     if (!isExtensionContextValid()) return;
-    let insertElement = postNode;
-    if (insertElement && insertElement.getElementsByClassName('survey-container-post').length === 0) {
-        let postDetails = extractPostDetails(postNode);
+    if (!postNode || postNode.getElementsByClassName('survey-container-post').length > 0) return;
 
-        if (postDetails && postDetails.postID) {
-            // ── Manipulation DOM patch ────────────────────────────
-            if (manipConfig_LI.enabled && manipMap_LI[postDetails.postID]) {
-                let entry  = manipMap_LI[postDetails.postID];
-                let textEl = postNode.querySelector(SEL_LI.postText || '[data-testid="expandable-text-box"]')
-                              || postNode.querySelector('.update-components-text')
-                              || postNode.querySelector('.feed-shared-update-v2__description');
-                if (textEl) {
-                    let rewrittenText = entry.rewritten_text;
-                    let originalText  = entry.original_text || '';
-                    textEl.textContent = rewrittenText;
-                    if (manipConfig_LI.mode === 'aware') {
-                        let isOriginal = false;
-                        let toggleBtn  = document.createElement('button');
-                        toggleBtn.textContent = '👁 Show original';
-                        toggleBtn.setAttribute('data-sa-manip-toggle', '1');
-                        toggleBtn.style.cssText = [
-                            'display:block','margin-left:auto','margin-bottom:4px',
-                            'padding:2px 10px','font-size:11px','line-height:1.6',
-                            'cursor:pointer','border-radius:4px',
-                            'background:rgba(29,155,240,0.08)','color:rgb(29,155,240)',
-                            'border:1px solid rgba(29,155,240,0.25)',
-                            'font-family:-apple-system,BlinkMacSystemFont,sans-serif',
-                        ].join(';');
-                        toggleBtn.addEventListener('click', function (e) {
-                            e.stopPropagation();
-                            isOriginal = !isOriginal;
-                            textEl.textContent = isOriginal ? originalText : rewrittenText;
-                            toggleBtn.textContent = isOriginal ? '✏ Show rewritten' : '👁 Show original';
-                        });
-                        textEl.parentNode.insertBefore(toggleBtn, textEl);
-                    }
-                    let meta = { applied: true, label: entry.prompt_label || '', map_id: manipMapId_LI };
-                    if (manipConfig_LI.logOriginal) meta.original_text = originalText;
-                    manipApplied_LI[postDetails.postID] = meta;
-                }
-                if (entry.replacement_image) {
-                    let avatarImg = postNode.querySelector(SEL_LI.postAuthorAvatar || '.update-components-actor img, img[src*="profile"]');
-                    if (avatarImg) { avatarImg.src = entry.replacement_image; avatarImg.srcset = ''; }
+    let postDetails = extractPostDetails(postNode);
+    if (!postDetails || !postDetails.postID) return;
+
+    const _renderSurvey = function() {
+        availableContextsLinkedIn[0].renderSurvey(
+            postDetails.postOwner,
+            postDetails.postID,
+            {
+                body: () => extractPostTextContent(postNode),
+                media_urls: () => extractPostMedia(postNode),
+                post_metrics: () => extractPostMetrics(postNode),
+                created_at: () => {
+                    let t = postNode.querySelector(SEL_LI.postTimestamp || 'time[datetime]');
+                    if (!t) return null;
+                    let attr = SEL_LI.postTimestampAttr || 'datetime';
+                    if (attr === 'textContent' || attr === 'innerText') return t.textContent.trim() || null;
+                    return t.getAttribute(attr) || null;
                 }
             }
-            // ─────────────────────────────────────────────────────
+        );
+    };
 
-            injectLinkedInPostSurvey(insertElement, postDetails.postID);
-            availableContextsLinkedIn[0].renderSurvey(
-                postDetails.postOwner,
-                postDetails.postID,
-                {
-                    body: () => extractPostTextContent(postNode),
-                    media_urls: () => extractPostMedia(postNode),
-                    post_metrics: () => extractPostMetrics(postNode),
-                    created_at: () => {
-                        let t = postNode.querySelector(SEL_LI.postTimestamp || 'time[datetime]');
-                        if (!t) return null;
-                        let attr = SEL_LI.postTimestampAttr || 'datetime';
-                        if (attr === 'textContent' || attr === 'innerText') return t.textContent.trim() || null;
-                        return t.getAttribute(attr) || null;
-                    }
-                }
-            );
+    // ── API path ──────────────────────────────────────────────────────────────
+    if (manipConfig_LI.enabled && manipConfig_LI.source === 'api' && manipConfig_LI.endpoint && window.__sa_intervApi) {
+        if (document.getElementById('surveyFormContainer-' + postDetails.postID)) {
+            _renderSurvey();
+            return;
+        }
+        if (_inFlight_LI.has(postDetails.postID)) return;
+        _inFlight_LI.add(postDetails.postID);
+
+        const cached = window.__sa_intervApi.getCached(postDetails.postID);
+        if (cached) {
+            _liApplyResult(cached, postNode, manipConfig_LI.mode);
+            _inFlight_LI.delete(postDetails.postID);
+            injectLinkedInPostSurvey(postNode, postDetails.postID);
+            _renderSurvey();
+            return;
+        }
+
+        const overlay = window.__sa_intervApi.createOverlay(postNode, manipConfig_LI.mode);
+        const doRetry = function() { _inFlight_LI.delete(postDetails.postID); overlay.remove(); processPostNode(postNode); };
+        try {
+            const body = extractPostTextContent(postNode);
+            const postData = {
+                post_id:      postDetails.postID,
+                account_id:   postDetails.postOwner,
+                body,
+                media_urls:   extractPostMedia(postNode),
+                post_metrics: extractPostMetrics(postNode)
+            };
+            const result = await window.__sa_intervApi.queuePost(postData);
+
+            const meta = { applied: true, label: result.prompt_label || '', map_id: result.map_id || window.__sa_intervApi.getMapId() };
+            if (manipConfig_LI.logOriginal) meta.original_text = body;
+            const extras = {};
+            for (const k in result) {
+                if (!['post_id', 'rewritten_text', 'map_id', 'prompt_label'].includes(k)) extras[k] = result[k];
+            }
+            if (Object.keys(extras).length > 0) meta.extras = extras;
+            manipApplied_LI[postDetails.postID] = meta;
+
+            overlay.parentNode && overlay.parentNode.removeChild(overlay);
+            _inFlight_LI.delete(postDetails.postID);
+
+            _liApplyResult(result, postNode, manipConfig_LI.mode);
+            injectLinkedInPostSurvey(postNode, postDetails.postID);
+            _renderSurvey();
+        } catch(err) {
+            overlay.showError(doRetry);
+        }
+        return;
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // ── Map path ──────────────────────────────────────────────────────────────
+    if (manipConfig_LI.enabled && manipMap_LI[postDetails.postID]) {
+        let entry  = manipMap_LI[postDetails.postID];
+        let textEl = _liTextEl(postNode);
+        if (textEl) {
+            let rewrittenText = entry.rewritten_text;
+            let originalText  = entry.original_text || '';
+            textEl.textContent = rewrittenText;
+            if (manipConfig_LI.mode === 'aware') {
+                let isOriginal = false;
+                let toggleBtn  = document.createElement('button');
+                toggleBtn.textContent = '👁 Show original';
+                toggleBtn.setAttribute('data-sa-interv-toggle', '1');
+                toggleBtn.style.cssText = [
+                    'display:block','margin-left:auto','margin-bottom:4px',
+                    'padding:2px 10px','font-size:11px','line-height:1.6',
+                    'cursor:pointer','border-radius:4px',
+                    'background:rgba(10,102,194,0.08)','color:rgb(10,102,194)',
+                    'border:1px solid rgba(10,102,194,0.25)',
+                    'font-family:-apple-system,BlinkMacSystemFont,sans-serif',
+                ].join(';');
+                toggleBtn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    isOriginal = !isOriginal;
+                    textEl.textContent = isOriginal ? originalText : rewrittenText;
+                    toggleBtn.textContent = isOriginal ? '✏ Show rewritten' : '👁 Show original';
+                });
+                textEl.parentNode.insertBefore(toggleBtn, textEl);
+            }
+            let meta = { applied: true, label: entry.prompt_label || '', map_id: manipMapId_LI };
+            if (manipConfig_LI.logOriginal) meta.original_text = originalText;
+            manipApplied_LI[postDetails.postID] = meta;
+        }
+        if (entry.replacement_image) {
+            let avatarImg = postNode.querySelector(SEL_LI.postAuthorAvatar || '.update-components-actor img, img[src*="profile"]');
+            if (avatarImg) { avatarImg.src = entry.replacement_image; avatarImg.srcset = ''; }
         }
     }
+    // ─────────────────────────────────────────────────────────────────────────
+
+    injectLinkedInPostSurvey(postNode, postDetails.postID);
+    _renderSurvey();
 }
 
 function createObserver() {
@@ -264,6 +361,72 @@ function extractPostTextContent(postNode) {
 
 function extractPostMetrics(postNode) {
     let metrics = { like_count: null, share_count: null, comment_count: null, bookmark_count: null, view_count: null, quote_count: null };
+
+    function parseCount(text) {
+        if (!text) return null;
+        text = text.trim().replace(/,/g, '');
+        let m = text.match(/^([\d.]+)\s*([KkMm]?)/);
+        if (!m) return null;
+        let n = parseFloat(m[1]);
+        let s = m[2].toLowerCase();
+        if (s === 'k') n = Math.round(n * 1000);
+        else if (s === 'm') n = Math.round(n * 1000000);
+        return isNaN(n) ? null : n;
+    }
+
+    // Scan all elements for LinkedIn social count text patterns.
+    // LinkedIn uses hashed class names so we rely on direct text content + aria-label.
+    let allEls = postNode.querySelectorAll('*');
+    for (let el of allEls) {
+        // Use direct text only (skip nested element text to avoid false positives)
+        let directText = '';
+        for (let child of el.childNodes) {
+            if (child.nodeType === Node.TEXT_NODE) directText += child.textContent;
+        }
+        directText = directText.trim();
+
+        let candidates = [directText, el.getAttribute('aria-label') || ''];
+        for (let t of candidates) {
+            if (!t) continue;
+            if (metrics.like_count === null) {
+                let m = t.match(/^([\d,]+(?:\.\d+)?[KkMm]?)\s+reactions?/i);
+                if (m) { metrics.like_count = parseCount(m[1]); continue; }
+            }
+            if (metrics.comment_count === null) {
+                let m = t.match(/^([\d,]+(?:\.\d+)?[KkMm]?)\s+comments?/i);
+                if (m) { metrics.comment_count = parseCount(m[1]); continue; }
+            }
+            if (metrics.share_count === null) {
+                let m = t.match(/^([\d,]+(?:\.\d+)?[KkMm]?)\s+(?:reposts?|shares?)/i);
+                if (m) { metrics.share_count = parseCount(m[1]); continue; }
+            }
+            if (metrics.view_count === null) {
+                let m = t.match(/^([\d,]+(?:\.\d+)?[KkMm]?)\s+(?:impressions?|views?)/i);
+                if (m) { metrics.view_count = parseCount(m[1]); continue; }
+            }
+        }
+    }
+
+    // Reaction count fallback: bare number in a span immediately after the reaction
+    // icons <ul role="presentation"> — e.g. <button><ul>…</ul><span>247</span></button>
+    if (metrics.like_count === null) {
+        let reactionUl = postNode.querySelector('ul[role="presentation"]');
+        if (reactionUl) {
+            let parent = reactionUl.parentElement;
+            if (parent) {
+                let siblings = Array.from(parent.children);
+                let idx = siblings.indexOf(reactionUl);
+                for (let i = idx + 1; i < siblings.length; i++) {
+                    let t = siblings[i].textContent.trim();
+                    if (/^\d/.test(t)) {
+                        let parsed = parseCount(t);
+                        if (parsed !== null) { metrics.like_count = parsed; break; }
+                    }
+                }
+            }
+        }
+    }
+
     return metrics;
 }
 
@@ -470,10 +633,14 @@ function initializeSurveys() {
         // Load manipulation map for linkedin-post
         const _postConfLI = result.config && result.config.surveys && result.config.surveys['linkedin-post'];
         manipConfig_LI = (_postConfLI && _postConfLI.manipulation) || {};
-        if (manipConfig_LI.enabled && result.manipulationMaps && result.manipulationMaps['linkedin-post']) {
+        if (manipConfig_LI.enabled && manipConfig_LI.source !== 'api' && result.manipulationMaps && result.manipulationMaps['linkedin-post']) {
             let fullMap = result.manipulationMaps['linkedin-post'];
             manipMapId_LI = (fullMap._meta && fullMap._meta.map_id) || '';
             for (let k in fullMap) { if (k !== '_meta') manipMap_LI[k] = fullMap[k]; }
+        }
+
+        if (manipConfig_LI.enabled && manipConfig_LI.source === 'api' && manipConfig_LI.endpoint && window.__sa_intervApi) {
+            window.__sa_intervApi.init({ endpoint: manipConfig_LI.endpoint, survey_type: 'linkedin-post', platform: 'linkedin', mode: manipConfig_LI.mode, logOriginal: manipConfig_LI.logOriginal });
         }
 
         liRoot = document.getElementById('root') || document.querySelector(SEL_LI.appRoot || '#root') || document.body;
@@ -518,16 +685,17 @@ function initializeSurveys() {
                         values.surveyType = currentContext.name;
                         values.studyID = studyID;
 
-                        // Attach manipulation metadata
+                        // Attach intervention metadata
                         if (!isUserSurvey) {
                             let _ma = manipApplied_LI[values.post_id];
                             if (_ma) {
-                                values.manipulation_applied = true;
-                                values.manipulation_label   = _ma.label;
-                                values.manipulation_map_id  = _ma.map_id;
+                                values.intervention_applied = true;
+                                values.intervention_label   = _ma.label;
+                                values.intervention_map_id  = _ma.map_id;
                                 if (_ma.original_text !== undefined) values.original_text = _ma.original_text;
+                                if (_ma.extras) values.intervention_extras = _ma.extras;
                             } else {
-                                values.manipulation_applied = false;
+                                values.intervention_applied = false;
                             }
                         }
 

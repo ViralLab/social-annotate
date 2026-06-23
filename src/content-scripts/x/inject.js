@@ -15,10 +15,15 @@ if (!window.__socialAnnotate__) window.__socialAnnotate__ = {};
 if (!window.__socialAnnotate__.twitterApiMediaMap) window.__socialAnnotate__.twitterApiMediaMap = {};
 
 // ── Manipulation state (loaded once at startup) ──────────
-let manipConfig  = {};  // { enabled, mode, logOriginal }
+let manipConfig  = {};  // { enabled, source, mode, logOriginal, endpoint }
 let manipMap     = {};  // { post_id: { rewritten_text, original_text, prompt_label, ... } }
 let manipMapId   = '';  // _meta.map_id from the imported map
-let manipApplied      = {};  // { tweetID: { applied, label, map_id, original_text? } }
+let manipApplied      = {};  // { tweetID: { applied, label, map_id, original_text?, extras? } }
+const _inFlight_X = new Set(); // tweetIDs currently awaiting API response
+
+// ── User intervention state ───────────────────────────────
+let manipConfig_XU   = {};  // { enabled, endpoint, mode, fields: { profile_name, handle, … } }
+let manipApplied_XU  = {};  // { userID: { applied, fields: { field: { original, rewritten } } } }
 let _processedCount_X   = 0;
 registerHealthCounter(function () { return _processedCount_X; });
 document.addEventListener('mh:media-response', function (e) {
@@ -68,78 +73,252 @@ window.addEventListener('mh:download-request', function (e) {
     }
 });
 
-function processArticleNode(articleNode) {
-    _processedCount_X++;
-    let insertElement = articleNode.parentNode;
-    if (insertElement && insertElement.getElementsByClassName('survey-container-tweet').length === 0) {
-        let tweetDetails = extractTweetDetails(insertElement);
-
-        if (tweetDetails) {
-            // ── Manipulation DOM patch ────────────────────────────
-            if (manipConfig.enabled && manipMap[tweetDetails.tweetID]) {
-                let entry   = manipMap[tweetDetails.tweetID];
-                let textEl  = articleNode.querySelector(SEL.postText || '[data-testid="tweetText"]');
-                if (textEl) {
-                    let rewrittenText = entry.rewritten_text;
-                    let originalText  = entry.original_text || '';
-                    textEl.textContent = rewrittenText;
-
-                    if (manipConfig.mode === 'aware') {
-                        let isOriginal = false;
-                        let toggleBtn  = document.createElement('button');
-                        toggleBtn.textContent = '👁 Show original';
-                        toggleBtn.setAttribute('data-sa-manip-toggle', '1');
-                        toggleBtn.style.cssText = [
-                            'display:block', 'margin-left:auto', 'margin-bottom:4px',
-                            'padding:2px 10px', 'font-size:11px', 'line-height:1.6',
-                            'cursor:pointer', 'border-radius:4px',
-                            'background:rgba(29,155,240,0.08)', 'color:rgb(29,155,240)',
-                            'border:1px solid rgba(29,155,240,0.25)',
-                            'font-family:-apple-system,BlinkMacSystemFont,sans-serif',
-                        ].join(';');
-                        toggleBtn.addEventListener('click', function (e) {
-                            e.stopPropagation();
-                            isOriginal = !isOriginal;
-                            textEl.textContent = isOriginal ? originalText : rewrittenText;
-                            toggleBtn.textContent = isOriginal ? '✏ Show rewritten' : '👁 Show original';
-                        });
-                        textEl.parentNode.insertBefore(toggleBtn, textEl);
-                    }
-
-                    let meta = { applied: true, label: entry.prompt_label || '', map_id: manipMapId };
-                    if (manipConfig.logOriginal) meta.original_text = originalText;
-                    manipApplied[tweetDetails.tweetID] = meta;
-                }
-                if (entry.replacement_image) {
-                    let avatarContainer = articleNode.querySelector(SEL.postAuthorAvatar || '[data-testid="Tweet-User-Avatar"]');
-                    if (avatarContainer && !avatarContainer.querySelector('[data-sa-avatar]')) {
-                        let overlay = document.createElement('div');
-                        overlay.setAttribute('data-sa-avatar', '1');
-                        overlay.style.cssText = [
-                            'position:absolute', 'inset:0', 'border-radius:50%',
-                            'background:url("' + entry.replacement_image + '") center/cover no-repeat',
-                            'z-index:2', 'pointer-events:none'
-                        ].join(';');
-                        avatarContainer.style.position = 'relative';
-                        avatarContainer.appendChild(overlay);
-                    }
-                }
+// Like innerText but includes <img alt="…"> as the emoji character.
+// X renders emojis as <img> elements — plain innerText silently drops them.
+function _xInnerText(el) {
+    let parts = [];
+    el.childNodes.forEach(function (node) {
+        if (node.nodeType === Node.TEXT_NODE) {
+            parts.push(node.textContent);
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+            if (node.tagName === 'IMG') {
+                let alt = node.getAttribute('alt');
+                if (alt) parts.push(alt);
+            } else if (node.tagName === 'BR') {
+                parts.push('\n');
+            } else {
+                parts.push(_xInnerText(node));
             }
-            // ─────────────────────────────────────────────────────
+        }
+    });
+    return parts.join('');
+}
+
+// Returns the main tweet's text element, skipping quoted-tweet and card nested copies.
+function _xMainTextEl(articleNode) {
+    let all = articleNode.querySelectorAll(SEL.postText || '[data-testid="tweetText"]');
+    for (let el of all) {
+        if (!el.closest('[data-testid="card.wrapper"]') && !el.closest('[role="link"][tabindex="0"]')) return el;
+    }
+    return all[0] || null;
+}
+
+// Sets rewritten text while:
+//   - preserving mention and URL <a> tags (re-inserted by matching text)
+//   - removing hashtag <a> tags absent from the rewritten text
+//   - preserving the "Show more" link
+function _xApplyText(textEl, text) {
+    let showMore = textEl.querySelector('[data-testid="tweet-text-show-more-link"]');
+
+    // Collect mention + URL links (not hashtags) that still appear in the rewritten text
+    let keepLinks = [];
+    textEl.querySelectorAll('a[href]').forEach(function (a) {
+        if (a === showMore) return;
+        let href = a.getAttribute('href') || '';
+        if (href.includes('/hashtag/')) return;
+        let linkText = a.textContent;
+        if (linkText && text.includes(linkText)) keepLinks.push({ match: linkText, el: a.cloneNode(true) });
+    });
+
+    // Collect emoji <img alt="…"> elements in DOM order
+    let emojiImgs = Array.from(textEl.querySelectorAll('img[alt]'))
+        .map(function (img) { return { match: img.getAttribute('alt'), el: img.cloneNode(true) }; })
+        .filter(function (e) { return e.match && text.includes(e.match); });
+
+    textEl.textContent = text;
+
+    // Re-insert each preserved node (links + emojis) by locating its text in the DOM
+    function _reinsert(items) {
+        for (let i = 0; i < items.length; i++) {
+            let match = items[i].match, el = items[i].el;
+            let walker = document.createTreeWalker(textEl, NodeFilter.SHOW_TEXT, null);
+            let node;
+            while ((node = walker.nextNode())) {
+                let idx = node.textContent.indexOf(match);
+                if (idx === -1) continue;
+                let before = node.textContent.slice(0, idx);
+                let after  = node.textContent.slice(idx + match.length);
+                let parent = node.parentNode;
+                if (before) parent.insertBefore(document.createTextNode(before), node);
+                parent.insertBefore(el, node);
+                if (after)  parent.insertBefore(document.createTextNode(after), node);
+                parent.removeChild(node);
+                break;
+            }
+        }
+    }
+
+    _reinsert(keepLinks);
+    _reinsert(emojiImgs);
+
+    if (showMore) textEl.appendChild(showMore);
+}
+
+// originalNodes: Array of cloned childNodes captured before _xApplyText was called.
+// Restoring from the snapshot preserves hashtag/mention/emoji links exactly.
+function _xToggleBtn(textEl, originalNodes, rewrittenText) {
+    let isOriginal = false;
+    let btn = document.createElement('button');
+    btn.textContent = '👁 Show original';
+    btn.setAttribute('data-sa-interv-toggle', '1');
+    btn.style.cssText = [
+        'display:block', 'margin-left:auto', 'margin-bottom:4px',
+        'padding:2px 10px', 'font-size:11px', 'line-height:1.6',
+        'cursor:pointer', 'border-radius:4px',
+        'background:rgba(29,155,240,0.08)', 'color:rgb(29,155,240)',
+        'border:1px solid rgba(29,155,240,0.25)',
+        'font-family:-apple-system,BlinkMacSystemFont,sans-serif',
+    ].join(';');
+    btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        isOriginal = !isOriginal;
+        if (isOriginal) {
+            // Restore original DOM snapshot — preserves hashtag/mention/emoji links
+            while (textEl.firstChild) textEl.removeChild(textEl.firstChild);
+            originalNodes.forEach(function (n) { textEl.appendChild(n.cloneNode(true)); });
+        } else {
+            _xApplyText(textEl, rewrittenText);
+        }
+        btn.textContent = isOriginal ? '✏ Show rewritten' : '👁 Show original';
+    });
+    textEl.parentNode.insertBefore(btn, textEl);
+}
+
+function _xGetTimestamp(insertElement) {
+    let t = insertElement.querySelector(SEL.postTimestamp || 'time');
+    if (!t) return null;
+    let dt = t.getAttribute('datetime') || t.dateTime;
+    if (dt) return dt;
+    let unix = t.getAttribute('data-time');
+    return unix ? new Date(parseInt(unix, 10) * 1000).toISOString() : null;
+}
+
+async function processArticleNode(articleNode) {
+    let insertElement = articleNode.parentNode;
+    if (!insertElement || insertElement.getElementsByClassName('survey-container-tweet').length > 0) return;
+
+    let tweetDetails = extractTweetDetails(insertElement);
+    if (!tweetDetails) return;
+    if (_inFlight_X.has(tweetDetails.tweetID)) return;
+
+    _processedCount_X++;
+
+    // ── Live API intervention path ────────────────────────
+    if (manipConfig.enabled && manipConfig.source === 'api' && manipConfig.endpoint && window.__sa_intervApi) {
+        _inFlight_X.add(tweetDetails.tweetID);
+
+        function _xApplyResult(result, targetArticle) {
+            let textEl = _xMainTextEl(targetArticle);
+            if (textEl) {
+                let originalNodes = Array.from(textEl.childNodes).map(function (n) { return n.cloneNode(true); });
+                _xApplyText(textEl, result.rewritten_text);
+                if (manipConfig.mode === 'aware') _xToggleBtn(textEl, originalNodes, result.rewritten_text);
+            }
+        }
+
+        // If already cached (e.g. navigated from feed to tweet detail), apply synchronously
+        let cached = window.__sa_intervApi.getCached(tweetDetails.tweetID);
+        if (cached) {
+            _xApplyResult(cached, articleNode);
+            _inFlight_X.delete(tweetDetails.tweetID);
+            injectTwitterTweetSurvey(insertElement, tweetDetails.tweetID, tweetDetails.tweetOwner);
+            availableContextsTwitter[1].renderSurvey(
+                tweetDetails.tweetOwner, tweetDetails.tweetID,
+                { body: () => cached.rewritten_text, media_urls: () => extractTweetMedia(insertElement), post_metrics: () => extractTweetMetrics(insertElement), created_at: () => _xGetTimestamp(insertElement) }
+            );
+            return;
+        }
+
+        let overlay = window.__sa_intervApi.createOverlay(articleNode, manipConfig.mode);
+
+        let postData = {
+            post_id:      tweetDetails.tweetID,
+            account_id:   tweetDetails.tweetOwner,
+            body:         extractTweetTextContent(insertElement),
+            created_at:   _xGetTimestamp(insertElement),
+            media_urls:   extractTweetMedia(insertElement),
+            post_metrics: extractTweetMetrics(insertElement)
+        };
+
+        let doRetry = function () {
+            _inFlight_X.delete(tweetDetails.tweetID);
+            if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+            processArticleNode(articleNode);
+        };
+
+        try {
+            let result = await window.__sa_intervApi.queuePost(postData);
+
+            let meta = { applied: true, label: result.prompt_label || '', map_id: result.map_id || window.__sa_intervApi.getMapId() };
+            if (manipConfig.logOriginal) meta.original_text = postData.body;
+            let extras = {};
+            for (let k in result) {
+                if (!['post_id', 'rewritten_text', 'map_id', 'prompt_label'].includes(k)) extras[k] = result[k];
+            }
+            if (Object.keys(extras).length > 0) meta.extras = extras;
+            manipApplied[tweetDetails.tweetID] = meta;
+
+            if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+            _inFlight_X.delete(tweetDetails.tweetID);
+
+            // Re-query after overlay removal — React may have re-rendered during the await
+            let liveArticle = document.querySelector(`a[href*="/status/${tweetDetails.tweetID}"]`)
+                ?.closest('article[data-testid="tweet"]') || articleNode;
+            _xApplyResult(result, liveArticle);
 
             injectTwitterTweetSurvey(insertElement, tweetDetails.tweetID, tweetDetails.tweetOwner);
             availableContextsTwitter[1].renderSurvey(
-                tweetDetails.tweetOwner,
-                tweetDetails.tweetID,
-                {
-                    body: () => extractTweetTextContent(insertElement),
-                    media_urls: () => extractTweetMedia(insertElement),
-                    post_metrics: () => extractTweetMetrics(insertElement),
-                    created_at: () => { let t = insertElement.querySelector(SEL.postTimestamp || 'time'); if (!t) return null; let dt = t.getAttribute('datetime') || t.dateTime; if (dt) return dt; let unix = t.getAttribute('data-time'); return unix ? new Date(parseInt(unix, 10) * 1000).toISOString() : null; }
-                }
+                tweetDetails.tweetOwner, tweetDetails.tweetID,
+                { body: () => result.rewritten_text, media_urls: () => extractTweetMedia(insertElement), post_metrics: () => extractTweetMetrics(insertElement), created_at: () => _xGetTimestamp(insertElement) }
             );
+        } catch (err) {
+            overlay.showError(doRetry);
+        }
+        return;
+    }
+    // ─────────────────────────────────────────────────────
+
+    // ── Static map manipulation path ─────────────────────
+    if (manipConfig.enabled && manipConfig.source !== 'api' && manipMap[tweetDetails.tweetID]) {
+        let entry   = manipMap[tweetDetails.tweetID];
+        let textEl  = _xMainTextEl(articleNode);
+        if (textEl) {
+            let rewrittenText = entry.rewritten_text;
+            let originalNodes = Array.from(textEl.childNodes).map(function (n) { return n.cloneNode(true); });
+            _xApplyText(textEl, rewrittenText);
+            if (manipConfig.mode === 'aware') _xToggleBtn(textEl, originalNodes, rewrittenText);
+            let meta = { applied: true, label: entry.prompt_label || '', map_id: manipMapId };
+            if (manipConfig.logOriginal) meta.original_text = originalText;
+            manipApplied[tweetDetails.tweetID] = meta;
+        }
+        if (entry.replacement_image) {
+            let avatarContainer = articleNode.querySelector(SEL.postAuthorAvatar || '[data-testid="Tweet-User-Avatar"]');
+            if (avatarContainer && !avatarContainer.querySelector('[data-sa-avatar]')) {
+                let av = document.createElement('div');
+                av.setAttribute('data-sa-avatar', '1');
+                av.style.cssText = [
+                    'position:absolute', 'inset:0', 'border-radius:50%',
+                    'background:url("' + entry.replacement_image + '") center/cover no-repeat',
+                    'z-index:2', 'pointer-events:none'
+                ].join(';');
+                avatarContainer.style.position = 'relative';
+                avatarContainer.appendChild(av);
+            }
         }
     }
+    // ─────────────────────────────────────────────────────
+
+    injectTwitterTweetSurvey(insertElement, tweetDetails.tweetID, tweetDetails.tweetOwner);
+    availableContextsTwitter[1].renderSurvey(
+        tweetDetails.tweetOwner,
+        tweetDetails.tweetID,
+        {
+            body:         () => extractTweetTextContent(insertElement),
+            media_urls:   () => extractTweetMedia(insertElement),
+            post_metrics: () => extractTweetMetrics(insertElement),
+            created_at:   () => _xGetTimestamp(insertElement)
+        }
+    );
 }
 
 function createObserver() {
@@ -379,6 +558,157 @@ function injectTwitterUserSurvey(injectElement, userID) {
     }
 }
 
+// ── User intervention helpers ─────────────────────────────
+
+function _xuGetFieldEl(field) {
+    switch (field) {
+        case 'profile_name': {
+            let nameEl = document.querySelector(SEL.userDisplayName || '[data-testid="UserName"]');
+            if (!nameEl) return null;
+            let spans = nameEl.querySelectorAll('span');
+            // Allow spans with only <img> children (emoji/verified badge) — just no nested spans/divs
+            for (let s of spans) {
+                let txt = s.textContent.trim();
+                if (!txt || txt.startsWith('@')) continue;
+                let hasBlockChild = Array.from(s.children).some(function(c) { return c.tagName === 'SPAN' || c.tagName === 'DIV'; });
+                if (!hasBlockChild) return s;
+            }
+            return null;
+        }
+        case 'handle': {
+            // The @handle span lives outside [data-testid="User-Name"] — use the outer UserName wrapper
+            let outer = document.querySelector('[data-testid="UserName"]');
+            if (!outer) return null;
+            let spans = outer.querySelectorAll('span');
+            for (let s of spans) {
+                if (s.childElementCount === 0 && s.textContent.trim().startsWith('@')) return s;
+            }
+            return null;
+        }
+        case 'followers_count': {
+            let a = document.querySelector(SEL.userFollowers || 'a[href$="/verified_followers"], a[href$="/followers"]');
+            if (!a) return null;
+            let spans = a.querySelectorAll('span');
+            for (let s of spans) {
+                if (s.childElementCount === 0 && /^[\d,.KMBkmb]+$/.test(s.textContent.trim())) return s;
+            }
+            return null;
+        }
+        case 'following_count': {
+            let a = document.querySelector(SEL.userFollowing || 'a[href$="/following"]');
+            if (!a) return null;
+            let spans = a.querySelectorAll('span');
+            for (let s of spans) {
+                if (s.childElementCount === 0 && /^[\d,.KMBkmb]+$/.test(s.textContent.trim())) return s;
+            }
+            return null;
+        }
+        case 'bio':
+            return document.querySelector(SEL.userBio || '[data-testid="UserDescription"]');
+    }
+    return null;
+}
+
+function _xuToggleBtn(fieldEl, originalText, rewrittenText) {
+    let isOriginal = false;
+    let btn = document.createElement('button');
+    btn.textContent = '👁 Show original';
+    btn.setAttribute('data-sa-interv-toggle', '1');
+    btn.style.cssText = [
+        'display:inline-block','margin-left:6px','padding:1px 8px','font-size:11px',
+        'line-height:1.6','cursor:pointer','border-radius:4px','vertical-align:middle',
+        'background:rgba(29,155,240,0.08)','color:rgb(29,155,240)',
+        'border:1px solid rgba(29,155,240,0.25)',
+        'font-family:-apple-system,BlinkMacSystemFont,sans-serif',
+    ].join(';');
+    btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        isOriginal = !isOriginal;
+        fieldEl.textContent = isOriginal ? originalText : rewrittenText;
+        btn.textContent = isOriginal ? '✏ Show rewritten' : '👁 Show original';
+    });
+    // Insert after the enclosing <a> (if any) so the button doesn't end up
+    // between the count and the "Following"/"Followers" label inside the link.
+    let anchor = fieldEl.closest('a');
+    let insertAfter = anchor || fieldEl;
+    insertAfter.parentNode.insertBefore(btn, insertAfter.nextSibling);
+}
+
+async function _applyXUserIntervention(userID, profile) {
+    if (!manipConfig_XU.enabled || !manipConfig_XU.endpoint) return;
+    let fields = manipConfig_XU.fields || {};
+    let fieldsToIntervene = Object.keys(fields).filter(function(f) { return fields[f]; });
+    if (fieldsToIntervene.length === 0) return;
+
+    let removeOverlay = _createUserInterventionOverlay();
+
+    let payload = {
+        survey_type: 'x-user',
+        platform: 'x',
+        account_id: userID,
+        profile_name: profile.profile_name || null,
+        handle: profile.handle || null,
+        followers_count: profile.followersCount || null,
+        following_count: profile.followingCount || null,
+        bio: profile.bio || null,
+        fields_to_intervene: fieldsToIntervene
+    };
+
+    let result;
+    try {
+        let response = await fetch(manipConfig_XU.endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!response.ok) { removeOverlay(); return; }
+        result = await response.json();
+    } catch (e) { removeOverlay(); return; }
+
+    // Captured lazily inside applyFields — first time an element is found in the DOM
+    // (React may not have rendered it yet at fetch-response time)
+    let originalValues = {};
+
+    function applyFields() {
+        let appliedAny = false;
+        for (let field of fieldsToIntervene) {
+            if (!result[field]) continue;
+            let el = _xuGetFieldEl(field);
+            if (!el) continue;
+            // Capture original before first mutation; don't overwrite on retries
+            if (originalValues[field] === undefined) {
+                originalValues[field] = el.textContent;
+            }
+            if (el.textContent === result[field]) { appliedAny = true; continue; }
+            el.textContent = result[field];
+            appliedAny = true;
+            // Only add toggle once — check after <a> ancestor (count fields) or after el
+            if (manipConfig_XU.mode === 'aware') {
+                let anchor = el.closest('a');
+                let checkAfter = anchor || el;
+                let next = checkAfter.nextSibling;
+                let hasToggle = next && next.nodeType === 1 && next.getAttribute && next.getAttribute('data-sa-interv-toggle');
+                if (!hasToggle) _xuToggleBtn(el, originalValues[field], result[field]);
+            }
+        }
+        if (appliedAny) removeOverlay();
+    }
+
+    applyFields();
+    // Re-apply after React re-renders (X reconciles the DOM 100-500ms after navigation)
+    [200, 600, 1500].forEach(function(delay) {
+        setTimeout(applyFields, delay);
+    });
+
+    let appliedFields = {};
+    for (let field of fieldsToIntervene) {
+        if (result[field]) appliedFields[field] = { original: originalValues[field] || '', rewritten: result[field] };
+    }
+    manipApplied_XU[userID] = { applied: true, fields: appliedFields };
+}
+
+// ─────────────────────────────────────────────────────────
+
 function enableTweetObserver(injectElement) {
     document.querySelectorAll(SEL.postContainer || 'article[role="article"]').forEach(processArticleNode);
     if (reactRoot && observer) {
@@ -423,11 +753,16 @@ function extractTweetMedia(articleNode) {
 function extractTweetTextContent(articleNode) {
     let tweetTextParts = [];
 
-    // Grab all tweet text blocks natively
-    let textNodes = articleNode.querySelectorAll(SEL.postText || '[data-testid="tweetText"]');
-    textNodes.forEach(node => {
-        if (node.innerText) tweetTextParts.push(node.innerText.trim());
-    });
+    // Only grab the main tweet text — not quoted-tweet or card nested copies
+    let textEl = _xMainTextEl(articleNode);
+    if (textEl) {
+        // Clone to strip the "Show more" link, then read text including emoji <img alt>
+        let clone = textEl.cloneNode(true);
+        let showMore = clone.querySelector('[data-testid="tweet-text-show-more-link"]');
+        if (showMore) showMore.remove();
+        let text = _xInnerText(clone).trim();
+        if (text) tweetTextParts.push(text);
+    }
 
     // Grab URLs from link previews instead of the bulky card text
     let cardNodes = articleNode.querySelectorAll(SEL.cardWrapper || '[data-testid="card.wrapper"]');
@@ -616,16 +951,21 @@ function initializeSurveys() {
         SEL = { ...(_rawX.shared || {}), ...(_rawX.account || {}), ...(_rawX.post || {}) };
         watchPostCounter('x', function () { return _processedCount_X; });
 
-        // Load manipulation map for x-post
+        // Load manipulation config for x-post
         const _postConf = result.config && result.config.surveys && result.config.surveys['x-post'];
         manipConfig = (_postConf && _postConf.manipulation) || {};
-        if (manipConfig.enabled && result.manipulationMaps && result.manipulationMaps['x-post']) {
-            let fullMap = result.manipulationMaps['x-post'];
-            manipMapId = (fullMap._meta && fullMap._meta.map_id) || '';
-            for (let k in fullMap) {
-                if (k !== '_meta') manipMap[k] = fullMap[k];
+        if (manipConfig.enabled) {
+            if (manipConfig.source !== 'api' && result.manipulationMaps && result.manipulationMaps['x-post']) {
+                let fullMap = result.manipulationMaps['x-post'];
+                manipMapId = (fullMap._meta && fullMap._meta.map_id) || '';
+                for (let k in fullMap) { if (k !== '_meta') manipMap[k] = fullMap[k]; }
+            } else if (manipConfig.source === 'api' && manipConfig.endpoint && window.__sa_intervApi) {
+                window.__sa_intervApi.init({ endpoint: manipConfig.endpoint, survey_type: 'x-post', platform: 'x', mode: manipConfig.mode, logOriginal: manipConfig.logOriginal });
             }
         }
+
+        const _userConf = result.config && result.config.surveys && result.config.surveys['x-user'];
+        manipConfig_XU = (_userConf && _userConf.manipulation) || {};
 
         // Initialize observer infrastructure now that selectors are available
         reactRoot = document.querySelector(SEL.appRoot || '#react-root') || document.body;
@@ -704,15 +1044,22 @@ function initializeSurveys() {
                             });
                         }
 
-                        // Attach manipulation metadata
+                        // Attach intervention metadata
                         let _ma = manipApplied[values.post_id];
+                        let _maU = manipApplied_XU[values.account_id];
                         if (_ma) {
-                            values.manipulation_applied = true;
-                            values.manipulation_label   = _ma.label;
-                            values.manipulation_map_id  = _ma.map_id;
+                            values.intervention_applied = true;
+                            values.intervention_label   = _ma.label;
+                            values.intervention_map_id  = _ma.map_id;
                             if (_ma.original_text !== undefined) values.original_text = _ma.original_text;
+                            if (_ma.extras) values.intervention_extras = _ma.extras;
+                        } else if (_maU) {
+                            values.intervention_applied = true;
+                            values.intervention_label   = 'user-intervention';
+                            values.intervention_map_id  = '';
+                            values.intervention_extras  = _maU.fields;
                         } else {
-                            values.manipulation_applied = false;
+                            values.intervention_applied = false;
                         }
 
                         // Call storeResults AFTER capturing media URLs.
@@ -732,6 +1079,10 @@ function initializeSurveys() {
                     currentContext.renderSurvey(surveyID, null, {
                         user_profile: () => extractUserProfile()
                     });
+                    if (currentContext.name === 'x-user' && manipConfig_XU.enabled) {
+                        let profile = extractUserProfile();
+                        _applyXUserIntervention(surveyID, profile);
+                    }
                 }
             }
         }

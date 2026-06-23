@@ -13,6 +13,11 @@ let manipMap_MD     = {};
 let manipMapId_MD   = '';
 let manipApplied_MD = {};
 let _processedCount_MD = 0;
+const _inFlight_MD = new Set();
+
+// ── User intervention state ───────────────────────────────
+let manipConfig_MDU  = {};
+let manipApplied_MDU = {};
 registerHealthCounter(function () { return _processedCount_MD; });
 
 // Mastodon exposes a public REST API at /api/v1/statuses/:id on every instance.
@@ -153,7 +158,7 @@ function extractMDPostMetrics(postNode) {
 
 function extractMDPostDetails(postNode) {
     // Primary: timestamp anchor href contains /@username/POSTID
-    let timestampAnchor = postNode.querySelector(SEL_MD.postTimestamp || 'a.status__relative-time');
+    let timestampAnchor = postNode.querySelector(SEL_MD.postTimestamp || 'a.status__relative-time, a.detailed-status__datetime');
     let href = (timestampAnchor && (timestampAnchor.href || timestampAnchor.getAttribute('href'))) || '';
 
     let postID = '';
@@ -193,54 +198,49 @@ function extractMDPostDetails(postNode) {
     return { postOwner: postOwner, postID: postID };
 }
 
-function processPostNode(postNode) {
+function _mdToggleBtn(textEl, originalNodes, rewrittenText) {
+    if (manipConfig_MD.mode !== 'aware') return;
+    let isOriginal = false;
+    let toggleBtn = document.createElement('button');
+    toggleBtn.textContent = '👁 Show original';
+    toggleBtn.setAttribute('data-sa-interv-toggle', '1');
+    toggleBtn.style.cssText = [
+        'display:block','margin-left:auto','margin-bottom:4px',
+        'padding:2px 10px','font-size:11px','line-height:1.6',
+        'cursor:pointer','border-radius:4px',
+        'background:rgba(99,100,255,0.08)','color:rgb(99,100,255)',
+        'border:1px solid rgba(99,100,255,0.25)',
+        'font-family:-apple-system,BlinkMacSystemFont,sans-serif',
+    ].join(';');
+    toggleBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        isOriginal = !isOriginal;
+        if (isOriginal) {
+            textEl.textContent = '';
+            originalNodes.forEach(function(n) { textEl.appendChild(n.cloneNode(true)); });
+        } else {
+            textEl.textContent = rewrittenText;
+        }
+        toggleBtn.textContent = isOriginal ? '✏ Show rewritten' : '👁 Show original';
+    });
+    textEl.parentNode.insertBefore(toggleBtn, textEl);
+}
+
+async function processPostNode(postNode) {
     _processedCount_MD++;
-    if (!postNode || postNode.getElementsByClassName('survey-container-post').length > 0) return;
+    if (!postNode) return;
 
     let postDetails = extractMDPostDetails(postNode);
     if (!postDetails || !postDetails.postID) return;
 
+    // Deduplication: use ID-based check so it works whether survey is inside or adjacent
+    if (document.getElementById('surveyFormContainer-' + postDetails.postID)) return;
+    if (_inFlight_MD.has(postDetails.postID)) return;
+
     fetchMastodonPostData(postDetails.postID);
 
-    if (manipConfig_MD.enabled && manipMap_MD[postDetails.postID]) {
-        let entry  = manipMap_MD[postDetails.postID];
-        let textEl = postNode.querySelector(SEL_MD.postText || '.status__content');
-        if (textEl) {
-            let rewrittenText = entry.rewritten_text;
-            let originalText  = entry.original_text || '';
-            textEl.textContent = rewrittenText;
-            if (manipConfig_MD.mode === 'aware') {
-                let isOriginal = false;
-                let toggleBtn = document.createElement('button');
-                toggleBtn.textContent = '👁 Show original';
-                toggleBtn.setAttribute('data-sa-manip-toggle', '1');
-                toggleBtn.style.cssText = [
-                    'display:block','margin-left:auto','margin-bottom:4px',
-                    'padding:2px 10px','font-size:11px','line-height:1.6',
-                    'cursor:pointer','border-radius:4px',
-                    'background:rgba(99,100,255,0.08)','color:rgb(99,100,255)',
-                    'border:1px solid rgba(99,100,255,0.25)',
-                    'font-family:-apple-system,BlinkMacSystemFont,sans-serif',
-                ].join(';');
-                toggleBtn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    isOriginal = !isOriginal;
-                    textEl.textContent = isOriginal ? originalText : rewrittenText;
-                    toggleBtn.textContent = isOriginal ? '✏ Show rewritten' : '👁 Show original';
-                });
-                textEl.parentNode.insertBefore(toggleBtn, textEl);
-            }
-            let meta = { applied: true, label: entry.prompt_label || '', map_id: manipMapId_MD };
-            if (manipConfig_MD.logOriginal) meta.original_text = originalText;
-            manipApplied_MD[postDetails.postID] = meta;
-        }
-    }
-
-    injectMastodonPostSurvey(postNode, postDetails.postID);
-    availableContextsMastodon[0].renderSurvey(
-        postDetails.postOwner,
-        postDetails.postID,
-        {
+    function _mdSurveyGetters() {
+        return {
             body: function() {
                 const api = _mdApiCache[postDetails.postID];
                 if (api && api.content) return _mdStripHtml(api.content);
@@ -261,16 +261,98 @@ function processPostNode(postNode) {
                 const api = _mdApiCache[postDetails.postID];
                 if (api && api.created_at) return api.created_at;
                 let t = postNode.querySelector(SEL_MD.postTimestamp || 'a.status__relative-time time') || postNode.querySelector('time[datetime]');
-                if (!t) return null;
-                return t.getAttribute('datetime') || null;
+                return t ? (t.getAttribute('datetime') || null) : null;
             }
+        };
+    }
+
+    function _mdApplyResult(result, targetNode) {
+        let textEl = targetNode.querySelector(SEL_MD.postText || '.status__content');
+        if (textEl && result.rewritten_text) {
+            let originalNodes = Array.from(textEl.childNodes).map(function(n) { return n.cloneNode(true); });
+            textEl.textContent = result.rewritten_text;
+            _mdToggleBtn(textEl, originalNodes, result.rewritten_text);
         }
-    );
+    }
+
+    // ── Live API path ─────────────────────────────────────────
+    if (manipConfig_MD.enabled && manipConfig_MD.source === 'api' && manipConfig_MD.endpoint && window.__sa_intervApi) {
+        _inFlight_MD.add(postDetails.postID);
+
+        let cached = window.__sa_intervApi.getCached(postDetails.postID);
+        if (cached) {
+            _mdApplyResult(cached, postNode);
+            _inFlight_MD.delete(postDetails.postID);
+            injectMastodonPostSurvey(postNode, postDetails.postID);
+            availableContextsMastodon[0].renderSurvey(postDetails.postOwner, postDetails.postID,
+                Object.assign(_mdSurveyGetters(), { body: () => cached.rewritten_text }));
+            return;
+        }
+
+        let overlay = window.__sa_intervApi.createOverlay(postNode, manipConfig_MD.mode);
+        let doRetry = function() { _inFlight_MD.delete(postDetails.postID); overlay.remove(); processPostNode(postNode); };
+        try {
+            let apiData = _mdApiCache[postDetails.postID];
+            let body = apiData && apiData.content ? _mdStripHtml(apiData.content) : extractMDPostTextContent(postNode);
+            let postData = {
+                post_id:      postDetails.postID,
+                account_id:   postDetails.postOwner,
+                body,
+                created_at:   apiData ? apiData.created_at : null,
+                media_urls:   apiData ? _mdMediaUrlsFromApi(apiData) : extractMDPostMedia(postNode),
+                post_metrics: apiData ? _mdMetricsFromApi(apiData) : extractMDPostMetrics(postNode)
+            };
+
+            let result = await window.__sa_intervApi.queuePost(postData);
+
+            let meta = { applied: true, label: result.prompt_label || '', map_id: result.map_id || window.__sa_intervApi.getMapId() };
+            if (manipConfig_MD.logOriginal) meta.original_text = body;
+            let extras = {};
+            for (let k in result) {
+                if (!['post_id', 'rewritten_text', 'map_id', 'prompt_label'].includes(k)) extras[k] = result[k];
+            }
+            if (Object.keys(extras).length > 0) meta.extras = extras;
+            manipApplied_MD[postDetails.postID] = meta;
+
+            overlay.parentNode && overlay.parentNode.removeChild(overlay);
+            _inFlight_MD.delete(postDetails.postID);
+
+            _mdApplyResult(result, postNode);
+
+            injectMastodonPostSurvey(postNode, postDetails.postID);
+            availableContextsMastodon[0].renderSurvey(postDetails.postOwner, postDetails.postID,
+                Object.assign(_mdSurveyGetters(), { body: () => result.rewritten_text }));
+        } catch(err) {
+            overlay.showError(doRetry);
+        }
+        return;
+    }
+    // ─────────────────────────────────────────────────────────
+
+    // ── Map path ──────────────────────────────────────────────
+    if (manipConfig_MD.enabled && manipConfig_MD.source !== 'api' && manipMap_MD[postDetails.postID]) {
+        let entry  = manipMap_MD[postDetails.postID];
+        let textEl = postNode.querySelector(SEL_MD.postText || '.status__content');
+        if (textEl) {
+            let originalNodes = Array.from(textEl.childNodes).map(function(n) { return n.cloneNode(true); });
+            textEl.textContent = entry.rewritten_text;
+            _mdToggleBtn(textEl, originalNodes, entry.rewritten_text);
+            let meta = { applied: true, label: entry.prompt_label || '', map_id: manipMapId_MD };
+            if (manipConfig_MD.logOriginal) meta.original_text = entry.original_text || '';
+            manipApplied_MD[postDetails.postID] = meta;
+        }
+    }
+    // ─────────────────────────────────────────────────────────
+
+    injectMastodonPostSurvey(postNode, postDetails.postID);
+    availableContextsMastodon[0].renderSurvey(postDetails.postOwner, postDetails.postID, _mdSurveyGetters());
 }
 
 function scanForPosts() {
-    let sel = SEL_MD.postContainer || '.status__wrapper, article.status';
-    document.querySelectorAll(sel).forEach(processPostNode);
+    const DEFAULTS = '.status__wrapper, article.status, .detailed-status__wrapper';
+    let sel = SEL_MD.postContainer ? SEL_MD.postContainer + ', .detailed-status__wrapper' : DEFAULTS;
+    let found = document.querySelectorAll(sel);
+    found.forEach(processPostNode);
 }
 
 let _mdObserverDebounce = null;
@@ -340,6 +422,11 @@ function extractUserProfile() {
     } catch(e) {}
 
     try {
+        let bioEl = document.querySelector(SEL_MD.userBio || '.account__header__content');
+        if (bioEl) profile.bio = bioEl.textContent.trim();
+    } catch(e) {}
+
+    try {
         let followersEl = document.querySelector(SEL_MD.userFollowers || 'a[href$="/followers"]');
         if (followersEl) profile.followersCount = followersEl.textContent.trim();
     } catch(e) {}
@@ -351,6 +438,132 @@ function extractUserProfile() {
 
     return profile;
 }
+
+// ── User intervention helpers ─────────────────────────────
+
+function _mduGetFieldEl(field) {
+    switch (field) {
+        case 'profile_name':
+            return document.querySelector(SEL_MD.userDisplayName || 'h1');
+        case 'handle':
+            return document.querySelector(SEL_MD.userHandle || '.display-name__account');
+        case 'followers_count': {
+            let a = document.querySelector(SEL_MD.userFollowers || 'a[href$="/followers"]');
+            if (!a) return null;
+            // Try abbr first (short format), then leaf span/div with digits
+            let abbr = a.querySelector('abbr');
+            if (abbr) return abbr;
+            let children = a.querySelectorAll('span, strong');
+            for (let s of children) {
+                if (s.childElementCount === 0 && /^[\d,.KMBkmb]+$/.test(s.textContent.trim())) return s;
+            }
+            return a;
+        }
+        case 'following_count': {
+            let a = document.querySelector(SEL_MD.userFollowing || 'a[href$="/following"]');
+            if (!a) return null;
+            let abbr = a.querySelector('abbr');
+            if (abbr) return abbr;
+            let children = a.querySelectorAll('span, strong');
+            for (let s of children) {
+                if (s.childElementCount === 0 && /^[\d,.KMBkmb]+$/.test(s.textContent.trim())) return s;
+            }
+            return a;
+        }
+        case 'bio':
+            return document.querySelector(SEL_MD.userBio || '.account__header__content');
+    }
+    return null;
+}
+
+function _mduToggleBtn(fieldEl, originalText, rewrittenText) {
+    let isOriginal = false;
+    let btn = document.createElement('button');
+    btn.textContent = '👁 Show original';
+    btn.setAttribute('data-sa-interv-toggle', '1');
+    btn.style.cssText = [
+        'display:inline-block','margin-left:6px','padding:1px 8px','font-size:11px',
+        'line-height:1.6','cursor:pointer','border-radius:4px','vertical-align:middle',
+        'background:rgba(99,100,255,0.08)','color:rgb(99,100,255)',
+        'border:1px solid rgba(99,100,255,0.25)',
+        'font-family:-apple-system,BlinkMacSystemFont,sans-serif',
+    ].join(';');
+    btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        isOriginal = !isOriginal;
+        fieldEl.textContent = isOriginal ? originalText : rewrittenText;
+        btn.textContent = isOriginal ? '✏ Show rewritten' : '👁 Show original';
+    });
+    let container = fieldEl.closest('a') || fieldEl.closest('button');
+    let insertAfter = container || fieldEl;
+    insertAfter.parentNode.insertBefore(btn, insertAfter.nextSibling);
+}
+
+async function _applyMDUserIntervention(userID, profile) {
+    if (!manipConfig_MDU.enabled || !manipConfig_MDU.endpoint) return;
+    let fields = manipConfig_MDU.fields || {};
+    let fieldsToIntervene = Object.keys(fields).filter(function(f) { return fields[f]; });
+    if (fieldsToIntervene.length === 0) return;
+
+    let removeOverlay = _createUserInterventionOverlay();
+
+    let payload = {
+        survey_type: 'mastodon-user',
+        platform: 'mastodon',
+        account_id: userID,
+        profile_name: profile.profile_name || null,
+        handle: profile.handle || null,
+        followers_count: profile.followersCount || null,
+        following_count: profile.followingCount || null,
+        bio: profile.bio || null,
+        fields_to_intervene: fieldsToIntervene
+    };
+
+    let result;
+    try {
+        let response = await fetch(manipConfig_MDU.endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!response.ok) { removeOverlay(); return; }
+        result = await response.json();
+    } catch (e) { removeOverlay(); return; }
+
+    let originalValues = {};
+
+    function applyFields() {
+        let appliedAny = false;
+        for (let field of fieldsToIntervene) {
+            if (!result[field]) continue;
+            let el = _mduGetFieldEl(field);
+            if (!el) continue;
+            if (originalValues[field] === undefined) originalValues[field] = el.textContent;
+            if (el.textContent === result[field]) { appliedAny = true; continue; }
+            el.textContent = result[field];
+            appliedAny = true;
+            if (manipConfig_MDU.mode === 'aware') {
+                let container = el.closest('a') || el.closest('button');
+                let checkAfter = container || el;
+                let next = checkAfter.nextSibling;
+                let hasToggle = next && next.nodeType === 1 && next.getAttribute && next.getAttribute('data-sa-interv-toggle');
+                if (!hasToggle) _mduToggleBtn(el, originalValues[field], result[field]);
+            }
+        }
+        if (appliedAny) removeOverlay();
+    }
+
+    applyFields();
+    [200, 600, 1500].forEach(function(delay) { setTimeout(applyFields, delay); });
+
+    let appliedFields = {};
+    for (let field of fieldsToIntervene) {
+        if (result[field]) appliedFields[field] = { original: originalValues[field] || '', rewritten: result[field] };
+    }
+    manipApplied_MDU[userID] = { applied: true, fields: appliedFields };
+}
+
+// ─────────────────────────────────────────────────────────
 
 function injectMastodonUserSurvey() {
     let surveyContainer = document.createElement('div');
@@ -379,7 +592,13 @@ function injectMastodonPostSurvey(injectNode, postID) {
    <iframe class="surveyIframe" src="${chrome.runtime.getURL('sandbox/survey.html')}" data-css="${cssUrl}" style="border:none; width:100%; height:100%; background:transparent;"></iframe>\
 `;
 
-    injectNode.insertAdjacentElement('afterbegin', surveyContainer);
+    // For the detail page focal post, insert after the wrapper (outside React's managed element)
+    // to prevent Mastodon from stripping our injected node on reconciliation.
+    if (injectNode.classList.contains('detailed-status__wrapper')) {
+        injectNode.insertAdjacentElement('beforebegin', surveyContainer);
+    } else {
+        injectNode.insertAdjacentElement('afterbegin', surveyContainer);
+    }
 }
 
 function initializeSurveys() {
@@ -388,12 +607,19 @@ function initializeSurveys() {
         SEL_MD = Object.assign({}, _rawMD.shared || {}, _rawMD.account || {}, _rawMD.post || {});
         watchPostCounter('mastodon', function() { return _processedCount_MD; });
 
+        const _userConfMD = result.config && result.config.surveys && result.config.surveys['mastodon-user'];
+        manipConfig_MDU = (_userConfMD && _userConfMD.manipulation) || {};
+
         const _postConfMD = result.config && result.config.surveys && result.config.surveys['mastodon-post'];
         manipConfig_MD = (_postConfMD && _postConfMD.manipulation) || {};
-        if (manipConfig_MD.enabled && result.manipulationMaps && result.manipulationMaps['mastodon-post']) {
-            let fullMap = result.manipulationMaps['mastodon-post'];
-            manipMapId_MD = (fullMap._meta && fullMap._meta.map_id) || '';
-            for (let k in fullMap) { if (k !== '_meta') manipMap_MD[k] = fullMap[k]; }
+        if (manipConfig_MD.enabled) {
+            if (manipConfig_MD.source !== 'api' && result.manipulationMaps && result.manipulationMaps['mastodon-post']) {
+                let fullMap = result.manipulationMaps['mastodon-post'];
+                manipMapId_MD = (fullMap._meta && fullMap._meta.map_id) || '';
+                for (let k in fullMap) { if (k !== '_meta') manipMap_MD[k] = fullMap[k]; }
+            } else if (manipConfig_MD.source === 'api' && manipConfig_MD.endpoint && window.__sa_intervApi) {
+                window.__sa_intervApi.init({ endpoint: manipConfig_MD.endpoint, survey_type: 'mastodon-post', platform: 'mastodon', mode: manipConfig_MD.mode, logOriginal: manipConfig_MD.logOriginal });
+            }
         }
 
         mdRoot = document.getElementById('mastodon') || document.querySelector(SEL_MD.appRoot || '.ui, #mastodon') || document.body;
@@ -444,13 +670,20 @@ function initializeSurveys() {
                         }
 
                         let _ma = manipApplied_MD[values.post_id];
+                        let _maU = manipApplied_MDU[values.account_id];
                         if (_ma) {
-                            values.manipulation_applied = true;
-                            values.manipulation_label   = _ma.label;
-                            values.manipulation_map_id  = _ma.map_id;
+                            values.intervention_applied = true;
+                            values.intervention_label   = _ma.label;
+                            values.intervention_map_id  = _ma.map_id;
                             if (_ma.original_text !== undefined) values.original_text = _ma.original_text;
+                            if (_ma.extras) values.intervention_extras = _ma.extras;
+                        } else if (_maU) {
+                            values.intervention_applied = true;
+                            values.intervention_label   = 'user-intervention';
+                            values.intervention_map_id  = '';
+                            values.intervention_extras  = _maU.fields;
                         } else {
-                            values.manipulation_applied = false;
+                            values.intervention_applied = false;
                         }
 
                         storeResults(values, currentPlatform);
@@ -468,6 +701,10 @@ function initializeSurveys() {
                     currentContext.renderSurvey(surveyID, null, {
                         user_profile: function() { return extractUserProfile(); }
                     });
+                    if (currentContext.name === 'mastodon-user' && manipConfig_MDU.enabled) {
+                        let profile = extractUserProfile();
+                        _applyMDUserIntervention(surveyID, profile);
+                    }
                 }
             }
         }

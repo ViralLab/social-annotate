@@ -311,7 +311,7 @@
       "userProfileAvatar": null,
       "userProfileSchema": null,
       "userBanner": "img[src*=\"accounts/headers\"]",
-      "userBio": null,
+      "userBio": "div.mt-6.space-y-3 > p[data-markup=\"true\"]",
       "userHeadline": null,
       "userVerified": null,
       "userFollowers": "[data-testid=\"followers-button\"]",
@@ -404,12 +404,12 @@
     },
     "account": {
       "userDisplayName": "h1",
-      "userHandle": null,
+      "userHandle": ".display-name__account",
       "userAvatar": "a[href*=\"/avatars/\"][target=\"_blank\"]",
       "userProfileAvatar": null,
       "userProfileSchema": null,
       "userBanner": "img.parallax, img[src*=\"/headers/\"]",
-      "userBio": null,
+      "userBio": ".account__header__content",
       "userHeadline": null,
       "userVerified": null,
       "userFollowers": "a[href$=\"/followers\"]",
@@ -421,7 +421,7 @@
       "userLink": null
     },
     "post": {
-      "postContainer": ".status__wrapper, article.status",
+      "postContainer": ".status__wrapper, article.status, .detailed-status__wrapper",
       "postAuthorLink": "a.status__display-name",
       "postText": ".status__content",
       "postImage": ".media-gallery img, .attachment-thumbnail__image",

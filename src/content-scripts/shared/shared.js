@@ -452,6 +452,29 @@ failureSpan.style.fontWeight = "bold";
 failureSpan.style.padding = "5px 15px";
 
 // ---------------------------------------------------------------------------
+// Creates a full-page overlay that hides profile content until user intervention
+// is applied (prevents original values flashing before rewrite).
+// Returns a remove() function; call it once fields are applied.
+// The overlay auto-removes after `maxMs` milliseconds as a safety fallback.
+function _createUserInterventionOverlay(maxMs) {
+    maxMs = maxMs || 3000;
+    let bg = getComputedStyle(document.body).backgroundColor;
+    if (!bg || bg === 'transparent' || bg === 'rgba(0, 0, 0, 0)') bg = '#fff';
+    let el = document.createElement('div');
+    el.setAttribute('data-sa-user-overlay', '1');
+    el.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:' + bg + ';transition:opacity 0.25s ease;';
+    document.body.appendChild(el);
+    let removed = false;
+    function remove() {
+        if (removed) return;
+        removed = true;
+        el.style.opacity = '0';
+        setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 300);
+    }
+    setTimeout(remove, maxMs);
+    return remove;
+}
+
 // Post counter watch — call once after initializeSurveys.
 // Fires a single console.debug after `delay` ms if no posts were processed.
 // Uses debug level intentionally: zero posts is normal on non-feed pages.
@@ -519,7 +542,7 @@ function restructureOutput(flat) {
     let out = {};
     let annotation = {};
     let capturedGroup = {};
-    let manipulation = { applied: flat.manipulation_applied === true };
+    let intervention = { applied: flat.intervention_applied === true };
     let capturedKey = (flat.surveyType && flat.surveyType.endsWith('-user')) ? 'account' : 'post';
 
     for (let k in flat) {
@@ -531,14 +554,19 @@ function restructureOutput(flat) {
             } else {
                 capturedGroup[k] = flat[k];
             }
-        } else if (k === 'manipulation_applied') {
-            // handled via manipulation.applied above
-        } else if (k === 'manipulation_label') {
-            manipulation.label = flat[k];
-        } else if (k === 'manipulation_map_id') {
-            manipulation.map_id = flat[k];
+        } else if (k === 'intervention_applied') {
+            // handled via intervention.applied above
+        } else if (k === 'intervention_label') {
+            intervention.label = flat[k];
+        } else if (k === 'intervention_map_id') {
+            intervention.map_id = flat[k];
         } else if (k === 'original_text') {
-            manipulation.original_text = flat[k];
+            intervention.original_text = flat[k];
+        } else if (k === 'intervention_extras') {
+            // Extra fields returned by the live API — spread into the intervention group
+            if (flat[k] && typeof flat[k] === 'object') {
+                Object.assign(intervention, flat[k]);
+            }
         } else {
             annotation[k] = flat[k];
         }
@@ -546,7 +574,7 @@ function restructureOutput(flat) {
 
     out.annotation = annotation;
     out[capturedKey] = capturedGroup;
-    out.manipulation = manipulation;
+    out.intervention = intervention;
     return out;
 }
 

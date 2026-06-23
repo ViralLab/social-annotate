@@ -18,10 +18,15 @@ let _injectedPosts    = new Set();
 let _injectedComments = new Set();
 let _userInjected     = '';
 
-let manipConfig_RD  = {};
-let manipMap_RD     = {};
-let manipMapId_RD   = '';
-let manipApplied_RD = {};
+let manipConfig_RD         = {};
+let manipMap_RD            = {};
+let manipMapId_RD          = '';
+let manipApplied_RD        = {};
+let manipConfig_RD_comment = {};
+let manipApplied_RD_comment = {};
+
+const _inFlight_RD_post    = new Set();
+const _inFlight_RD_comment = new Set();
 
 // ── URL helpers ───────────────────────────────────────────────────────────────
 
@@ -116,7 +121,6 @@ async function extractRedditPostMedia(postEl) {
         urls.push(src);
     }
     postEl.querySelectorAll(SEL_RD.postImage || '[slot="thumbnail"] img, [slot="media"] img').forEach(addImg);
-    // fallback: direct redd.it image URLs not in a slot
     postEl.querySelectorAll('img[src*="preview.redd.it"], img[src*="i.redd.it"]').forEach(addImg);
     return [...new Set(urls)];
 }
@@ -168,18 +172,211 @@ function extractRedditPostMetrics(postEl) {
     };
 }
 
-function processRedditPostNode(postEl) {
+// ── Shared intervention helpers ───────────────────────────────────────────────
+
+function _rdFindTextEl(containerEl, selectorStr) {
+    let sels = (selectorStr || '').split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+    for (let i = 0; i < sels.length; i++) {
+        let el = containerEl.querySelector(sels[i]);
+        if (el) return el;
+    }
+    return null;
+}
+
+function _rdToggleBtn(textEl, originalNodes, rewrittenText, mode) {
+    if (mode !== 'aware') return;
+    let isOriginal = false;
+    let toggleBtn = document.createElement('button');
+    toggleBtn.textContent = '👁 Show original';
+    toggleBtn.setAttribute('data-sa-interv-toggle', '1');
+    toggleBtn.style.cssText = 'display:block;margin-left:auto;margin-bottom:4px;padding:2px 10px;font-size:11px;line-height:1.6;cursor:pointer;border-radius:4px;background:rgba(255,69,0,0.08);color:rgb(255,69,0);border:1px solid rgba(255,69,0,0.25);font-family:-apple-system,BlinkMacSystemFont,sans-serif;';
+    toggleBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        isOriginal = !isOriginal;
+        if (isOriginal) {
+            textEl.textContent = '';
+            originalNodes.forEach(function(n) { textEl.appendChild(n.cloneNode(true)); });
+        } else {
+            textEl.textContent = rewrittenText;
+        }
+        toggleBtn.textContent = isOriginal ? '✏ Show rewritten' : '👁 Show original';
+    });
+    textEl.parentNode.insertBefore(toggleBtn, textEl);
+}
+
+function _rdApplyResultPost(result, postEl, mode) {
+    let textEl = _rdFindTextEl(postEl, SEL_RD.postText || '[slot="text-body"] .md, [slot="text-body"], shreddit-post-text-body');
+    if (textEl && result.rewritten_text) {
+        let originalNodes = Array.from(textEl.childNodes).map(function(n) { return n.cloneNode(true); });
+        textEl.textContent = result.rewritten_text;
+        _rdToggleBtn(textEl, originalNodes, result.rewritten_text, mode);
+    }
+}
+
+function _rdApplyResultComment(result, commentEl, mode, textSel) {
+    let sel = textSel || SEL_RD.commentText || '[id*="-post-rtjson-content"], [slot="comment"] div[dir="auto"], [slot="comment"]';
+    let textEl = _rdFindTextEl(commentEl, sel);
+    if (textEl && result.rewritten_text) {
+        let originalNodes = Array.from(textEl.childNodes).map(function(n) { return n.cloneNode(true); });
+        textEl.textContent = result.rewritten_text;
+        _rdToggleBtn(textEl, originalNodes, result.rewritten_text, mode);
+    }
+}
+
+function _rdInjectPost(postEl, postId, postCtx, author) {
+    let cssUrl = chrome.runtime.getURL('content-scripts/reddit/inject.css');
+    let surveyContainer = document.createElement('div');
+    surveyContainer.className = 'survey-container-post';
+    surveyContainer.id = 'surveyFormContainer-' + postId;
+    surveyContainer.style.cssText = 'width:100%;min-height:120px;display:flex;flex-wrap:wrap-reverse;overflow:visible;background:transparent;position:relative;z-index:100;box-sizing:border-box;';
+    const shadowRoot = surveyContainer.attachShadow({ mode: 'open' });
+    shadowRoot.innerHTML = '<iframe class="surveyIframe" src="' + chrome.runtime.getURL('sandbox/survey.html') + '" data-css="' + cssUrl + '" style="border:none;width:100%;height:100%;background:transparent;"></iframe>';
+    postEl.insertAdjacentElement('beforebegin', surveyContainer);
+    postCtx.renderSurvey(author, postId, {
+        body:         function() { return extractRedditPostText(postEl); },
+        media_urls:   function() { return extractRedditPostMedia(postEl); },
+        post_metrics: function() { return extractRedditPostMetrics(postEl); },
+        created_at:   function() { return postEl.getAttribute(SEL_RD.postTimestampAttr || 'created-timestamp') || null; },
+        subreddit:    function() {
+            let p = SEL_RD.subredditURLPattern;
+            if (!p) return null;
+            let permalink = SEL_RD.postPermalinkAttr && postEl.getAttribute(SEL_RD.postPermalinkAttr);
+            let src = permalink || window.location.pathname;
+            let m = src.match(new RegExp(p));
+            return m ? m[1] : null;
+        }
+    });
+}
+
+function _rdInjectComment(commentEl, commentId, commentCtx, author) {
+    let cssUrl = chrome.runtime.getURL('content-scripts/reddit/inject.css');
+    let surveyContainer = document.createElement('div');
+    surveyContainer.className = 'survey-container-post';
+    surveyContainer.id = 'surveyFormContainer-' + commentId;
+    surveyContainer.style.cssText = 'width:100%;min-height:120px;display:flex;flex-wrap:wrap-reverse;overflow:visible;background:transparent;position:relative;z-index:100;box-sizing:border-box;';
+    const shadowRoot = surveyContainer.attachShadow({ mode: 'open' });
+    shadowRoot.innerHTML = '<iframe class="surveyIframe" src="' + chrome.runtime.getURL('sandbox/survey.html') + '" data-css="' + cssUrl + '" style="border:none;width:100%;height:100%;background:transparent;"></iframe>';
+    let slotEl = commentEl.querySelector(SEL_RD.commentContentSlot || '[slot="comment"]');
+    if (slotEl) {
+        slotEl.insertAdjacentElement('afterbegin', surveyContainer);
+    } else {
+        commentEl.insertAdjacentElement('afterbegin', surveyContainer);
+    }
+    commentCtx.renderSurvey(author, commentId, {
+        body:           function() { return extractRedditCommentText(commentEl); },
+        media_urls:     function() { return extractRedditCommentMedia(commentEl); },
+        post_metrics:   function() {
+            let score = parseInt(commentEl.getAttribute(SEL_RD.commentScoreAttr || 'score') || '', 10);
+            return { like_count: isNaN(score) ? null : score, comment_count: null, share_count: null, view_count: null, bookmark_count: null, quote_count: null };
+        },
+        created_at:     function() { return commentEl.getAttribute(SEL_RD.commentTimestampAttr || 'created') || null; },
+        subreddit:      function() { let p = SEL_RD.subredditURLPattern; let m = p && window.location.pathname.match(new RegExp(p)); return m ? m[1] : null; },
+        comment_depth:  function() { let a = SEL_RD.commentDepthAttr; let d = a ? parseInt(commentEl.getAttribute(a) || '', 10) : NaN; return isNaN(d) ? null : d; },
+        parent_post_id: function() { let p = SEL_RD.parentPostIdURLPattern; let m = p && window.location.pathname.match(new RegExp(p)); return m ? m[1] : null; }
+    });
+}
+
+function _rdInjectProfileComment(commentEl, commentId, href, commentCtx, author) {
+    let cssUrl = chrome.runtime.getURL('content-scripts/reddit/inject.css');
+    let surveyContainer = document.createElement('div');
+    surveyContainer.className = 'survey-container-post';
+    surveyContainer.id = 'surveyFormContainer-' + commentId;
+    surveyContainer.style.cssText = 'width:100%;min-height:120px;display:flex;flex-wrap:wrap-reverse;overflow:visible;background:transparent;position:relative;z-index:100;box-sizing:border-box;';
+    const shadowRoot = surveyContainer.attachShadow({ mode: 'open' });
+    shadowRoot.innerHTML = '<iframe class="surveyIframe" src="' + chrome.runtime.getURL('sandbox/survey.html') + '" data-css="' + cssUrl + '" style="border:none;width:100%;height:100%;background:transparent;"></iframe>';
+    let contentSel = SEL_RD.commentContentSel || '[id*="-post-rtjson-content"]';
+    let textEl = commentEl.querySelector(contentSel);
+    let insertTarget = textEl || commentEl;
+    insertTarget.insertAdjacentElement('beforebegin', surveyContainer);
+    commentCtx.renderSurvey(author, commentId, {
+        body: function() {
+            let el = commentEl.querySelector(SEL_RD.commentContentSel || '[id*="-post-rtjson-content"]');
+            return el ? (el.textContent || '').trim() : '';
+        },
+        media_urls:   function() { return extractRedditCommentMedia(commentEl); },
+        post_metrics: function() {
+            let scoreSel = SEL_RD.profileCommentScoreSel || 'shreddit-comment-action-row[score]';
+            let actionRow = commentEl.querySelector(scoreSel);
+            let score = actionRow ? parseInt(actionRow.getAttribute('score') || '', 10) : NaN;
+            return { like_count: isNaN(score) ? null : score, comment_count: null, share_count: null, view_count: null, bookmark_count: null, quote_count: null };
+        },
+        created_at: function() {
+            let tsSel = SEL_RD.profileCommentTimestampSel || 'faceplate-timeago[ts]';
+            let el = commentEl.querySelector(tsSel);
+            return el ? el.getAttribute('ts') : null;
+        },
+        subreddit:      function() { let p = SEL_RD.subredditURLPattern; let m = p && href.match(new RegExp(p)); return m ? m[1] : null; },
+        comment_depth:  function() { return null; },
+        parent_post_id: function() { let p = SEL_RD.parentPostIdURLPattern; let m = p && href.match(new RegExp(p)); return m ? m[1] : null; }
+    });
+}
+
+async function processRedditPostNode(postEl) {
     if (postEl.getElementsByClassName('survey-container-post').length > 0) return;
     let postCtx = availableContextsReddit.find(function(c) { return c.name === 'reddit-post'; });
     if (!postCtx || !postCtx.formTemplate) return;
 
     let postId = extractRedditPostId(postEl);
-    if (!postId || _injectedPosts.has(postId)) return;
-    _injectedPosts.add(postId);
-    _processedCount_RD++;
+    if (!postId || _injectedPosts.has(postId) || _inFlight_RD_post.has(postId)) return;
 
     let author = postEl.getAttribute(SEL_RD.postAuthorAttr || 'author') || '';
 
+    // ── API path ──────────────────────────────────────────────────────────────
+    if (manipConfig_RD.enabled && manipConfig_RD.source === 'api' && manipConfig_RD.endpoint && window.__sa_intervApi) {
+        _inFlight_RD_post.add(postId);
+
+        let cached = window.__sa_intervApi.getCached(postId);
+        if (cached) {
+            _rdApplyResultPost(cached, postEl, manipConfig_RD.mode);
+            _inFlight_RD_post.delete(postId);
+            _injectedPosts.add(postId);
+            _processedCount_RD++;
+            _rdInjectPost(postEl, postId, postCtx, author);
+            return;
+        }
+
+        let overlay = window.__sa_intervApi.createOverlay(postEl, manipConfig_RD.mode);
+        let doRetry = function() { _inFlight_RD_post.delete(postId); overlay.remove(); processRedditPostNode(postEl); };
+        try {
+            let body = extractRedditPostText(postEl);
+            let postData = {
+                post_id:      postId,
+                account_id:   author,
+                body,
+                survey_type:  'reddit-post',
+                created_at:   postEl.getAttribute(SEL_RD.postTimestampAttr || 'created-timestamp') || null,
+                media_urls:   [],
+                post_metrics: extractRedditPostMetrics(postEl)
+            };
+            let result = await window.__sa_intervApi.queuePost(postData);
+
+            let meta = { applied: true, label: result.prompt_label || '', map_id: result.map_id || window.__sa_intervApi.getMapId() };
+            if (manipConfig_RD.logOriginal) meta.original_text = body;
+            let extras = {};
+            for (let k in result) {
+                if (!['post_id', 'rewritten_text', 'map_id', 'prompt_label'].includes(k)) extras[k] = result[k];
+            }
+            if (Object.keys(extras).length > 0) meta.extras = extras;
+            manipApplied_RD[postId] = meta;
+
+            overlay.parentNode && overlay.parentNode.removeChild(overlay);
+            _inFlight_RD_post.delete(postId);
+            _injectedPosts.add(postId);
+            _processedCount_RD++;
+
+            _rdApplyResultPost(result, postEl, manipConfig_RD.mode);
+            _rdInjectPost(postEl, postId, postCtx, author);
+        } catch(err) {
+            overlay.showError(doRetry);
+        }
+        return;
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
+    _injectedPosts.add(postId);
+    _processedCount_RD++;
+
+    // ── Map path ──────────────────────────────────────────────────────────────
     if (manipConfig_RD.enabled && manipMap_RD[postId]) {
         let entry = manipMap_RD[postId];
         let textSelectors = (SEL_RD.postText || '').split(',').map(function(s) { return s.trim(); }).filter(Boolean);
@@ -196,7 +393,7 @@ function processRedditPostNode(postEl) {
                 let isOriginal = false;
                 let toggleBtn = document.createElement('button');
                 toggleBtn.textContent = '👁 Show original';
-                toggleBtn.setAttribute('data-sa-manip-toggle', '1');
+                toggleBtn.setAttribute('data-sa-interv-toggle', '1');
                 toggleBtn.style.cssText = 'display:block;margin-left:auto;margin-bottom:4px;padding:2px 10px;font-size:11px;cursor:pointer;border-radius:4px;background:rgba(255,69,0,0.08);color:rgb(255,69,0);border:1px solid rgba(255,69,0,0.25);';
                 toggleBtn.addEventListener('click', function(e) {
                     e.stopPropagation();
@@ -211,31 +408,9 @@ function processRedditPostNode(postEl) {
             manipApplied_RD[postId] = meta;
         }
     }
+    // ─────────────────────────────────────────────────────────────────────────
 
-    let cssUrl = chrome.runtime.getURL('content-scripts/reddit/inject.css');
-
-    let surveyContainer = document.createElement('div');
-    surveyContainer.className = 'survey-container-post';
-    surveyContainer.id = 'surveyFormContainer-' + postId;
-    surveyContainer.style.cssText = 'width:100%;min-height:120px;display:flex;flex-wrap:wrap-reverse;overflow:visible;background:transparent;position:relative;z-index:100;box-sizing:border-box;';
-    const shadowRoot = surveyContainer.attachShadow({ mode: 'open' });
-    shadowRoot.innerHTML = '<iframe class="surveyIframe" src="' + chrome.runtime.getURL('sandbox/survey.html') + '" data-css="' + cssUrl + '" style="border:none;width:100%;height:100%;background:transparent;"></iframe>';
-    postEl.insertAdjacentElement('beforebegin', surveyContainer);
-
-    postCtx.renderSurvey(author, postId, {
-        body:         function() { return extractRedditPostText(postEl); },
-        media_urls:   function() { return extractRedditPostMedia(postEl); },
-        post_metrics: function() { return extractRedditPostMetrics(postEl); },
-        created_at:   function() { return postEl.getAttribute(SEL_RD.postTimestampAttr || 'created-timestamp') || null; },
-        subreddit:    function() {
-            let p = SEL_RD.subredditURLPattern;
-            if (!p) return null;
-            let permalink = SEL_RD.postPermalinkAttr && postEl.getAttribute(SEL_RD.postPermalinkAttr);
-            let src = permalink || window.location.pathname;
-            let m = src.match(new RegExp(p));
-            return m ? m[1] : null;
-        }
-    });
+    _rdInjectPost(postEl, postId, postCtx, author);
 }
 
 function enableRedditPostObserver() {
@@ -263,108 +438,170 @@ function extractRedditCommentText(commentEl) {
     return '';
 }
 
-function processRedditCommentNode(commentEl) {
+async function processRedditCommentNode(commentEl) {
     let collapsedAttr = SEL_RD.commentCollapsedAttr || 'collapsed';
     if (commentEl.hasAttribute(collapsedAttr)) return;
     let commentId = extractRedditCommentId(commentEl);
-    if (!commentId || _injectedComments.has(commentId)) return;
+    if (!commentId || _injectedComments.has(commentId) || _inFlight_RD_comment.has(commentId)) return;
 
     let commentCtx = availableContextsReddit.find(function(c) { return c.name === 'reddit-comment'; });
     if (!commentCtx || !commentCtx.formTemplate) return;
 
+    let author = commentEl.getAttribute(SEL_RD.commentAuthorAttr || 'author') || '';
+
+    // ── API path ──────────────────────────────────────────────────────────────
+    if (manipConfig_RD_comment.enabled && manipConfig_RD_comment.source === 'api' && manipConfig_RD_comment.endpoint && window.__sa_intervApi) {
+        _inFlight_RD_comment.add(commentId);
+
+        let cached = window.__sa_intervApi.getCached(commentId);
+        if (cached) {
+            _rdApplyResultComment(cached, commentEl, manipConfig_RD_comment.mode);
+            _inFlight_RD_comment.delete(commentId);
+            _injectedComments.add(commentId);
+            _processedCount_RD++;
+            _rdInjectComment(commentEl, commentId, commentCtx, author);
+            return;
+        }
+
+        let overlay = window.__sa_intervApi.createOverlay(commentEl, manipConfig_RD_comment.mode);
+        let doRetry = function() { _inFlight_RD_comment.delete(commentId); overlay.remove(); processRedditCommentNode(commentEl); };
+        try {
+            let body = extractRedditCommentText(commentEl);
+            let commentData = {
+                post_id:       commentId,
+                account_id:    author,
+                body,
+                survey_type:   'reddit-comment',
+                created_at:    commentEl.getAttribute(SEL_RD.commentTimestampAttr || 'created') || null,
+                media_urls:    extractRedditCommentMedia(commentEl),
+                post_metrics:  {
+                    like_count: parseInt(commentEl.getAttribute(SEL_RD.commentScoreAttr || 'score') || '', 10) || null,
+                    comment_count: null, share_count: null, view_count: null, bookmark_count: null, quote_count: null
+                },
+                comment_depth:  (function() { let a = SEL_RD.commentDepthAttr; let d = a ? parseInt(commentEl.getAttribute(a) || '', 10) : NaN; return isNaN(d) ? null : d; })(),
+                parent_post_id: (function() { let p = SEL_RD.parentPostIdURLPattern; let m = p && window.location.pathname.match(new RegExp(p)); return m ? m[1] : null; })(),
+                subreddit:      (function() { let p = SEL_RD.subredditURLPattern; let m = p && window.location.pathname.match(new RegExp(p)); return m ? m[1] : null; })()
+            };
+            let result = await window.__sa_intervApi.queuePost(commentData);
+
+            let meta = { applied: true, label: result.prompt_label || '', map_id: result.map_id || window.__sa_intervApi.getMapId() };
+            if (manipConfig_RD_comment.logOriginal) meta.original_text = body;
+            let extras = {};
+            for (let k in result) {
+                if (!['post_id', 'rewritten_text', 'map_id', 'prompt_label'].includes(k)) extras[k] = result[k];
+            }
+            if (Object.keys(extras).length > 0) meta.extras = extras;
+            manipApplied_RD_comment[commentId] = meta;
+
+            overlay.parentNode && overlay.parentNode.removeChild(overlay);
+            _inFlight_RD_comment.delete(commentId);
+            _injectedComments.add(commentId);
+            _processedCount_RD++;
+
+            _rdApplyResultComment(result, commentEl, manipConfig_RD_comment.mode);
+            _rdInjectComment(commentEl, commentId, commentCtx, author);
+        } catch(err) {
+            overlay.showError(doRetry);
+        }
+        return;
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     _injectedComments.add(commentId);
     _processedCount_RD++;
-
-    let author = commentEl.getAttribute(SEL_RD.commentAuthorAttr || 'author') || '';
-    let cssUrl = chrome.runtime.getURL('content-scripts/reddit/inject.css');
-
-    let surveyContainer = document.createElement('div');
-    surveyContainer.className = 'survey-container-post';
-    surveyContainer.id = 'surveyFormContainer-' + commentId;
-    surveyContainer.style.cssText = 'width:100%;min-height:120px;display:flex;flex-wrap:wrap-reverse;overflow:visible;background:transparent;position:relative;z-index:100;box-sizing:border-box;';
-    const shadowRoot = surveyContainer.attachShadow({ mode: 'open' });
-    shadowRoot.innerHTML = '<iframe class="surveyIframe" src="' + chrome.runtime.getURL('sandbox/survey.html') + '" data-css="' + cssUrl + '" style="border:none;width:100%;height:100%;background:transparent;"></iframe>';
-
-    let slotEl = commentEl.querySelector(SEL_RD.commentContentSlot || '[slot="comment"]');
-    if (slotEl) {
-        slotEl.insertAdjacentElement('afterbegin', surveyContainer);
-    } else {
-        commentEl.insertAdjacentElement('afterbegin', surveyContainer);
-    }
-
-    commentCtx.renderSurvey(author, commentId, {
-        body:         function() { return extractRedditCommentText(commentEl); },
-        media_urls:   function() { return extractRedditCommentMedia(commentEl); },
-        post_metrics: function() {
-            let score = parseInt(commentEl.getAttribute(SEL_RD.commentScoreAttr || 'score') || '', 10);
-            return { like_count: isNaN(score) ? null : score, comment_count: null, share_count: null, view_count: null, bookmark_count: null, quote_count: null };
-        },
-        created_at:     function() { return commentEl.getAttribute(SEL_RD.commentTimestampAttr || 'created') || null; },
-        subreddit:      function() { let p = SEL_RD.subredditURLPattern; let m = p && window.location.pathname.match(new RegExp(p)); return m ? m[1] : null; },
-        comment_depth:  function() { let a = SEL_RD.commentDepthAttr; let d = a ? parseInt(commentEl.getAttribute(a) || '', 10) : NaN; return isNaN(d) ? null : d; },
-        parent_post_id: function() { let p = SEL_RD.parentPostIdURLPattern; let m = p && window.location.pathname.match(new RegExp(p)); return m ? m[1] : null; }
-    });
+    _rdInjectComment(commentEl, commentId, commentCtx, author);
 }
 
-function processRedditProfileCommentNode(commentEl) {
+async function processRedditProfileCommentNode(commentEl) {
     let idAttr = SEL_RD.profileCommentIdAttr || 'comment-id';
     let prefix = SEL_RD.commentIdPrefix || '';
     let commentId = (commentEl.getAttribute(idAttr) || '').replace(new RegExp('^' + prefix), '');
-    if (!commentId || _injectedComments.has(commentId)) return;
+    if (!commentId || _injectedComments.has(commentId) || _inFlight_RD_comment.has(commentId)) return;
 
     let commentCtx = availableContextsReddit.find(function(c) { return c.name === 'reddit-comment'; });
     if (!commentCtx || !commentCtx.formTemplate) return;
-
-    _injectedComments.add(commentId);
-    _processedCount_RD++;
 
     let authorSel = SEL_RD.profileCommentAuthorSel || 'shreddit-overflow-menu[author-name]';
     let authorEl = commentEl.querySelector(authorSel);
     let authorNameAttr = SEL_RD.profileCommentAuthorNameAttr || 'author-name';
     let author = (authorEl && authorEl.getAttribute(authorNameAttr)) || '';
     if (!author) {
-        // fallback: extract username from the first user profile link inside the comment
         let link = commentEl.querySelector('a[href^="/user/"]');
         if (link) { let m = link.getAttribute('href').match(/^\/user\/([^/?#]+)/); author = m ? m[1] : ''; }
     }
 
     let hrefAttr = SEL_RD.profileCommentHrefAttr || 'href';
     let href = commentEl.getAttribute(hrefAttr) || '';
-    let cssUrl = chrome.runtime.getURL('content-scripts/reddit/inject.css');
 
-    let surveyContainer = document.createElement('div');
-    surveyContainer.className = 'survey-container-post';
-    surveyContainer.id = 'surveyFormContainer-' + commentId;
-    surveyContainer.style.cssText = 'width:100%;min-height:120px;display:flex;flex-wrap:wrap-reverse;overflow:visible;background:transparent;position:relative;z-index:100;box-sizing:border-box;';
-    const shadowRoot = surveyContainer.attachShadow({ mode: 'open' });
-    shadowRoot.innerHTML = '<iframe class="surveyIframe" src="' + chrome.runtime.getURL('sandbox/survey.html') + '" data-css="' + cssUrl + '" style="border:none;width:100%;height:100%;background:transparent;"></iframe>';
+    // ── API path ──────────────────────────────────────────────────────────────
+    if (manipConfig_RD_comment.enabled && manipConfig_RD_comment.source === 'api' && manipConfig_RD_comment.endpoint && window.__sa_intervApi) {
+        _inFlight_RD_comment.add(commentId);
 
-    let contentSel = SEL_RD.commentContentSel || '[id*="-post-rtjson-content"]';
-    let textEl = commentEl.querySelector(contentSel);
-    let insertTarget = textEl || commentEl;
-    insertTarget.insertAdjacentElement('beforebegin', surveyContainer);
+        let cached = window.__sa_intervApi.getCached(commentId);
+        if (cached) {
+            let contentSel = SEL_RD.commentContentSel || '[id*="-post-rtjson-content"]';
+            _rdApplyResultComment(cached, commentEl, manipConfig_RD_comment.mode, contentSel);
+            _inFlight_RD_comment.delete(commentId);
+            _injectedComments.add(commentId);
+            _processedCount_RD++;
+            _rdInjectProfileComment(commentEl, commentId, href, commentCtx, author);
+            return;
+        }
 
-    commentCtx.renderSurvey(author, commentId, {
-        body: function() {
-            let el = commentEl.querySelector(SEL_RD.commentContentSel || '[id*="-post-rtjson-content"]');
-            return el ? (el.textContent || '').trim() : '';
-        },
-        media_urls:   function() { return extractRedditCommentMedia(commentEl); },
-        post_metrics: function() {
+        let overlay = window.__sa_intervApi.createOverlay(commentEl, manipConfig_RD_comment.mode);
+        let doRetry = function() { _inFlight_RD_comment.delete(commentId); overlay.remove(); processRedditProfileCommentNode(commentEl); };
+        try {
+            let contentSel = SEL_RD.commentContentSel || '[id*="-post-rtjson-content"]';
+            let bodyEl = commentEl.querySelector(contentSel);
+            let body = bodyEl ? (bodyEl.textContent || '').trim() : '';
+
+            let tsSel = SEL_RD.profileCommentTimestampSel || 'faceplate-timeago[ts]';
+            let tsEl = commentEl.querySelector(tsSel);
+
             let scoreSel = SEL_RD.profileCommentScoreSel || 'shreddit-comment-action-row[score]';
             let actionRow = commentEl.querySelector(scoreSel);
             let score = actionRow ? parseInt(actionRow.getAttribute('score') || '', 10) : NaN;
-            return { like_count: isNaN(score) ? null : score, comment_count: null, share_count: null, view_count: null, bookmark_count: null, quote_count: null };
-        },
-        created_at: function() {
-            let tsSel = SEL_RD.profileCommentTimestampSel || 'faceplate-timeago[ts]';
-            let el = commentEl.querySelector(tsSel);
-            return el ? el.getAttribute('ts') : null;
-        },
-        subreddit:      function() { let p = SEL_RD.subredditURLPattern; let m = p && href.match(new RegExp(p)); return m ? m[1] : null; },
-        comment_depth:  function() { return null; },
-        parent_post_id: function() { let p = SEL_RD.parentPostIdURLPattern; let m = p && href.match(new RegExp(p)); return m ? m[1] : null; }
-    });
+
+            let commentData = {
+                post_id:       commentId,
+                account_id:    author,
+                body,
+                survey_type:   'reddit-comment',
+                created_at:    tsEl ? tsEl.getAttribute('ts') : null,
+                media_urls:    extractRedditCommentMedia(commentEl),
+                post_metrics:  { like_count: isNaN(score) ? null : score, comment_count: null, share_count: null, view_count: null, bookmark_count: null, quote_count: null },
+                comment_depth:  null,
+                parent_post_id: (function() { let p = SEL_RD.parentPostIdURLPattern; let m = p && href.match(new RegExp(p)); return m ? m[1] : null; })(),
+                subreddit:      (function() { let p = SEL_RD.subredditURLPattern; let m = p && href.match(new RegExp(p)); return m ? m[1] : null; })()
+            };
+            let result = await window.__sa_intervApi.queuePost(commentData);
+
+            let meta = { applied: true, label: result.prompt_label || '', map_id: result.map_id || window.__sa_intervApi.getMapId() };
+            if (manipConfig_RD_comment.logOriginal) meta.original_text = body;
+            let extras = {};
+            for (let k in result) {
+                if (!['post_id', 'rewritten_text', 'map_id', 'prompt_label'].includes(k)) extras[k] = result[k];
+            }
+            if (Object.keys(extras).length > 0) meta.extras = extras;
+            manipApplied_RD_comment[commentId] = meta;
+
+            overlay.parentNode && overlay.parentNode.removeChild(overlay);
+            _inFlight_RD_comment.delete(commentId);
+            _injectedComments.add(commentId);
+            _processedCount_RD++;
+
+            _rdApplyResultComment(result, commentEl, manipConfig_RD_comment.mode, contentSel);
+            _rdInjectProfileComment(commentEl, commentId, href, commentCtx, author);
+        } catch(err) {
+            overlay.showError(doRetry);
+        }
+        return;
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
+    _injectedComments.add(commentId);
+    _processedCount_RD++;
+    _rdInjectProfileComment(commentEl, commentId, href, commentCtx, author);
 }
 
 function enableRedditCommentObserver() {
@@ -512,15 +749,24 @@ function initializeSurveys() {
         SEL_RD = Object.assign({}, _rawRD.shared || {}, _rawRD.account || {}, _rawRD.post || {}, _rawRD.comment || {});
         watchPostCounter('reddit', function() { return _processedCount_RD; });
 
-        // Load manipulation map for reddit-post
         let _postConfRD = result.config.surveys && result.config.surveys['reddit-post'];
         manipConfig_RD = (_postConfRD && _postConfRD.manipulation) || {};
-        if (manipConfig_RD.enabled && result.manipulationMaps && result.manipulationMaps['reddit-post']) {
+        if (manipConfig_RD.enabled && manipConfig_RD.source !== 'api' && result.manipulationMaps && result.manipulationMaps['reddit-post']) {
             let fullMap = result.manipulationMaps['reddit-post'];
             manipMapId_RD = (fullMap._meta && fullMap._meta.map_id) || '';
             let entries = Object.assign({}, fullMap);
             delete entries._meta;
             manipMap_RD = entries;
+        }
+
+        let _commentConfRD = result.config.surveys && result.config.surveys['reddit-comment'];
+        manipConfig_RD_comment = (_commentConfRD && _commentConfRD.manipulation) || {};
+
+        // Init intervention API — post config takes priority; comment config used as fallback
+        if (manipConfig_RD.enabled && manipConfig_RD.source === 'api' && manipConfig_RD.endpoint && window.__sa_intervApi) {
+            window.__sa_intervApi.init({ endpoint: manipConfig_RD.endpoint, survey_type: 'reddit-post', platform: 'reddit', mode: manipConfig_RD.mode, logOriginal: manipConfig_RD.logOriginal });
+        } else if (manipConfig_RD_comment.enabled && manipConfig_RD_comment.source === 'api' && manipConfig_RD_comment.endpoint && window.__sa_intervApi) {
+            window.__sa_intervApi.init({ endpoint: manipConfig_RD_comment.endpoint, survey_type: 'reddit-comment', platform: 'reddit', mode: manipConfig_RD_comment.mode, logOriginal: manipConfig_RD_comment.logOriginal });
         }
 
         for (let index = 0; index < availableContextsReddit.length; ++index) {
@@ -562,12 +808,24 @@ function initializeSurveys() {
                     if (ctx.name === 'reddit-post') {
                         let _ma = manipApplied_RD[values.post_id];
                         if (_ma) {
-                            values.manipulation_applied = true;
-                            values.manipulation_label   = _ma.label;
-                            values.manipulation_map_id  = _ma.map_id;
-                            if (_ma.original_text !== undefined) values.manipulation_original_text = _ma.original_text;
+                            values.intervention_applied = true;
+                            values.intervention_label   = _ma.label;
+                            values.intervention_map_id  = _ma.map_id;
+                            if (_ma.original_text !== undefined) values.intervention_original_text = _ma.original_text;
+                            if (_ma.extras) values.intervention_extras = _ma.extras;
                         } else {
-                            values.manipulation_applied = false;
+                            values.intervention_applied = false;
+                        }
+                    } else if (ctx.name === 'reddit-comment') {
+                        let _ma = manipApplied_RD_comment[values.post_id];
+                        if (_ma) {
+                            values.intervention_applied = true;
+                            values.intervention_label   = _ma.label;
+                            values.intervention_map_id  = _ma.map_id;
+                            if (_ma.original_text !== undefined) values.intervention_original_text = _ma.original_text;
+                            if (_ma.extras) values.intervention_extras = _ma.extras;
+                        } else {
+                            values.intervention_applied = false;
                         }
                     }
 

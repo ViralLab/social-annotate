@@ -88,6 +88,7 @@
         "dep/jsonform/deps/opt/jsv.js",
         "dep/jsonform/lib/jsonform.js",
         "content-scripts/shared/shared.js",
+        "content-scripts/shared/intervention-api.js",
         "content-scripts/x/inject.js"
       ]
     },
@@ -118,6 +119,7 @@
         "dep/jsonform/deps/opt/jsv.js",
         "dep/jsonform/lib/jsonform.js",
         "content-scripts/shared/shared.js",
+        "content-scripts/shared/intervention-api.js",
         "content-scripts/instagram/inject.js"
       ]
     },
@@ -150,6 +152,7 @@
         "dep/jsonform/deps/opt/jsv.js",
         "dep/jsonform/lib/jsonform.js",
         "content-scripts/shared/shared.js",
+        "content-scripts/shared/intervention-api.js",
         "content-scripts/bluesky/inject.js"
       ]
     },
@@ -172,6 +175,7 @@
         "dep/jsonform/deps/opt/jsv.js",
         "dep/jsonform/lib/jsonform.js",
         "content-scripts/shared/shared.js",
+        "content-scripts/shared/intervention-api.js",
         "content-scripts/whatsapp/inject.js"
       ]
     },
@@ -214,6 +218,7 @@
         "dep/jsonform/deps/opt/jsv.js",
         "dep/jsonform/lib/jsonform.js",
         "content-scripts/shared/shared.js",
+        "content-scripts/shared/intervention-api.js",
         "content-scripts/telegram/inject.js"
       ]
     },
@@ -236,6 +241,7 @@
         "dep/jsonform/deps/opt/jsv.js",
         "dep/jsonform/lib/jsonform.js",
         "content-scripts/shared/shared.js",
+        "content-scripts/shared/intervention-api.js",
         "content-scripts/truthsocial/inject.js"
       ]
     },
@@ -267,6 +273,7 @@
         "dep/jsonform/deps/opt/jsv.js",
         "dep/jsonform/lib/jsonform.js",
         "content-scripts/shared/shared.js",
+        "content-scripts/shared/intervention-api.js",
         "content-scripts/linkedin/inject.js"
       ]
     },
@@ -290,6 +297,7 @@
         "dep/jsonform/deps/opt/jsv.js",
         "dep/jsonform/lib/jsonform.js",
         "content-scripts/shared/shared.js",
+        "content-scripts/shared/intervention-api.js",
         "content-scripts/mastodon/inject.js"
       ]
     },
@@ -322,6 +330,7 @@
         "dep/jsonform/deps/opt/jsv.js",
         "dep/jsonform/lib/jsonform.js",
         "content-scripts/shared/shared.js",
+        "content-scripts/shared/intervention-api.js",
         "content-scripts/facebook/inject.js"
       ]
     },
@@ -344,6 +353,7 @@
         "dep/jsonform/deps/opt/jsv.js",
         "dep/jsonform/lib/jsonform.js",
         "content-scripts/shared/shared.js",
+        "content-scripts/shared/intervention-api.js",
         "content-scripts/youtube/inject.js"
       ]
     },
@@ -397,6 +407,7 @@
         "dep/jsonform/deps/opt/jsv.js",
         "dep/jsonform/lib/jsonform.js",
         "content-scripts/shared/shared.js",
+        "content-scripts/shared/intervention-api.js",
         "content-scripts/reddit/inject.js"
       ]
     }

@@ -8,12 +8,13 @@ let waMessagesRoot = null;
 let waObserver = null;
 let waObserverConfig = { attributes: false, childList: true, subtree: true };
 
-// ── Manipulation state ────────────────────────────────────
-let manipConfig_WA  = {};
-let manipMap_WA     = {};
-let manipMapId_WA   = '';
+// ── Intervention state ────────────────────────────────────
+let manipConfig_WA      = {};
+let manipMap_WA         = {};
+let manipMapId_WA       = '';
 let manipApplied_WA     = {};
-let _processedCount_WA     = 0;
+let _processedCount_WA  = 0;
+const _inFlight_WA      = new Set();
 registerHealthCounter(function () { return _processedCount_WA; });
 
 // WhatsApp opens videos in a fullscreen modal which removes the <video> tag from the message node.
@@ -56,7 +57,6 @@ const videoModalObserver = new MutationObserver(mutations => {
         }
     });
 });
-// Start observing as soon as the script loads
 if (document.documentElement) {
     videoModalObserver.observe(document.documentElement, { childList: true, subtree: true });
 }
@@ -69,7 +69,6 @@ if (document.documentElement) {
 function fetchBlobFromMainWorld(url) {
     return new Promise((resolve, reject) => {
         const reqId = Date.now().toString() + Math.random().toString().substring(2, 6);
-        
         const listener = function(e) {
             if (e.detail && e.detail.reqId === reqId) {
                 window.removeEventListener('mh:fetch-wa-blob-result', listener);
@@ -77,12 +76,8 @@ function fetchBlobFromMainWorld(url) {
                 else resolve(e.detail.dataUrl);
             }
         };
-        
         window.addEventListener('mh:fetch-wa-blob-result', listener);
-        window.dispatchEvent(new CustomEvent('mh:fetch-wa-blob', {
-            detail: { url: url, reqId: reqId }
-        }));
-        
+        window.dispatchEvent(new CustomEvent('mh:fetch-wa-blob', { detail: { url: url, reqId: reqId } }));
         setTimeout(() => {
             window.removeEventListener('mh:fetch-wa-blob-result', listener);
             reject(new Error('MAIN-world fetch timeout'));
@@ -90,19 +85,18 @@ function fetchBlobFromMainWorld(url) {
     });
 }
 
-
 window.addEventListener('mh:download-request', async function (e) {
     let detail = e.detail;
     if (!detail) return;
     if (!detail.postID) return;
 
-    let postID = detail.postID;
-    let userID = detail.userID;
+    let postID     = detail.postID;
+    let userID     = detail.userID;
     let surveyType = detail.surveyType || 'whatsapp-post';
 
-    let containerName = 'surveyFormContainer-' + postID;
+    let containerName  = 'surveyFormContainer-' + postID;
     let surveyContainer = document.getElementById(containerName);
-    let messageNode = surveyContainer ? surveyContainer.nextElementSibling : null;
+    let messageNode    = surveyContainer ? surveyContainer.nextElementSibling : null;
 
     let urlsToDownload = [];
     if (messageNode) {
@@ -118,19 +112,15 @@ window.addEventListener('mh:download-request', async function (e) {
                     finalUrls.push(dataUrl);
                 } catch (err) {
                     console.error("[Social Annotate WA] Failed to fetch blob URL:", err);
-                    finalUrls.push(url); // Send raw URL as last resort (though it will fail in bg)
+                    finalUrls.push(url);
                 }
             } else {
                 finalUrls.push(url);
             }
         }
         chrome.runtime.sendMessage({ action: 'downloadMedia', urls: finalUrls, userId: userID || 'user', postId: postID, surveyType: surveyType });
-    } else {
-        console.log("No media found on this post.");
     }
 });
-
-
 
 function parseUserFromPrePlainText(prePlainText) {
     if (!prePlainText) return null;
@@ -146,6 +136,33 @@ function extractMessageText(messageNode) {
         if (text) chunks.push(text);
     });
     return chunks.join('\n');
+}
+
+// Returns only the actual message body text element.
+// The quoted-reply selectable-text always precedes the body, so the last match is the body.
+function _waBodyTextEl(messageNode) {
+    const textSelector = SEL_WA.postText || "[data-testid='selectable-text']";
+    const copyableSelector = SEL_WA.copyableText || '.copyable-text[data-pre-plain-text]';
+
+    // Both the quoted-reply preview and the actual body sit inside the same
+    // .copyable-text[data-pre-plain-text] wrapper. The quoted text is FIRST;
+    // the actual message body is LAST. Take the last non-empty element.
+    const copyable = messageNode.querySelector(copyableSelector);
+    if (copyable) {
+        const els = Array.from(copyable.querySelectorAll(textSelector));
+        for (let i = els.length - 1; i >= 0; i--) {
+            const text = (els[i].textContent || '').trim();
+            if (text) return els[i];
+        }
+        if (els.length > 0) return els[els.length - 1];
+    }
+
+    // Fallback: last non-empty selectable-text in the full message node
+    const allEls = Array.from(messageNode.querySelectorAll(textSelector));
+    for (let i = allEls.length - 1; i >= 0; i--) {
+        if ((allEls[i].textContent || '').trim()) return allEls[i];
+    }
+    return allEls.length > 0 ? allEls[0] : null;
 }
 
 function extractMessageMedia(messageNode) {
@@ -164,24 +181,19 @@ function extractMessageMedia(messageNode) {
     messageNode.querySelectorAll(videoSelector).forEach(videoLike => {
         isVideoPost = true;
         let src = videoLike.getAttribute('src') || '';
-        
         if (!src && videoLike.style && videoLike.style.backgroundImage) {
             let bg = videoLike.style.backgroundImage;
             let match = bg.match(/url\(['"]?(.*?)['"]?\)/);
             if (match) src = match[1];
         }
-
         if (!src) return;
-        // Skip data: URLs if they are small (e.g., icons/emojis), but allow large base64 thumbnails
         if (src.startsWith('data:') && src.length < 1000) return;
-        
         mediaUrls.push(src);
     });
 
-    // If this is a video post, attach any recently played video blob URLs that were opened in the zoom modal
     if (isVideoPost && recentVideoUrls.size > 0) {
         recentVideoUrls.forEach(url => mediaUrls.push(url));
-        recentVideoUrls.clear(); // Clear after consuming to prevent attaching to subsequent unrelated posts
+        recentVideoUrls.clear();
     }
 
     return Array.from(new Set(mediaUrls));
@@ -212,12 +224,10 @@ function extractMessageDetails(messageNode) {
 
     const dataTestId = messageNode.getAttribute('data-testid') || '';
     let postID = dataTestId.startsWith('conv-msg-') ? dataTestId.replace('conv-msg-', '') : null;
-    if (!postID) {
-        postID = messageNode.getAttribute('data-id') || null;
-    }
+    if (!postID) postID = messageNode.getAttribute('data-id') || null;
     if (!postID) return null;
 
-    const copyable = messageNode.querySelector(SEL_WA.copyableText || '.copyable-text[data-pre-plain-text]');
+    const copyable    = messageNode.querySelector(SEL_WA.copyableText || '.copyable-text[data-pre-plain-text]');
     const prePlainText = copyable ? (copyable.getAttribute('data-pre-plain-text') || '') : '';
 
     let userID = parseUserFromPrePlainText(prePlainText);
@@ -229,23 +239,15 @@ function extractMessageDetails(messageNode) {
     }
 
     let timestamp = '';
-    // Extract full timestamp [Time, Date] from prePlainText first
     let m = prePlainText.match(/\[(.*?)\]/);
     if (m) {
         timestamp = m[1];
     } else {
-        // Fallback: Look for postAuthorTime (usually just the time, no date)
         let timeNode = messageNode.querySelector(SEL_WA.postTimestamp || '[data-testid="msg-meta"] span[dir="auto"]');
-        if (timeNode) {
-            timestamp = timeNode.innerText || timeNode.textContent || '';
-        }
+        if (timeNode) timestamp = timeNode.innerText || timeNode.textContent || '';
     }
 
-    return {
-        postID,
-        userID: userID || 'unknown',
-        postAuthorTime: timestamp
-    };
+    return { postID, userID: userID || 'unknown', postAuthorTime: timestamp };
 }
 
 function injectWhatsAppPostSurvey(messageNode, postID) {
@@ -262,28 +264,129 @@ function injectWhatsAppPostSurvey(messageNode, postID) {
         <iframe class="surveyIframe" src="${chrome.runtime.getURL('sandbox/survey.html')}" data-css="${cssUrl}" style="border:none; width:100%; height:100%; background:transparent;"></iframe>
     `;
 
-    // Insert right before the message node so the form appears above the post.
     messageNode.insertAdjacentElement('beforebegin', surveyContainer);
     return surveyContainer;
 }
 
-function processMessageNode(messageNode) {
+// ── API intervention helpers ──────────────────────────────────────────────────
+
+function _waToggleBtn(textEl, originalNodes, rewrittenText, mode) {
+    if (mode !== 'aware') return;
+    let isOriginal = false;
+    let toggleBtn  = document.createElement('button');
+    toggleBtn.textContent = '👁 Show original';
+    toggleBtn.setAttribute('data-sa-interv-toggle', '1');
+    toggleBtn.style.cssText = [
+        'display:block','margin-left:auto','margin-bottom:4px',
+        'padding:2px 10px','font-size:11px','line-height:1.6',
+        'cursor:pointer','border-radius:4px',
+        'background:rgba(29,155,240,0.08)','color:rgb(29,155,240)',
+        'border:1px solid rgba(29,155,240,0.25)',
+        'font-family:-apple-system,BlinkMacSystemFont,sans-serif',
+    ].join(';');
+    toggleBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        isOriginal = !isOriginal;
+        if (isOriginal) {
+            textEl.textContent = '';
+            originalNodes.forEach(function(n) { textEl.appendChild(n.cloneNode(true)); });
+        } else {
+            textEl.textContent = rewrittenText;
+        }
+        toggleBtn.textContent = isOriginal ? '✏ Show rewritten' : '👁 Show original';
+    });
+    textEl.parentNode.insertBefore(toggleBtn, textEl);
+}
+
+function _waApplyResult(result, messageNode, mode) {
+    let textEl = _waBodyTextEl(messageNode);
+    if (!textEl || !result.rewritten_text) return;
+    let originalNodes = Array.from(textEl.childNodes).map(function(n) { return n.cloneNode(true); });
+    textEl.textContent = result.rewritten_text;
+    _waToggleBtn(textEl, originalNodes, result.rewritten_text, mode);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function processMessageNode(messageNode) {
     _processedCount_WA++;
     if (!messageNode || !messageNode.querySelector) return;
 
     const messageContainerSelector = SEL_WA.messageContainer || "[data-testid='msg-container']";
-    const hasMessageBody = messageNode.querySelector(messageContainerSelector);
-    if (!hasMessageBody) return;
+    if (!messageNode.querySelector(messageContainerSelector)) return;
 
     const details = extractMessageDetails(messageNode);
     if (!details) return;
 
+    const _renderSurvey = function() {
+        availableContextsWhatsApp[0].renderSurvey(details.userID, details.postID, {
+            body:         () => extractMessageText(messageNode),
+            media_urls:   () => extractMessageMedia(messageNode),
+            created_at:   details.postAuthorTime,
+            post_metrics: () => extractWhatsAppMetrics(messageNode)
+        });
+    };
+
+    // ── API path ──────────────────────────────────────────────────────────────
+    if (manipConfig_WA.enabled && manipConfig_WA.source === 'api' && manipConfig_WA.endpoint && window.__sa_intervApi) {
+        if (document.getElementById('surveyFormContainer-' + details.postID)) {
+            _renderSurvey();
+            return;
+        }
+        if (_inFlight_WA.has(details.postID)) return;
+        _inFlight_WA.add(details.postID);
+
+        const cached = window.__sa_intervApi.getCached(details.postID);
+        if (cached) {
+            _waApplyResult(cached, messageNode, manipConfig_WA.mode);
+            _inFlight_WA.delete(details.postID);
+            injectWhatsAppPostSurvey(messageNode, details.postID);
+            _renderSurvey();
+            return;
+        }
+
+        const overlay = window.__sa_intervApi.createOverlay(messageNode, manipConfig_WA.mode);
+        const doRetry = function() { _inFlight_WA.delete(details.postID); overlay.remove(); processMessageNode(messageNode); };
+        try {
+            const body = extractMessageText(messageNode);
+            const postData = {
+                post_id:      details.postID,
+                account_id:   details.userID,
+                body,
+                created_at:   details.postAuthorTime || null,
+                media_urls:   extractMessageMedia(messageNode),
+                post_metrics: extractWhatsAppMetrics(messageNode)
+            };
+            const result = await window.__sa_intervApi.queuePost(postData);
+
+            const meta = { applied: true, label: result.prompt_label || '', map_id: result.map_id || window.__sa_intervApi.getMapId() };
+            if (manipConfig_WA.logOriginal) meta.original_text = body;
+            const extras = {};
+            for (const k in result) {
+                if (!['post_id', 'rewritten_text', 'map_id', 'prompt_label'].includes(k)) extras[k] = result[k];
+            }
+            if (Object.keys(extras).length > 0) meta.extras = extras;
+            manipApplied_WA[details.postID] = meta;
+
+            overlay.parentNode && overlay.parentNode.removeChild(overlay);
+            _inFlight_WA.delete(details.postID);
+
+            _waApplyResult(result, messageNode, manipConfig_WA.mode);
+            injectWhatsAppPostSurvey(messageNode, details.postID);
+            _renderSurvey();
+        } catch(err) {
+            overlay.showError(doRetry);
+        }
+        return;
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     const existingContainer = document.getElementById('surveyFormContainer-' + details.postID);
     if (!existingContainer) {
-        // ── Manipulation DOM patch ────────────────────────────
+        // ── Map path ──────────────────────────────────────────────────────────
         if (manipConfig_WA.enabled && manipMap_WA[details.postID]) {
-            let entry   = manipMap_WA[details.postID];
-            let textEl  = messageNode.querySelector(SEL_WA.postText || "[data-testid='selectable-text']");
+            let entry  = manipMap_WA[details.postID];
+            let textEl = _waBodyTextEl(messageNode);
             if (textEl) {
                 let rewrittenText = entry.rewritten_text;
                 let originalText  = entry.original_text || '';
@@ -292,7 +395,7 @@ function processMessageNode(messageNode) {
                     let isOriginal = false;
                     let toggleBtn  = document.createElement('button');
                     toggleBtn.textContent = '👁 Show original';
-                    toggleBtn.setAttribute('data-sa-manip-toggle', '1');
+                    toggleBtn.setAttribute('data-sa-interv-toggle', '1');
                     toggleBtn.style.cssText = [
                         'display:block','margin-left:auto','margin-bottom:4px',
                         'padding:2px 10px','font-size:11px','line-height:1.6',
@@ -314,20 +417,11 @@ function processMessageNode(messageNode) {
                 manipApplied_WA[details.postID] = meta;
             }
         }
-        // ─────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────────
         injectWhatsAppPostSurvey(messageNode, details.postID);
     }
 
-    availableContextsWhatsApp[0].renderSurvey(
-        details.userID,
-        details.postID,
-        {
-            body: () => extractMessageText(messageNode),
-            media_urls: () => extractMessageMedia(messageNode),
-            created_at: details.postAuthorTime,
-            post_metrics: () => extractWhatsAppMetrics(messageNode)
-        }
-    );
+    _renderSurvey();
 }
 
 function createWhatsAppObserver() {
@@ -336,12 +430,8 @@ function createWhatsAppObserver() {
             if (mutation.type !== 'childList') continue;
             mutation.addedNodes.forEach(node => {
                 if (!node || node.nodeType !== 1) return;
-
                 const postSelector = SEL_WA.postContainer || "[data-testid^='conv-msg-']";
-                if (node.matches && node.matches(postSelector)) {
-                    processMessageNode(node);
-                }
-
+                if (node.matches && node.matches(postSelector)) processMessageNode(node);
                 const nestedMessages = node.querySelectorAll ? node.querySelectorAll(postSelector) : [];
                 nestedMessages.forEach(processMessageNode);
             });
@@ -352,7 +442,6 @@ function createWhatsAppObserver() {
 function enableWhatsAppObserver() {
     const postSelector = SEL_WA.postContainer || "[data-testid^='conv-msg-']";
     document.querySelectorAll(postSelector).forEach(processMessageNode);
-
     if (waMessagesRoot && waObserver) {
         waObserver.observe(waMessagesRoot, waObserverConfig);
     }
@@ -367,13 +456,16 @@ function initializeSurveys() {
         SEL_WA = { ...(_rawWA.shared || {}), ...(_rawWA.account || {}), ...(_rawWA.post || {}) };
         watchPostCounter('whatsapp', function () { return _processedCount_WA; });
 
-        // Load manipulation map for whatsapp-post
         const _postConfWA = result.config && result.config.surveys && result.config.surveys['whatsapp-post'];
         manipConfig_WA = (_postConfWA && _postConfWA.manipulation) || {};
-        if (manipConfig_WA.enabled && result.manipulationMaps && result.manipulationMaps['whatsapp-post']) {
+        if (manipConfig_WA.enabled && manipConfig_WA.source !== 'api' && result.manipulationMaps && result.manipulationMaps['whatsapp-post']) {
             let fullMap = result.manipulationMaps['whatsapp-post'];
             manipMapId_WA = (fullMap._meta && fullMap._meta.map_id) || '';
             for (let k in fullMap) { if (k !== '_meta') manipMap_WA[k] = fullMap[k]; }
+        }
+
+        if (manipConfig_WA.enabled && manipConfig_WA.source === 'api' && manipConfig_WA.endpoint && window.__sa_intervApi) {
+            window.__sa_intervApi.init({ endpoint: manipConfig_WA.endpoint, survey_type: 'whatsapp-post', platform: 'whatsapp', mode: manipConfig_WA.mode, logOriginal: manipConfig_WA.logOriginal });
         }
 
         waMessagesRoot = document.querySelector(SEL_WA.conversationMessages || "[data-testid='conversation-panel-messages']") || document.body;
@@ -387,17 +479,17 @@ function initializeSurveys() {
             if (!currentContext.name.includes(currentPlatform)) continue;
 
             const contextFlag = result.config.activeSurveys.includes(currentContext.name);
-            const auxFlag = currentContext.auxiliaryCheck();
+            const auxFlag     = currentContext.auxiliaryCheck();
 
             if (result.isEnabled === true && contextFlag === true && auxFlag === true) {
                 const activeSurvey = currentContext.name;
-                const config = result.config.surveys[activeSurvey];
-                const studyID = config.studyID;
+                const config       = result.config.surveys[activeSurvey];
+                const studyID      = config.studyID;
 
                 function submitAction(errors, values) {
                     if (!errors) {
                         values.surveyType = currentContext.name;
-                        values.studyID = studyID;
+                        values.studyID    = studyID;
 
                         chrome.storage.local.get(['isMediaDownloadEnabled'], function (res) {
                             if (res.isMediaDownloadEnabled) {
@@ -406,15 +498,15 @@ function initializeSurveys() {
                             }
                         });
 
-                        // Attach manipulation metadata
                         let _ma = manipApplied_WA[values.post_id];
                         if (_ma) {
-                            values.manipulation_applied = true;
-                            values.manipulation_label   = _ma.label;
-                            values.manipulation_map_id  = _ma.map_id;
+                            values.intervention_applied = true;
+                            values.intervention_label   = _ma.label;
+                            values.intervention_map_id  = _ma.map_id;
                             if (_ma.original_text !== undefined) values.original_text = _ma.original_text;
+                            if (_ma.extras) values.intervention_extras = _ma.extras;
                         } else {
-                            values.manipulation_applied = false;
+                            values.intervention_applied = false;
                         }
 
                         storeResults(values, currentPlatform);
@@ -422,7 +514,7 @@ function initializeSurveys() {
                 }
 
                 currentContext.formTemplate = config.surveyFormSchema;
-                currentContext.theme = config.theme || 'light';
+                currentContext.theme        = config.theme || 'light';
                 currentContext.submitAction = submitAction;
                 currentContext.injectSurvey(config.injectElement);
             }
@@ -431,7 +523,7 @@ function initializeSurveys() {
 }
 
 window.__socialAnnotate__.platformDebugCapture = function(selectors, stored) {
-    let raw = selectors.whatsapp || {};
+    let raw   = selectors.whatsapp || {};
     let SEL_D = Object.assign({}, raw.shared || {}, raw.account || {}, raw.post || {});
 
     function probe(field) {
@@ -446,10 +538,10 @@ window.__socialAnnotate__.platformDebugCapture = function(selectors, stored) {
     }
 
     return {
-        platform: 'whatsapp',
+        platform:  'whatsapp',
         surveyType: 'whatsapp-post',
         injectionStatus: {
-            userSurveyInjected: !!document.getElementById('surveyFormContainer'),
+            userSurveyInjected:  !!document.getElementById('surveyFormContainer'),
             postSurveysInjected: document.querySelectorAll('.survey-container-post').length
         },
         extractedData: {},

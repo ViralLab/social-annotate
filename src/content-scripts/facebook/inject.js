@@ -16,6 +16,7 @@ let manipConfig_FB = {};
 let manipMap_FB = {};
 let manipMapId_FB = '';
 let manipApplied_FB = {};
+const _inFlight_FB = new Set();
 
 // ── URL helpers ───────────────────────────────────────────────────────────────
 
@@ -290,7 +291,44 @@ function injectFBPostSurvey(postNode, postID) {
     postNode.insertAdjacentElement('afterbegin', surveyContainer);
 }
 
-function processFBPostNode(postNode) {
+function _fbToggleBtn(textEl, originalNodes, rewrittenText, mode) {
+    if (mode !== 'aware') return;
+    let isOriginal = false;
+    let toggleBtn = document.createElement('button');
+    toggleBtn.textContent = '👁 Show original';
+    toggleBtn.setAttribute('data-sa-interv-toggle', '1');
+    toggleBtn.style.cssText = [
+        'display:block','margin-left:auto','margin-bottom:4px',
+        'padding:2px 10px','font-size:11px','line-height:1.6',
+        'cursor:pointer','border-radius:4px',
+        'background:rgba(24,119,242,0.08)','color:rgb(24,119,242)',
+        'border:1px solid rgba(24,119,242,0.25)',
+        'font-family:-apple-system,BlinkMacSystemFont,sans-serif',
+    ].join(';');
+    toggleBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        isOriginal = !isOriginal;
+        if (isOriginal) {
+            textEl.textContent = '';
+            originalNodes.forEach(function(n) { textEl.appendChild(n.cloneNode(true)); });
+        } else {
+            textEl.textContent = rewrittenText;
+        }
+        toggleBtn.textContent = isOriginal ? '✏ Show rewritten' : '👁 Show original';
+    });
+    textEl.parentNode.insertBefore(toggleBtn, textEl);
+}
+
+function _fbApplyResult(result, postNode, mode) {
+    let textEl = SEL_FB.postText ? postNode.querySelector(SEL_FB.postText) : null;
+    if (textEl && result.rewritten_text) {
+        let originalNodes = Array.from(textEl.childNodes).map(function(n) { return n.cloneNode(true); });
+        textEl.textContent = result.rewritten_text;
+        _fbToggleBtn(textEl, originalNodes, result.rewritten_text, mode);
+    }
+}
+
+async function processFBPostNode(postNode) {
     if (postNode.getElementsByClassName('survey-container-post').length > 0) return;
     let postCtx = availableContextsFacebook.find(function(c) { return c.name === 'facebook-post'; });
     if (!postCtx || !postCtx.formTemplate) return;
@@ -304,6 +342,81 @@ function processFBPostNode(postNode) {
 
     _processedCount_FB++;
 
+    const _renderSurvey = function() {
+        postCtx.renderSurvey(details.postOwner, details.postID, {
+            body: function() { return extractFBPostText(postNode); },
+            media_urls: function() { return extractFBPostMedia(postNode); },
+            post_metrics: function() { return extractFBPostMetrics(postNode); },
+            created_at: function() {
+                if (!SEL_FB.postTimestamp) return null;
+                let el = postNode.querySelector(SEL_FB.postTimestamp);
+                if (!el) return null;
+                let val = el.getAttribute(SEL_FB.postTimestampAttr) || el.getAttribute('title');
+                if (val) return val;
+                let labelSpan = el.querySelector('[aria-labelledby]');
+                if (labelSpan) {
+                    let labelEl = document.getElementById(labelSpan.getAttribute('aria-labelledby'));
+                    if (labelEl) return (labelEl.textContent || '').trim() || null;
+                }
+                return null;
+            }
+        });
+    };
+
+    // ── API path ──────────────────────────────────────────────────────────────
+    if (manipConfig_FB.enabled && manipConfig_FB.source === 'api' && manipConfig_FB.endpoint && window.__sa_intervApi) {
+        if (document.getElementById('surveyFormContainer-' + details.postID)) {
+            _renderSurvey();
+            return;
+        }
+        if (_inFlight_FB.has(details.postID)) return;
+        _inFlight_FB.add(details.postID);
+
+        const cached = window.__sa_intervApi.getCached(details.postID);
+        if (cached) {
+            _fbApplyResult(cached, postNode, manipConfig_FB.mode);
+            _inFlight_FB.delete(details.postID);
+            injectFBPostSurvey(postNode, details.postID);
+            _renderSurvey();
+            return;
+        }
+
+        const overlay = window.__sa_intervApi.createOverlay(postNode, manipConfig_FB.mode);
+        const doRetry = function() { _inFlight_FB.delete(details.postID); overlay.remove(); processFBPostNode(postNode); };
+        try {
+            const body = extractFBPostText(postNode);
+            const postData = {
+                post_id:      details.postID,
+                account_id:   details.postOwner,
+                body,
+                media_urls:   extractFBPostMedia(postNode),
+                post_metrics: extractFBPostMetrics(postNode)
+            };
+            const result = await window.__sa_intervApi.queuePost(postData);
+
+            const meta = { applied: true, label: result.prompt_label || '', map_id: result.map_id || window.__sa_intervApi.getMapId() };
+            if (manipConfig_FB.logOriginal) meta.original_text = body;
+            const extras = {};
+            for (const k in result) {
+                if (!['post_id', 'rewritten_text', 'map_id', 'prompt_label'].includes(k)) extras[k] = result[k];
+            }
+            if (Object.keys(extras).length > 0) meta.extras = extras;
+            manipApplied_FB[details.postID] = meta;
+
+            overlay.parentNode && overlay.parentNode.removeChild(overlay);
+            _inFlight_FB.delete(details.postID);
+
+            _fbApplyResult(result, postNode, manipConfig_FB.mode);
+            injectFBPostSurvey(postNode, details.postID);
+            _renderSurvey();
+        } catch(err) {
+            overlay.showError(doRetry);
+        }
+        return;
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // ── Map path ──────────────────────────────────────────────────────────────
     if (manipConfig_FB.enabled && manipMap_FB[details.postID]) {
         let entry = manipMap_FB[details.postID];
         let textEl = SEL_FB.postText ? postNode.querySelector(SEL_FB.postText) : null;
@@ -315,8 +428,15 @@ function processFBPostNode(postNode) {
                 let isOriginal = false;
                 let toggleBtn = document.createElement('button');
                 toggleBtn.textContent = '👁 Show original';
-                toggleBtn.setAttribute('data-sa-manip-toggle', '1');
-                toggleBtn.style.cssText = 'display:block;margin-left:auto;margin-bottom:4px;padding:2px 10px;font-size:11px;cursor:pointer;border-radius:4px;background:rgba(29,155,240,0.08);color:rgb(29,155,240);border:1px solid rgba(29,155,240,0.25);';
+                toggleBtn.setAttribute('data-sa-interv-toggle', '1');
+                toggleBtn.style.cssText = [
+                    'display:block','margin-left:auto','margin-bottom:4px',
+                    'padding:2px 10px','font-size:11px','line-height:1.6',
+                    'cursor:pointer','border-radius:4px',
+                    'background:rgba(24,119,242,0.08)','color:rgb(24,119,242)',
+                    'border:1px solid rgba(24,119,242,0.25)',
+                    'font-family:-apple-system,BlinkMacSystemFont,sans-serif',
+                ].join(';');
                 toggleBtn.addEventListener('click', function(e) {
                     e.stopPropagation();
                     isOriginal = !isOriginal;
@@ -330,27 +450,10 @@ function processFBPostNode(postNode) {
             manipApplied_FB[details.postID] = meta;
         }
     }
+    // ─────────────────────────────────────────────────────────────────────────
 
     injectFBPostSurvey(postNode, details.postID);
-    postCtx.renderSurvey(details.postOwner, details.postID, {
-        body: function() { return extractFBPostText(postNode); },
-        media_urls: function() { return extractFBPostMedia(postNode); },
-        post_metrics: function() { return extractFBPostMetrics(postNode); },
-        created_at: function() {
-            if (!SEL_FB.postTimestamp) return null;
-            let el = postNode.querySelector(SEL_FB.postTimestamp);
-            if (!el) return null;
-            let val = el.getAttribute(SEL_FB.postTimestampAttr) || el.getAttribute('title');
-            if (val) return val;
-            // New FB layout: timestamp rendered as CSS-scrambled spans; readable label is in aria-labelledby target
-            let labelSpan = el.querySelector('[aria-labelledby]');
-            if (labelSpan) {
-                let labelEl = document.getElementById(labelSpan.getAttribute('aria-labelledby'));
-                if (labelEl) return (labelEl.textContent || '').trim() || null;
-            }
-            return null;
-        }
-    });
+    _renderSurvey();
 }
 
 function createFBPostObserver() {
@@ -450,10 +553,14 @@ function initializeSurveys() {
 
         const _postConfFB = result.config && result.config.surveys && result.config.surveys['facebook-post'];
         manipConfig_FB = (_postConfFB && _postConfFB.manipulation) || {};
-        if (manipConfig_FB.enabled && result.manipulationMaps && result.manipulationMaps['facebook-post']) {
+        if (manipConfig_FB.enabled && manipConfig_FB.source !== 'api' && result.manipulationMaps && result.manipulationMaps['facebook-post']) {
             let fullMap = result.manipulationMaps['facebook-post'];
             manipMapId_FB = (fullMap._meta && fullMap._meta.map_id) || '';
             for (let k in fullMap) { if (k !== '_meta') manipMap_FB[k] = fullMap[k]; }
+        }
+
+        if (manipConfig_FB.enabled && manipConfig_FB.source === 'api' && manipConfig_FB.endpoint && window.__sa_intervApi) {
+            window.__sa_intervApi.init({ endpoint: manipConfig_FB.endpoint, survey_type: 'facebook-post', platform: 'facebook', mode: manipConfig_FB.mode, logOriginal: manipConfig_FB.logOriginal });
         }
 
         const currentPlatform = 'facebook';
@@ -490,12 +597,13 @@ function initializeSurveys() {
                         } else {
                             let _ma = manipApplied_FB[values.post_id];
                             if (_ma) {
-                                values.manipulation_applied = true;
-                                values.manipulation_label = _ma.label;
-                                values.manipulation_map_id = _ma.map_id;
+                                values.intervention_applied = true;
+                                values.intervention_label = _ma.label;
+                                values.intervention_map_id = _ma.map_id;
                                 if (_ma.original_text !== undefined) values.original_text = _ma.original_text;
+                                if (_ma.extras) values.intervention_extras = _ma.extras;
                             } else {
-                                values.manipulation_applied = false;
+                                values.intervention_applied = false;
                             }
                             chrome.storage.local.get(['isMediaDownloadEnabled'], function(res) {
                                 if (res.isMediaDownloadEnabled) {

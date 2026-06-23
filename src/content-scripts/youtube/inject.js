@@ -17,6 +17,10 @@ let _injectedCommentIds = new Set();
 let _channelInjected    = '';
 let _ytCommentObserver  = null;
 
+let manipConfig_YT_comment = {};
+let manipApplied_YT_comment = {};
+const _inFlight_YT_comment = new Set();
+
 function _ctxAlive() {
     try { return !!chrome.runtime.id; } catch(e) { return false; }
 }
@@ -178,28 +182,62 @@ function extractYTCommentMetrics(commentEl) {
     return metrics;
 }
 
-function processYTCommentNode(commentEl) {
-    if (!_ctxAlive()) return;
-    let commentId = extractYTCommentId(commentEl);
-    if (!commentId || _injectedCommentIds.has(commentId)) return;
-    _injectedCommentIds.add(commentId);
-    _processedCount_YT++;
+function _ytCommentToggleBtn(textEl, originalNodes, rewrittenText, mode) {
+    if (mode !== 'aware') return;
+    let isOriginal = false;
+    let toggleBtn = document.createElement('button');
+    toggleBtn.textContent = '👁 Show original';
+    toggleBtn.setAttribute('data-sa-interv-toggle', '1');
+    toggleBtn.style.cssText = [
+        'display:block','margin-left:auto','margin-bottom:4px',
+        'padding:2px 10px','font-size:11px','line-height:1.6',
+        'cursor:pointer','border-radius:4px',
+        'background:rgba(255,0,0,0.08)','color:rgb(200,0,0)',
+        'border:1px solid rgba(255,0,0,0.25)',
+        'font-family:-apple-system,BlinkMacSystemFont,sans-serif',
+    ].join(';');
+    toggleBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        isOriginal = !isOriginal;
+        if (isOriginal) {
+            textEl.textContent = '';
+            originalNodes.forEach(function(n) { textEl.appendChild(n.cloneNode(true)); });
+        } else {
+            textEl.textContent = rewrittenText;
+        }
+        toggleBtn.textContent = isOriginal ? '✏ Show rewritten' : '👁 Show original';
+    });
+    textEl.parentNode.insertBefore(toggleBtn, textEl);
+}
 
+function _ytCommentApplyResult(result, commentEl, mode) {
+    let textEl = SEL_YT.commentContentSel ? commentEl.querySelector(SEL_YT.commentContentSel) : null;
+    if (textEl && result.rewritten_text) {
+        let originalNodes = Array.from(textEl.childNodes).map(function(n) { return n.cloneNode(true); });
+        textEl.textContent = result.rewritten_text;
+        _ytCommentToggleBtn(textEl, originalNodes, result.rewritten_text, mode);
+    }
+}
+
+function _injectYTCommentSurvey(commentEl, commentId) {
+    if (!_ctxAlive()) return;
     let surveyContainer = document.createElement('div');
     surveyContainer.className = 'survey-container-comment';
     surveyContainer.setAttribute('id', 'surveyFormContainer-' + commentId);
     const shadowRoot = surveyContainer.attachShadow({ mode: 'open' });
     let cssUrl = chrome.runtime.getURL('content-scripts/youtube/inject.css');
     shadowRoot.innerHTML = '<iframe class="surveyIframe" src="' + chrome.runtime.getURL('sandbox/survey.html') + '" data-css="' + cssUrl + '" style="border:none; width:100%; height:100%; background:transparent;"></iframe>';
-
     let injectionEl = SEL_YT.commentInjectionSel ? commentEl.querySelector(SEL_YT.commentInjectionSel) : null;
     if (injectionEl) {
         injectionEl.insertAdjacentElement('afterbegin', surveyContainer);
     } else {
         commentEl.insertAdjacentElement('beforebegin', surveyContainer);
     }
+}
 
+function _renderYTCommentSurvey(commentEl, commentId) {
     let commentCtx = availableContextsYouTube.find(function(c) { return c.name === 'youtube-comment'; });
+    if (!commentCtx) return;
     commentCtx.renderSurvey(
         extractYTCommentAuthor(commentEl),
         commentId,
@@ -211,6 +249,74 @@ function processYTCommentNode(commentEl) {
             video_id:     function() { return getVideoID(); }
         }
     );
+}
+
+async function processYTCommentNode(commentEl) {
+    if (!_ctxAlive()) return;
+    let commentId = extractYTCommentId(commentEl);
+    if (!commentId || _injectedCommentIds.has(commentId)) return;
+
+    // ── API path ──────────────────────────────────────────────────────────────
+    if (manipConfig_YT_comment.enabled && manipConfig_YT_comment.source === 'api' && manipConfig_YT_comment.endpoint && window.__sa_intervApi) {
+        if (_inFlight_YT_comment.has(commentId)) return;
+        _inFlight_YT_comment.add(commentId);
+        _injectedCommentIds.add(commentId);
+        _processedCount_YT++;
+
+        const cached = window.__sa_intervApi.getCached(commentId);
+        if (cached) {
+            _ytCommentApplyResult(cached, commentEl, manipConfig_YT_comment.mode);
+            _inFlight_YT_comment.delete(commentId);
+            _injectYTCommentSurvey(commentEl, commentId);
+            _renderYTCommentSurvey(commentEl, commentId);
+            return;
+        }
+
+        const overlay = window.__sa_intervApi.createOverlay(commentEl, manipConfig_YT_comment.mode);
+        const doRetry = function() {
+            _inFlight_YT_comment.delete(commentId);
+            _injectedCommentIds.delete(commentId);
+            overlay.remove();
+            processYTCommentNode(commentEl);
+        };
+        try {
+            const body = extractYTCommentText(commentEl);
+            const postData = {
+                post_id:      commentId,
+                account_id:   extractYTCommentAuthor(commentEl),
+                body,
+                post_metrics: extractYTCommentMetrics(commentEl),
+                created_at:   extractYTCommentTimestamp(commentEl),
+                video_id:     getVideoID()
+            };
+            const result = await window.__sa_intervApi.queuePost(postData);
+
+            const meta = { applied: true, label: result.prompt_label || '', map_id: result.map_id || window.__sa_intervApi.getMapId() };
+            if (manipConfig_YT_comment.logOriginal) meta.original_text = body;
+            const extras = {};
+            for (const k in result) {
+                if (!['post_id', 'rewritten_text', 'map_id', 'prompt_label'].includes(k)) extras[k] = result[k];
+            }
+            if (Object.keys(extras).length > 0) meta.extras = extras;
+            manipApplied_YT_comment[commentId] = meta;
+
+            overlay.parentNode && overlay.parentNode.removeChild(overlay);
+            _inFlight_YT_comment.delete(commentId);
+
+            _ytCommentApplyResult(result, commentEl, manipConfig_YT_comment.mode);
+            _injectYTCommentSurvey(commentEl, commentId);
+            _renderYTCommentSurvey(commentEl, commentId);
+        } catch(err) {
+            overlay.showError(doRetry);
+        }
+        return;
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
+    _injectedCommentIds.add(commentId);
+    _processedCount_YT++;
+    _injectYTCommentSurvey(commentEl, commentId);
+    _renderYTCommentSurvey(commentEl, commentId);
 }
 
 function enableYTCommentObserver() {
@@ -326,6 +432,12 @@ function initializeSurveys() {
         SEL_YT = Object.assign({}, _rawYT.shared || {}, _rawYT.account || {}, _rawYT.post || {}, _rawYT.comment || {});
         watchPostCounter('youtube', function() { return _processedCount_YT; });
 
+        const _commentConfYT = result.config && result.config.surveys && result.config.surveys['youtube-comment'];
+        manipConfig_YT_comment = (_commentConfYT && _commentConfYT.manipulation) || {};
+        if (manipConfig_YT_comment.enabled && manipConfig_YT_comment.source === 'api' && manipConfig_YT_comment.endpoint && window.__sa_intervApi) {
+            window.__sa_intervApi.init({ endpoint: manipConfig_YT_comment.endpoint, survey_type: 'youtube-comment', platform: 'youtube', mode: manipConfig_YT_comment.mode, logOriginal: manipConfig_YT_comment.logOriginal });
+        }
+
         const currentPlatform = 'youtube';
         for (let index = 0; index < availableContextsYouTube.length; ++index) {
             let currentContext = availableContextsYouTube[index];
@@ -347,6 +459,18 @@ function initializeSurveys() {
                         values.studyID = studyID;
 
                         let isUserSurvey = currentContext.name.endsWith('-user');
+                        if (currentContext.name === 'youtube-comment') {
+                            let _ma = manipApplied_YT_comment[values.post_id];
+                            if (_ma) {
+                                values.intervention_applied = true;
+                                values.intervention_label   = _ma.label;
+                                values.intervention_map_id  = _ma.map_id;
+                                if (_ma.original_text !== undefined) values.original_text = _ma.original_text;
+                                if (_ma.extras) values.intervention_extras = _ma.extras;
+                            } else {
+                                values.intervention_applied = false;
+                            }
+                        }
                         if (isUserSurvey) {
                             let profile = extractChannelProfile();
                             let capturedAvatarUrl = profile.profile_img_url || null;

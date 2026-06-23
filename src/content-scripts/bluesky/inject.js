@@ -22,6 +22,11 @@ let manipMap_BS     = {};
 let manipMapId_BS   = '';
 let manipApplied_BS     = {};
 let _processedCount_BS     = 0;
+const _inFlight_BS = new Set();
+
+// ── User intervention state ───────────────────────────────
+let manipConfig_BSU  = {};
+let manipApplied_BSU = {};
 registerHealthCounter(function () { return _processedCount_BS; });
 
 document.addEventListener('mh:bsky-video-found', function(e) {
@@ -101,73 +106,157 @@ window.addEventListener('mh:download-request', function(e) {
     }
 });
 
-function processPostNode(postNode) {
-    _processedCount_BS++;
-    let insertElement = postNode.parentNode;
-    if (insertElement && insertElement.getElementsByClassName('survey-container-post').length === 0) {
-        let postDetails = extractPostDetails(postNode);
+function _bsToggleBtn(textEl, originalNodes, rewrittenText) {
+    let isOriginal = false;
+    let btn = document.createElement('button');
+    btn.textContent = '👁 Show original';
+    btn.setAttribute('data-sa-interv-toggle', '1');
+    btn.style.cssText = [
+        'display:block','margin-left:auto','margin-bottom:4px',
+        'padding:2px 10px','font-size:11px','line-height:1.6',
+        'cursor:pointer','border-radius:4px',
+        'background:rgba(29,155,240,0.08)','color:rgb(29,155,240)',
+        'border:1px solid rgba(29,155,240,0.25)',
+        'font-family:-apple-system,BlinkMacSystemFont,sans-serif',
+    ].join(';');
+    btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        isOriginal = !isOriginal;
+        if (isOriginal) {
+            textEl.textContent = '';
+            originalNodes.forEach(function (n) { textEl.appendChild(n.cloneNode(true)); });
+        } else {
+            textEl.textContent = rewrittenText;
+        }
+        btn.textContent = isOriginal ? '✏ Show rewritten' : '👁 Show original';
+    });
+    textEl.parentNode.insertBefore(btn, textEl);
+}
 
-        if (postDetails) {
-            // ── Manipulation DOM patch ────────────────────────────
-            if (manipConfig_BS.enabled && manipMap_BS[postDetails.postID]) {
-                let entry   = manipMap_BS[postDetails.postID];
-                // Feed posts use [data-testid="postText"]; expanded thread posts use [data-word-wrap="1"]
-                let textEl  = postNode.querySelector(SEL_BS.postText || '[data-testid="postText"]')
-                              || postNode.querySelector('[data-word-wrap="1"]');
-                if (textEl) {
-                    let rewrittenText = entry.rewritten_text;
-                    let originalText  = entry.original_text || '';
-                    textEl.textContent = rewrittenText;
-                    if (manipConfig_BS.mode === 'aware') {
-                        let isOriginal = false;
-                        let toggleBtn  = document.createElement('button');
-                        toggleBtn.textContent = '👁 Show original';
-                        toggleBtn.setAttribute('data-sa-manip-toggle', '1');
-                        toggleBtn.style.cssText = [
-                            'display:block','margin-left:auto','margin-bottom:4px',
-                            'padding:2px 10px','font-size:11px','line-height:1.6',
-                            'cursor:pointer','border-radius:4px',
-                            'background:rgba(29,155,240,0.08)','color:rgb(29,155,240)',
-                            'border:1px solid rgba(29,155,240,0.25)',
-                            'font-family:-apple-system,BlinkMacSystemFont,sans-serif',
-                        ].join(';');
-                        toggleBtn.addEventListener('click', function (e) {
-                            e.stopPropagation();
-                            isOriginal = !isOriginal;
-                            textEl.textContent = isOriginal ? originalText : rewrittenText;
-                            toggleBtn.textContent = isOriginal ? '✏ Show rewritten' : '👁 Show original';
-                        });
-                        textEl.parentNode.insertBefore(toggleBtn, textEl);
-                    }
-                    let meta = { applied: true, label: entry.prompt_label || '', map_id: manipMapId_BS };
-                    if (manipConfig_BS.logOriginal) meta.original_text = originalText;
-                    manipApplied_BS[postDetails.postID] = meta;
-                }
-                if (entry.replacement_image) {
-                    let avatarImg = postNode.querySelector(SEL_BS.postAuthorAvatar || 'img[src*="avatar"]');
-                    if (avatarImg) { avatarImg.src = entry.replacement_image; avatarImg.srcset = ''; }
-                }
+function _bsGetTimestamp(postNode) {
+    let tsEl = postNode.querySelector(SEL_BS.postTimestamp || 'time[datetime]');
+    if (!tsEl) return null;
+    return tsEl.getAttribute(SEL_BS.postTimestampAttr || 'datetime') || null;
+}
+
+async function processPostNode(postNode) {
+    let insertElement = postNode.parentNode;
+    if (!insertElement || insertElement.getElementsByClassName('survey-container-post').length > 0) return;
+
+    let postDetails = extractPostDetails(postNode);
+    if (!postDetails) return;
+    if (_inFlight_BS.has(postDetails.postID)) return;
+
+    _processedCount_BS++;
+
+    // ── Live API intervention path ────────────────────────
+    if (manipConfig_BS.enabled && manipConfig_BS.source === 'api' && manipConfig_BS.endpoint && window.__sa_intervApi) {
+        _inFlight_BS.add(postDetails.postID);
+
+        function _bsApplyResult(result, targetNode) {
+            let textEl = targetNode.querySelector(SEL_BS.postText || '[data-testid="postText"]')
+                         || targetNode.querySelector('[data-word-wrap="1"]');
+            if (textEl) {
+                let originalNodes = Array.from(textEl.childNodes).map(function (n) { return n.cloneNode(true); });
+                textEl.textContent = result.rewritten_text;
+                if (manipConfig_BS.mode === 'aware') _bsToggleBtn(textEl, originalNodes, result.rewritten_text);
             }
-            // ─────────────────────────────────────────────────────
+        }
+
+        // If already cached (e.g. navigated from feed to detail page), apply synchronously
+        let cached = window.__sa_intervApi.getCached(postDetails.postID);
+        if (cached) {
+            _bsApplyResult(cached, postNode);
+            _inFlight_BS.delete(postDetails.postID);
+            injectBlueskyPostSurvey(insertElement, postDetails.postID);
+            availableContextsBluesky[1].renderSurvey(
+                postDetails.postOwner, postDetails.postID,
+                { body: () => cached.rewritten_text, media_urls: () => extractPostMedia(postNode), post_metrics: () => extractPostMetrics(postNode), created_at: () => _bsGetTimestamp(postNode) }
+            );
+            return;
+        }
+
+        let overlay = window.__sa_intervApi.createOverlay(postNode, manipConfig_BS.mode);
+
+        let postData = {
+            post_id:      postDetails.postID,
+            account_id:   postDetails.postOwner,
+            body:         extractPostTextContent(postNode),
+            created_at:   _bsGetTimestamp(postNode),
+            media_urls:   extractPostMedia(postNode),
+            post_metrics: extractPostMetrics(postNode)
+        };
+
+        let doRetry = function () {
+            _inFlight_BS.delete(postDetails.postID);
+            if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+            processPostNode(postNode);
+        };
+
+        try {
+            let result = await window.__sa_intervApi.queuePost(postData);
+
+            let meta = { applied: true, label: result.prompt_label || '', map_id: result.map_id || window.__sa_intervApi.getMapId() };
+            if (manipConfig_BS.logOriginal) meta.original_text = postData.body;
+            let extras = {};
+            for (let k in result) {
+                if (!['post_id', 'rewritten_text', 'map_id', 'prompt_label'].includes(k)) extras[k] = result[k];
+            }
+            if (Object.keys(extras).length > 0) meta.extras = extras;
+            manipApplied_BS[postDetails.postID] = meta;
+
+            if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+            _inFlight_BS.delete(postDetails.postID);
+
+            // Re-query after overlay removal — React may have re-rendered during the await
+            let livePost_BS = document.querySelector(`a[href*="/post/${postDetails.postID}"]`)
+                ?.closest(SEL_BS.postContainer || '[data-testid*="feedItem"], [data-testid*="postThreadItem"]') || postNode;
+            _bsApplyResult(result, livePost_BS);
 
             injectBlueskyPostSurvey(insertElement, postDetails.postID);
             availableContextsBluesky[1].renderSurvey(
-                postDetails.postOwner,
-                postDetails.postID,
-                {
-                    body: () => extractPostTextContent(postNode),
-                    media_urls: () => extractPostMedia(postNode),
-                    post_metrics: () => extractPostMetrics(postNode),
-                    created_at: () => {
-                        let tsEl = postNode.querySelector(SEL_BS.postTimestamp || 'time[datetime]');
-                        if (!tsEl) return null;
-                        let attr = SEL_BS.postTimestampAttr || 'datetime';
-                        return tsEl.getAttribute(attr) || null;
-                    }
-                }
+                postDetails.postOwner, postDetails.postID,
+                { body: () => result.rewritten_text, media_urls: () => extractPostMedia(postNode), post_metrics: () => extractPostMetrics(postNode), created_at: () => _bsGetTimestamp(postNode) }
             );
+        } catch (err) {
+            overlay.showError(doRetry);
+        }
+        return;
+    }
+    // ─────────────────────────────────────────────────────
+
+    // ── Static map manipulation path ─────────────────────
+    if (manipConfig_BS.enabled && manipConfig_BS.source !== 'api' && manipMap_BS[postDetails.postID]) {
+        let entry  = manipMap_BS[postDetails.postID];
+        let textEl = postNode.querySelector(SEL_BS.postText || '[data-testid="postText"]')
+                     || postNode.querySelector('[data-word-wrap="1"]');
+        if (textEl) {
+            let rewrittenText = entry.rewritten_text;
+            let originalNodes = Array.from(textEl.childNodes).map(function (n) { return n.cloneNode(true); });
+            textEl.textContent = rewrittenText;
+            if (manipConfig_BS.mode === 'aware') _bsToggleBtn(textEl, originalNodes, rewrittenText);
+            let meta = { applied: true, label: entry.prompt_label || '', map_id: manipMapId_BS };
+            if (manipConfig_BS.logOriginal) meta.original_text = originalText;
+            manipApplied_BS[postDetails.postID] = meta;
+        }
+        if (entry.replacement_image) {
+            let avatarImg = postNode.querySelector(SEL_BS.postAuthorAvatar || 'img[src*="avatar"]');
+            if (avatarImg) { avatarImg.src = entry.replacement_image; avatarImg.srcset = ''; }
         }
     }
+    // ─────────────────────────────────────────────────────
+
+    injectBlueskyPostSurvey(insertElement, postDetails.postID);
+    availableContextsBluesky[1].renderSurvey(
+        postDetails.postOwner,
+        postDetails.postID,
+        {
+            body:         () => extractPostTextContent(postNode),
+            media_urls:   () => extractPostMedia(postNode),
+            post_metrics: () => extractPostMetrics(postNode),
+            created_at:   () => _bsGetTimestamp(postNode)
+        }
+    );
 }
 
 function createObserver() {
@@ -292,6 +381,128 @@ function injectBlueskyUserSurvey(injectElement, userID) {
         document.body.insertAdjacentElement('afterbegin', surveyContainer);
     }
 }
+
+// ── User intervention helpers ─────────────────────────────
+
+function _bsuGetFieldEl(field) {
+    switch (field) {
+        case 'profile_name':
+            return document.querySelector(SEL_BS.userDisplayName || '[data-testid="profileHeaderDisplayName"]');
+        case 'handle':
+            return document.querySelector(SEL_BS.userHandle || 'div:has(> [data-testid="profileHeaderDisplayName"]) + div > div[dir="auto"]');
+        case 'followers_count': {
+            let btn = document.querySelector(SEL_BS.userFollowers || '[data-testid="profileHeaderFollowersButton"]');
+            if (!btn) return null;
+            let children = btn.querySelectorAll('span, div');
+            for (let s of children) {
+                if (s.childElementCount === 0 && /^[\d,.KMBkmb]+$/.test(s.textContent.trim())) return s;
+            }
+            return btn;
+        }
+        case 'following_count': {
+            let btn = document.querySelector(SEL_BS.userFollowing || '[data-testid="profileHeaderFollowsButton"]');
+            if (!btn) return null;
+            let children = btn.querySelectorAll('span, div');
+            for (let s of children) {
+                if (s.childElementCount === 0 && /^[\d,.KMBkmb]+$/.test(s.textContent.trim())) return s;
+            }
+            return btn;
+        }
+        case 'bio':
+            return document.querySelector(SEL_BS.userBio || '[data-testid="profileHeaderDescription"]');
+    }
+    return null;
+}
+
+function _bsuToggleBtn(fieldEl, originalText, rewrittenText) {
+    let isOriginal = false;
+    let btn = document.createElement('button');
+    btn.textContent = '👁 Show original';
+    btn.setAttribute('data-sa-interv-toggle', '1');
+    btn.style.cssText = [
+        'display:inline-block','margin-left:6px','padding:1px 8px','font-size:11px',
+        'line-height:1.6','cursor:pointer','border-radius:4px','vertical-align:middle',
+        'background:rgba(29,155,240,0.08)','color:rgb(29,155,240)',
+        'border:1px solid rgba(29,155,240,0.25)',
+        'font-family:-apple-system,BlinkMacSystemFont,sans-serif',
+    ].join(';');
+    btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        isOriginal = !isOriginal;
+        fieldEl.textContent = isOriginal ? originalText : rewrittenText;
+        btn.textContent = isOriginal ? '✏ Show rewritten' : '👁 Show original';
+    });
+    // Insert after the enclosing button/link (for count fields) rather than inside it
+    let container = fieldEl.closest('a') || fieldEl.closest('button');
+    let insertAfter = container || fieldEl;
+    insertAfter.parentNode.insertBefore(btn, insertAfter.nextSibling);
+}
+
+async function _applyBSUserIntervention(userID, profile) {
+    if (!manipConfig_BSU.enabled || !manipConfig_BSU.endpoint) return;
+    let fields = manipConfig_BSU.fields || {};
+    let fieldsToIntervene = Object.keys(fields).filter(function(f) { return fields[f]; });
+    if (fieldsToIntervene.length === 0) return;
+
+    let removeOverlay = _createUserInterventionOverlay();
+
+    let payload = {
+        survey_type: 'bluesky-user',
+        platform: 'bluesky',
+        account_id: userID,
+        profile_name: profile.profile_name || null,
+        handle: profile.handle || null,
+        followers_count: profile.followersCount || null,
+        following_count: profile.followingCount || null,
+        bio: profile.bio || null,
+        fields_to_intervene: fieldsToIntervene
+    };
+
+    let result;
+    try {
+        let response = await fetch(manipConfig_BSU.endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!response.ok) { removeOverlay(); return; }
+        result = await response.json();
+    } catch (e) { removeOverlay(); return; }
+
+    let originalValues = {};
+
+    function applyFields() {
+        let appliedAny = false;
+        for (let field of fieldsToIntervene) {
+            if (!result[field]) continue;
+            let el = _bsuGetFieldEl(field);
+            if (!el) continue;
+            if (originalValues[field] === undefined) originalValues[field] = el.textContent;
+            if (el.textContent === result[field]) { appliedAny = true; continue; }
+            el.textContent = result[field];
+            appliedAny = true;
+            if (manipConfig_BSU.mode === 'aware') {
+                let container = el.closest('a') || el.closest('button');
+                let checkAfter = container || el;
+                let next = checkAfter.nextSibling;
+                let hasToggle = next && next.nodeType === 1 && next.getAttribute && next.getAttribute('data-sa-interv-toggle');
+                if (!hasToggle) _bsuToggleBtn(el, originalValues[field], result[field]);
+            }
+        }
+        if (appliedAny) removeOverlay();
+    }
+
+    applyFields();
+    [200, 600, 1500].forEach(function(delay) { setTimeout(applyFields, delay); });
+
+    let appliedFields = {};
+    for (let field of fieldsToIntervene) {
+        if (result[field]) appliedFields[field] = { original: originalValues[field] || '', rewritten: result[field] };
+    }
+    manipApplied_BSU[userID] = { applied: true, fields: appliedFields };
+}
+
+// ─────────────────────────────────────────────────────────
 
 function enablePostObserver(injectElement) {
     // Process existing posts on the page
@@ -438,13 +649,21 @@ function initializeSurveys() {
         SEL_BS = { ...(_rawBS.shared || {}), ...(_rawBS.account || {}), ...(_rawBS.post || {}) };
         watchPostCounter('bluesky', function () { return _processedCount_BS; });
 
+        // Load manipulation config for bluesky-user
+        const _userConfBS = result.config && result.config.surveys && result.config.surveys['bluesky-user'];
+        manipConfig_BSU = (_userConfBS && _userConfBS.manipulation) || {};
+
         // Load manipulation map for bluesky-post
         const _postConfBS = result.config && result.config.surveys && result.config.surveys['bluesky-post'];
         manipConfig_BS = (_postConfBS && _postConfBS.manipulation) || {};
-        if (manipConfig_BS.enabled && result.manipulationMaps && result.manipulationMaps['bluesky-post']) {
-            let fullMap = result.manipulationMaps['bluesky-post'];
-            manipMapId_BS = (fullMap._meta && fullMap._meta.map_id) || '';
-            for (let k in fullMap) { if (k !== '_meta') manipMap_BS[k] = fullMap[k]; }
+        if (manipConfig_BS.enabled) {
+            if (manipConfig_BS.source !== 'api' && result.manipulationMaps && result.manipulationMaps['bluesky-post']) {
+                let fullMap = result.manipulationMaps['bluesky-post'];
+                manipMapId_BS = (fullMap._meta && fullMap._meta.map_id) || '';
+                for (let k in fullMap) { if (k !== '_meta') manipMap_BS[k] = fullMap[k]; }
+            } else if (manipConfig_BS.source === 'api' && manipConfig_BS.endpoint && window.__sa_intervApi) {
+                window.__sa_intervApi.init({ endpoint: manipConfig_BS.endpoint, survey_type: 'bluesky-post', platform: 'bluesky', mode: manipConfig_BS.mode, logOriginal: manipConfig_BS.logOriginal });
+            }
         }
 
         // Initialize observer infrastructure now that selectors are available
@@ -489,15 +708,22 @@ function initializeSurveys() {
                         values.surveyType = currentContext.name;
                         values.studyID = studyID;
 
-                        // Attach manipulation metadata
+                        // Attach intervention metadata
                         let _ma = manipApplied_BS[values.post_id];
+                        let _maU = manipApplied_BSU[values.account_id];
                         if (_ma) {
-                            values.manipulation_applied = true;
-                            values.manipulation_label   = _ma.label;
-                            values.manipulation_map_id  = _ma.map_id;
+                            values.intervention_applied = true;
+                            values.intervention_label   = _ma.label;
+                            values.intervention_map_id  = _ma.map_id;
                             if (_ma.original_text !== undefined) values.original_text = _ma.original_text;
+                            if (_ma.extras) values.intervention_extras = _ma.extras;
+                        } else if (_maU) {
+                            values.intervention_applied = true;
+                            values.intervention_label   = 'user-intervention';
+                            values.intervention_map_id  = '';
+                            values.intervention_extras  = _maU.fields;
                         } else {
-                            values.manipulation_applied = false;
+                            values.intervention_applied = false;
                         }
 
                         storeResults(values, currentPlatform);
@@ -532,6 +758,10 @@ function initializeSurveys() {
                     currentContext.renderSurvey(surveyID, null, {
                         user_profile: () => extractUserProfile()
                     });
+                    if (manipConfig_BSU.enabled) {
+                        let profile = extractUserProfile();
+                        _applyBSUserIntervention(surveyID, profile);
+                    }
                 }
             }
         }

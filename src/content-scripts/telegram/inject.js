@@ -8,12 +8,13 @@ let tgMessagesRoot = null;
 let tgObserver = null;
 let tgObserverConfig = { attributes: false, childList: true, subtree: true };
 
-// ── Manipulation state ────────────────────────────────────
-let manipConfig_TG  = {};
-let manipMap_TG     = {};
-let manipMapId_TG   = '';
+// ── Intervention state ────────────────────────────────────
+let manipConfig_TG      = {};
+let manipMap_TG         = {};
+let manipMapId_TG       = '';
 let manipApplied_TG     = {};
-let _processedCount_TG     = 0;
+let _processedCount_TG  = 0;
+const _inFlight_TG      = new Set();
 registerHealthCounter(function () { return _processedCount_TG; });
 
 // ---------------------------------------------------------------------------
@@ -28,36 +29,22 @@ const _tgMsgVideoSrcMap = new Map(); // messageId → { src, timestamp }
 window.addEventListener('mh:tg-video-src', function (e) {
     const detail = e && e.detail;
     if (!detail || !detail.src) return;
-    const src = detail.src;
+    const src   = detail.src;
     const msgId = detail.msgId || null;
     if (msgId) {
         _tgMsgVideoSrcMap.set(msgId, { src, timestamp: Date.now() });
     }
-    // Also store as "latest" for messages we couldn't identify
     _tgMsgVideoSrcMap.set('__latest__', { src, timestamp: Date.now() });
 });
 
 // ---------------------------------------------------------------------------
 // Chunked Range-fetch video downloader
-// Strategy from: Neet-Nestor/Telegram-Media-Downloader and
-//                SuperZombi/Telegram-Downloader
-//
 // Telegram serves video via its Service Worker using HTTP Range requests.
-// The stream URLs are only accessible from the page's fetch context (same SW).
-// chrome.downloads.download() cannot reach them from the background worker.
+// We delegate the fetch to inject-api.js (MAIN world) so the SW intercepts it.
 // ---------------------------------------------------------------------------
-// Video Download Strategy:
-// Telegram Web A's Service Worker intercepts /a/progressive/ streams.
-// However, fetch() from isolated-world content scripts bypasses the SW entirely
-// and hits the real backend, resulting in a 404 or 302 redirect.
-// To bypass this, we delegate the fetch to inject-api.js (which runs in the MAIN
-// world), allowing the SW to intercept it, convert it to a dataURL, and send it back.
-// ---------------------------------------------------------------------------
-
 function fetchVideoFromMainWorld(url) {
     return new Promise((resolve, reject) => {
         const reqId = Date.now().toString() + Math.random().toString().substring(2, 6);
-        
         const listener = function(e) {
             if (e.detail && e.detail.reqId === reqId) {
                 window.removeEventListener('mh:fetch-tg-video-result', listener);
@@ -65,13 +52,8 @@ function fetchVideoFromMainWorld(url) {
                 else resolve(e.detail.dataUrl);
             }
         };
-        
         window.addEventListener('mh:fetch-tg-video-result', listener);
-        window.dispatchEvent(new CustomEvent('mh:fetch-tg-video', {
-            detail: { url: url, reqId: reqId }
-        }));
-        
-        // Timeout
+        window.dispatchEvent(new CustomEvent('mh:fetch-tg-video', { detail: { url: url, reqId: reqId } }));
         setTimeout(() => {
             window.removeEventListener('mh:fetch-tg-video-result', listener);
             reject(new Error('MAIN-world fetch timeout'));
@@ -81,106 +63,66 @@ function fetchVideoFromMainWorld(url) {
 
 // ---------------------------------------------------------------------------
 // Resolve the best *live* video src for a message node.
-// Priority (freshest → most reliable first):
-//   1. Live <video> element's currentSrc in the DOM     — most reliable
-//   2. _tgMsgVideoSrcMap[messageId] from interceptor events
-//   3. window.__tgMediaSrcMap (MAIN-world map, only readable in MAIN)
-//   4. <source> children of <video>
-//   5. __latest__ fallback (last seen src from any message)
 // ---------------------------------------------------------------------------
 function resolveVideoSrcForMessage(messageNode) {
     const videoSelector = SEL_TG.postVideo || 'video.full-media, video';
 
-    // 1. Live DOM video element — freshest possible source
     for (const vid of messageNode.querySelectorAll(videoSelector)) {
         const src = vid.currentSrc || vid.src || '';
-        if (src && !src.startsWith('data:') && src.length > 10) {
-            console.log('[Social Annotate] TG: resolved video src from live DOM element');
-            return src;
-        }
+        if (src && !src.startsWith('data:') && src.length > 10) return src;
         const sourceEl = vid.querySelector('source');
-        if (sourceEl && sourceEl.src && sourceEl.src.length > 10) {
-            return sourceEl.src;
-        }
+        if (sourceEl && sourceEl.src && sourceEl.src.length > 10) return sourceEl.src;
     }
 
-    // 2. Per-message interceptor cache
     const msgId = messageNode.getAttribute('data-message-id') ||
                   messageNode.getAttribute('data-mid') ||
                   messageNode.id || null;
     if (msgId) {
         const cached = _tgMsgVideoSrcMap.get(msgId);
-        if (cached && cached.src) {
-            // Reject if stale (> 30 minutes old)
-            if (Date.now() - cached.timestamp < 30 * 60 * 1000) {
-                console.log('[Social Annotate] TG: resolved video src from msg-specific cache');
-                return cached.src;
-            }
-        }
+        if (cached && cached.src && Date.now() - cached.timestamp < 30 * 60 * 1000) return cached.src;
     }
 
-    // 3. __latest__ fallback — ONLY if this message node actually contains a video element.
-    // Without this guard, scrolling past other posts loads their video into __latest__ and
-    // it gets wrongly attached to a non-video post when the user submits.
     const hasVideoInNode = messageNode.querySelectorAll(videoSelector).length > 0;
     if (hasVideoInNode) {
         const latest = _tgMsgVideoSrcMap.get('__latest__');
-        if (latest && latest.src && (Date.now() - latest.timestamp < 5 * 60 * 1000)) {
-            console.log('[Social Annotate] TG: resolved video src from __latest__ cache (best-effort)');
-            return latest.src;
-        }
+        if (latest && latest.src && (Date.now() - latest.timestamp < 5 * 60 * 1000)) return latest.src;
     }
 
     return null;
 }
 
 // ---------------------------------------------------------------------------
-// Download handler — fires when survey user clicks "download media"
+// Download handler
 // ---------------------------------------------------------------------------
 window.addEventListener('mh:download-request', async function (e) {
     const detail = e.detail;
     if (!detail || !detail.postID) return;
 
-    const postID     = detail.postID;
-    const userID     = detail.userID;
-    const surveyType = detail.surveyType || 'telegram-post';
+    const postID      = detail.postID;
+    const userID      = detail.userID;
+    const surveyType  = detail.surveyType || 'telegram-post';
 
     const containerName   = 'surveyFormContainer-' + postID;
     const surveyContainer = document.getElementById(containerName);
     const messageNode     = surveyContainer ? surveyContainer.nextElementSibling : null;
 
-    if (!messageNode) {
-        console.warn('[Social Annotate] TG: cannot find message node for postID:', postID);
-        return;
-    }
+    if (!messageNode) return;
 
-    // ---- Images ----
-    const imageUrls = extractMessageImages(messageNode);
-
-    // ---- Video ----
-    const videoSrc = resolveVideoSrcForMessage(messageNode);
-    let videoPayload = null; // will be dataURL string or null
+    const imageUrls  = extractMessageImages(messageNode);
+    const videoSrc   = resolveVideoSrcForMessage(messageNode);
+    let   videoPayload = null;
 
     if (videoSrc) {
-        console.log('[Social Annotate] TG video src to download:', videoSrc.substring(0, 100));
-
         if (videoSrc.startsWith('data:')) {
-            // Already a dataURL — accept only if it's actually media (not an HTML error page)
             if (!videoSrc.startsWith('data:text/') && !videoSrc.startsWith('data:application/xhtml')) {
                 videoPayload = videoSrc;
             }
         } else if (videoSrc.match(/^https?:\/\//) && !videoSrc.includes('web.telegram.org')) {
-            // External CDN HTTPS URL (e.g., cdn4.telegram.org) — background can download directly
             videoPayload = videoSrc;
         } else {
-            // web.telegram.org/a/progressive/, blob:, etc.
-            // Send request to MAIN world to fetch via Service Worker
             try {
-                console.log('[Social Annotate] TG: Delegating fetch to MAIN world...');
                 videoPayload = await fetchVideoFromMainWorld(videoSrc);
-                
                 if (videoPayload && (videoPayload.startsWith('data:text/') || videoPayload.startsWith('data:application/xhtml'))) {
-                    console.error('[Social Annotate] TG: MAIN fetch returned HTML, discarding.');
                     videoPayload = null;
                 }
             } catch (err) {
@@ -190,31 +132,18 @@ window.addEventListener('mh:download-request', async function (e) {
         }
     }
 
-    // ---- Assemble and send ----
     const allUrls = [...imageUrls];
     if (videoPayload) allUrls.push(videoPayload);
 
     if (allUrls.length > 0) {
         try {
-            chrome.runtime.sendMessage({
-                action:     'downloadMedia',
-                urls:       allUrls,
-                userId:     userID || 'user',
-                postId:     postID,
-                surveyType: surveyType
-            });
-            console.log('[Social Annotate] TG: dispatched', allUrls.length, 'media item(s) for download.');
+            chrome.runtime.sendMessage({ action: 'downloadMedia', urls: allUrls, userId: userID || 'user', postId: postID, surveyType: surveyType });
         } catch (err) {
             if (err.message.includes('Extension context invalidated')) {
-                console.warn('[Social Annotate] Extension context invalidated — download aborted.');
                 if (tgObserver) { tgObserver.disconnect(); tgObserver = null; }
                 showExtensionReloadBanner();
-            } else {
-                console.error('[Social Annotate] Error sending download message:', err);
             }
         }
-    } else {
-        console.log('[Social Annotate] TG: no downloadable media found for postID:', postID);
     }
 });
 
@@ -245,15 +174,10 @@ function extractMessageImages(messageNode) {
     return Array.from(new Set(urls));
 }
 
-// ---------------------------------------------------------------------------
-// Synchronous snapshot of media for the renderSurvey mediaUrls callback.
-// Videos are not fetched here — just collected for display/count purposes.
-// ---------------------------------------------------------------------------
 function extractMessageMedia(messageNode) {
-    const images = extractMessageImages(messageNode);
+    const images   = extractMessageImages(messageNode);
     const videoSrc = resolveVideoSrcForMessage(messageNode);
-    const all = [...images];
-    // Only include the raw src in the survey payload (not fetched here)
+    const all      = [...images];
     if (videoSrc && !videoSrc.startsWith('data:')) all.push(videoSrc);
     return Array.from(new Set(all));
 }
@@ -303,13 +227,10 @@ function extractMessageDetails(messageNode) {
     if (!postID) return null;
 
     let userID = 'unknown';
-    // Channels: each message has a .message-signature with the channel/author name
     const sigNode = messageNode.querySelector(SEL_TG.messageSignature || '.message-signature');
     if (sigNode && sigNode.textContent.trim()) {
         userID = sigNode.textContent.trim();
     } else {
-        // DMs / groups: read from the chat header — scoped to .ChatInfo to avoid
-        // matching the logged-in user's own name in the sidebar account menu
         const headerName = document.querySelector(SEL_TG.userDisplayName || '.ChatInfo .fullName');
         if (headerName && headerName.textContent.trim()) {
             userID = headerName.textContent.trim();
@@ -318,9 +239,7 @@ function extractMessageDetails(messageNode) {
 
     let timestamp = '';
     const timeNode = messageNode.querySelector(SEL_TG.postTimestamp || '.message-time');
-    if (timeNode) {
-        timestamp = timeNode.innerText || timeNode.textContent || '';
-    }
+    if (timeNode) timestamp = timeNode.innerText || timeNode.textContent || '';
 
     return { postID, userID, postAuthorTime: timestamp };
 }
@@ -336,11 +255,10 @@ function injectTelegramPostSurvey(messageNode, postID) {
     const shadowRoot = surveyContainer.attachShadow({ mode: 'open' });
     let cssUrl, iframeSrc;
     try {
-        cssUrl = chrome.runtime.getURL('content-scripts/telegram/inject.css');
+        cssUrl    = chrome.runtime.getURL('content-scripts/telegram/inject.css');
         iframeSrc = chrome.runtime.getURL('sandbox/survey.html');
     } catch (err) {
         if (err.message.includes('Extension context invalidated')) {
-            console.warn('[Social Annotate] Extension context invalidated — stopping observer.');
             if (tgObserver) { tgObserver.disconnect(); tgObserver = null; }
             showExtensionReloadBanner();
             return null;
@@ -356,19 +274,123 @@ function injectTelegramPostSurvey(messageNode, postID) {
     return surveyContainer;
 }
 
-function processMessageNode(messageNode) {
+// ── API intervention helpers ──────────────────────────────────────────────────
+
+function _tgToggleBtn(textEl, originalNodes, rewrittenText, mode) {
+    if (mode !== 'aware') return;
+    let isOriginal = false;
+    let toggleBtn  = document.createElement('button');
+    toggleBtn.textContent = '👁 Show original';
+    toggleBtn.setAttribute('data-sa-interv-toggle', '1');
+    toggleBtn.style.cssText = [
+        'display:block','margin-left:auto','margin-bottom:4px',
+        'padding:2px 10px','font-size:11px','line-height:1.6',
+        'cursor:pointer','border-radius:4px',
+        'background:rgba(29,155,240,0.08)','color:rgb(29,155,240)',
+        'border:1px solid rgba(29,155,240,0.25)',
+        'font-family:-apple-system,BlinkMacSystemFont,sans-serif',
+    ].join(';');
+    toggleBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        isOriginal = !isOriginal;
+        if (isOriginal) {
+            textEl.textContent = '';
+            originalNodes.forEach(function(n) { textEl.appendChild(n.cloneNode(true)); });
+        } else {
+            textEl.textContent = rewrittenText;
+        }
+        toggleBtn.textContent = isOriginal ? '✏ Show rewritten' : '👁 Show original';
+    });
+    textEl.parentNode.insertBefore(toggleBtn, textEl);
+}
+
+function _tgApplyResult(result, messageNode, mode) {
+    let textEl = messageNode.querySelector(SEL_TG.postText || '.text-content');
+    if (textEl && result.rewritten_text) {
+        let originalNodes = Array.from(textEl.childNodes).map(function(n) { return n.cloneNode(true); });
+        textEl.textContent = result.rewritten_text;
+        _tgToggleBtn(textEl, originalNodes, result.rewritten_text, mode);
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function processMessageNode(messageNode) {
     _processedCount_TG++;
     if (!messageNode || !messageNode.querySelector) return;
 
     const details = extractMessageDetails(messageNode);
     if (!details) return;
 
+    const _renderSurvey = function() {
+        availableContextsTelegram[0].renderSurvey(details.userID, details.postID, {
+            body:         () => extractMessageText(messageNode),
+            media_urls:   () => extractMessageMedia(messageNode),
+            created_at:   details.postAuthorTime,
+            post_metrics: () => extractTelegramMetrics(messageNode)
+        });
+    };
+
+    // ── API path ──────────────────────────────────────────────────────────────
+    if (manipConfig_TG.enabled && manipConfig_TG.source === 'api' && manipConfig_TG.endpoint && window.__sa_intervApi) {
+        if (document.getElementById('surveyFormContainer-' + details.postID)) {
+            _renderSurvey();
+            return;
+        }
+        if (_inFlight_TG.has(details.postID)) return;
+        _inFlight_TG.add(details.postID);
+
+        const cached = window.__sa_intervApi.getCached(details.postID);
+        if (cached) {
+            _tgApplyResult(cached, messageNode, manipConfig_TG.mode);
+            _inFlight_TG.delete(details.postID);
+            injectTelegramPostSurvey(messageNode, details.postID);
+            _renderSurvey();
+            return;
+        }
+
+        const overlay = window.__sa_intervApi.createOverlay(messageNode, manipConfig_TG.mode);
+        const doRetry = function() { _inFlight_TG.delete(details.postID); overlay.remove(); processMessageNode(messageNode); };
+        try {
+            const body = extractMessageText(messageNode);
+            const postData = {
+                post_id:      details.postID,
+                account_id:   details.userID,
+                body,
+                created_at:   details.postAuthorTime || null,
+                media_urls:   extractMessageMedia(messageNode),
+                post_metrics: extractTelegramMetrics(messageNode)
+            };
+            const result = await window.__sa_intervApi.queuePost(postData);
+
+            const meta = { applied: true, label: result.prompt_label || '', map_id: result.map_id || window.__sa_intervApi.getMapId() };
+            if (manipConfig_TG.logOriginal) meta.original_text = body;
+            const extras = {};
+            for (const k in result) {
+                if (!['post_id', 'rewritten_text', 'map_id', 'prompt_label'].includes(k)) extras[k] = result[k];
+            }
+            if (Object.keys(extras).length > 0) meta.extras = extras;
+            manipApplied_TG[details.postID] = meta;
+
+            overlay.parentNode && overlay.parentNode.removeChild(overlay);
+            _inFlight_TG.delete(details.postID);
+
+            _tgApplyResult(result, messageNode, manipConfig_TG.mode);
+            injectTelegramPostSurvey(messageNode, details.postID);
+            _renderSurvey();
+        } catch(err) {
+            overlay.showError(doRetry);
+        }
+        return;
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     const existingContainer = document.getElementById('surveyFormContainer-' + details.postID);
     if (!existingContainer) {
-        // ── Manipulation DOM patch ────────────────────────────
+        // ── Map path ──────────────────────────────────────────────────────────
         if (manipConfig_TG.enabled && manipMap_TG[details.postID]) {
-            let entry   = manipMap_TG[details.postID];
-            let textEl  = messageNode.querySelector(SEL_TG.postText || '.text-content');
+            let entry  = manipMap_TG[details.postID];
+            let textEl = messageNode.querySelector(SEL_TG.postText || '.text-content');
             if (textEl) {
                 let rewrittenText = entry.rewritten_text;
                 let originalText  = entry.original_text || '';
@@ -377,7 +399,7 @@ function processMessageNode(messageNode) {
                     let isOriginal = false;
                     let toggleBtn  = document.createElement('button');
                     toggleBtn.textContent = '👁 Show original';
-                    toggleBtn.setAttribute('data-sa-manip-toggle', '1');
+                    toggleBtn.setAttribute('data-sa-interv-toggle', '1');
                     toggleBtn.style.cssText = [
                         'display:block','margin-left:auto','margin-bottom:4px',
                         'padding:2px 10px','font-size:11px','line-height:1.6',
@@ -399,20 +421,11 @@ function processMessageNode(messageNode) {
                 manipApplied_TG[details.postID] = meta;
             }
         }
-        // ─────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────────
         injectTelegramPostSurvey(messageNode, details.postID);
     }
 
-    availableContextsTelegram[0].renderSurvey(
-        details.userID,
-        details.postID,
-        {
-            body: () => extractMessageText(messageNode),
-            media_urls: () => extractMessageMedia(messageNode),
-            created_at: details.postAuthorTime,
-            post_metrics: () => extractTelegramMetrics(messageNode)
-        }
-    );
+    _renderSurvey();
 }
 
 function createTelegramObserver() {
@@ -421,12 +434,8 @@ function createTelegramObserver() {
             if (mutation.type !== 'childList') continue;
             mutation.addedNodes.forEach(node => {
                 if (!node || node.nodeType !== 1) return;
-
                 const postSelector = SEL_TG.postContainer || '.Message';
-                if (node.matches && node.matches(postSelector)) {
-                    processMessageNode(node);
-                }
-
+                if (node.matches && node.matches(postSelector)) processMessageNode(node);
                 const nestedMessages = node.querySelectorAll ? node.querySelectorAll(postSelector) : [];
                 nestedMessages.forEach(processMessageNode);
             });
@@ -437,7 +446,6 @@ function createTelegramObserver() {
 function enableTelegramObserver() {
     const postSelector = SEL_TG.postContainer || '.Message';
     document.querySelectorAll(postSelector).forEach(processMessageNode);
-
     if (tgMessagesRoot && tgObserver) {
         tgObserver.observe(tgMessagesRoot, tgObserverConfig);
     }
@@ -452,18 +460,19 @@ function initializeSurveys() {
         SEL_TG = { ...(_rawTG.shared || {}), ...(_rawTG.account || {}), ...(_rawTG.post || {}) };
         watchPostCounter('telegram', function () { return _processedCount_TG; });
 
-        // Load manipulation map for telegram-post
         const _postConfTG = result.config && result.config.surveys && result.config.surveys['telegram-post'];
         manipConfig_TG = (_postConfTG && _postConfTG.manipulation) || {};
-        if (manipConfig_TG.enabled && result.manipulationMaps && result.manipulationMaps['telegram-post']) {
+        if (manipConfig_TG.enabled && manipConfig_TG.source !== 'api' && result.manipulationMaps && result.manipulationMaps['telegram-post']) {
             let fullMap = result.manipulationMaps['telegram-post'];
             manipMapId_TG = (fullMap._meta && fullMap._meta.map_id) || '';
             for (let k in fullMap) { if (k !== '_meta') manipMap_TG[k] = fullMap[k]; }
         }
 
-        tgMessagesRoot = document.querySelector(
-            SEL_TG.conversationMessages || '.MessageList .messages-container'
-        ) || document.body;
+        if (manipConfig_TG.enabled && manipConfig_TG.source === 'api' && manipConfig_TG.endpoint && window.__sa_intervApi) {
+            window.__sa_intervApi.init({ endpoint: manipConfig_TG.endpoint, survey_type: 'telegram-post', platform: 'telegram', mode: manipConfig_TG.mode, logOriginal: manipConfig_TG.logOriginal });
+        }
+
+        tgMessagesRoot = document.querySelector(SEL_TG.conversationMessages || '.MessageList .messages-container') || document.body;
         tgObserverConfig = SEL_TG.observerFilter || { attributes: false, childList: true, subtree: true };
         tgObserver = createTelegramObserver();
 
@@ -491,34 +500,30 @@ function initializeSurveys() {
                         chrome.storage.local.get(['isMediaDownloadEnabled'], function (res) {
                             if (res.isMediaDownloadEnabled) {
                                 const evt = new CustomEvent('mh:download-request', {
-                                    detail: {
-                                        postID:     values.post_id,
-                                        userID:     values.account_id,
-                                        surveyType: currentContext.name
-                                    }
+                                    detail: { postID: values.post_id, userID: values.account_id, surveyType: currentContext.name }
                                 });
                                 window.dispatchEvent(evt);
                             }
                         });
 
-                        // Attach manipulation metadata
                         let _ma = manipApplied_TG[values.post_id];
                         if (_ma) {
-                            values.manipulation_applied = true;
-                            values.manipulation_label   = _ma.label;
-                            values.manipulation_map_id  = _ma.map_id;
+                            values.intervention_applied = true;
+                            values.intervention_label   = _ma.label;
+                            values.intervention_map_id  = _ma.map_id;
                             if (_ma.original_text !== undefined) values.original_text = _ma.original_text;
+                            if (_ma.extras) values.intervention_extras = _ma.extras;
                         } else {
-                            values.manipulation_applied = false;
+                            values.intervention_applied = false;
                         }
 
                         storeResults(values, currentPlatform);
                     }
                 }
 
-                currentContext.formTemplate  = config.surveyFormSchema;
-                currentContext.theme         = config.theme || 'light';
-                currentContext.submitAction  = submitAction;
+                currentContext.formTemplate = config.surveyFormSchema;
+                currentContext.theme        = config.theme || 'light';
+                currentContext.submitAction = submitAction;
                 currentContext.injectSurvey(config.injectElement);
             }
         }
@@ -526,7 +531,7 @@ function initializeSurveys() {
 }
 
 window.__socialAnnotate__.platformDebugCapture = function(selectors, stored) {
-    let raw = selectors.telegram || {};
+    let raw   = selectors.telegram || {};
     let SEL_D = Object.assign({}, raw.shared || {}, raw.account || {}, raw.post || {});
 
     function probe(field) {
@@ -541,17 +546,18 @@ window.__socialAnnotate__.platformDebugCapture = function(selectors, stored) {
     }
 
     const SKIP = ['postVideo','postImage','userBanner'];
-    let accountFields = Object.keys(raw.account || {}).filter(f => !SKIP.includes(f)).map(probe);
-    let postFields = Object.keys(raw.post || {}).filter(f => !SKIP.includes(f)).map(probe);
     return {
-        platform: 'telegram',
+        platform:  'telegram',
         surveyType: 'telegram-post',
         injectionStatus: {
-            userSurveyInjected: !!document.getElementById('surveyFormContainer'),
+            userSurveyInjected:  !!document.getElementById('surveyFormContainer'),
             postSurveysInjected: document.querySelectorAll('.survey-container-post').length
         },
         extractedData: {},
-        selectorDiagnostics: [...accountFields, ...postFields]
+        selectorDiagnostics: [
+            ...Object.keys(raw.account || {}).filter(f => !SKIP.includes(f)).map(probe),
+            ...Object.keys(raw.post    || {}).filter(f => !SKIP.includes(f)).map(probe)
+        ]
     };
 };
 

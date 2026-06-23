@@ -103,7 +103,7 @@ function processPostNode(postNode) {
                     let isOriginal = false;
                     let toggleBtn = document.createElement('button');
                     toggleBtn.textContent = '👁 Show original';
-                    toggleBtn.setAttribute('data-sa-manip-toggle', '1');
+                    toggleBtn.setAttribute('data-sa-interv-toggle', '1');
                     toggleBtn.style.cssText = [
                         'display:block', 'margin-bottom:4px', 'padding:2px 10px',
                         'font-size:11px', 'cursor:pointer', 'border-radius:4px',
@@ -388,12 +388,12 @@ function initializeSurveys() {
 
                         let _ma = manipApplied_TT[values.post_id];
                         if (_ma) {
-                            values.manipulation_applied = true;
-                            values.manipulation_label = _ma.label;
-                            values.manipulation_map_id = _ma.map_id;
+                            values.intervention_applied = true;
+                            values.intervention_label = _ma.label;
+                            values.intervention_map_id = _ma.map_id;
                             if (_ma.original_text !== undefined) values.original_text = _ma.original_text;
                         } else {
-                            values.manipulation_applied = false;
+                            values.intervention_applied = false;
                         }
 
                         storeResults(values, currentPlatform);

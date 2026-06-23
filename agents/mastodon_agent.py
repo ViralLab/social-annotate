@@ -11,10 +11,11 @@ into each post and extract post metadata (author, text, media, timestamp, metric
 
 RULES:
 1. appRoot: Mastodon mounts as a React SPA inside '#mastodon'. Use '#mastodon'.
-2. postContainer: each status (toot) in the timeline is wrapped in a div or article
-   with the class '.status__wrapper'. This is the per-post container — do NOT select
-   the column scroll container, only the individual status wrappers.
-   Use: .status__wrapper
+2. postContainer: use the combined selector that covers both timeline posts AND the
+   focal post on detail/status pages:
+     .status__wrapper, article.status, .detailed-status__wrapper
+   Never use only '.status__wrapper' — '.detailed-status__wrapper' is required so
+   survey injection works on individual post pages.
 3. postText: the body text lives in '.status__content'. Use that.
 4. postTimestamp: each post has a timestamp element inside
    'a.status__relative-time time' — use the 'datetime' attribute for the ISO value.
@@ -46,6 +47,7 @@ MASTODON_PLATFORM_AGENT = PlatformAgent(
     offline_selectors=[
         ".status__wrapper",
         "article.status",
+        ".detailed-status__wrapper",
         '[role="article"]',
     ],
     block_spa_scripts=False,

@@ -16,6 +16,8 @@ let manipConfig_FB = {};
 let manipMap_FB = {};
 let manipMapId_FB = '';
 let manipApplied_FB = {};
+let manipConfig_FBU = {};
+let manipApplied_FBU = {};
 const _inFlight_FB = new Set();
 
 // ── URL helpers ───────────────────────────────────────────────────────────────
@@ -143,6 +145,121 @@ function onFBNavChange() {
             console.log('[FB] onFBNavChange: ctx not found!');
         }
     }, 1500);
+}
+
+// ── User intervention ─────────────────────────────────────────────────────────
+
+function _fbuGetFieldEl(field) {
+    switch (field) {
+        case 'profile_name':
+            return document.querySelector(SEL_FB.userDisplayName || 'h1.html-h1');
+        case 'followers_count':
+            return document.querySelector(SEL_FB.userFollowersCount || 'a[href*="/followers/"] strong');
+        case 'following_count':
+            return document.querySelector(SEL_FB.userFollowingCount || 'a[href*="/following/"] strong');
+        case 'bio':
+            return document.querySelector(SEL_FB.userBioText || 'span[dir="auto"]');
+    }
+    return null;
+}
+
+function _fbuToggleBtn(fieldEl, originalText, rewrittenText) {
+    let isOriginal = false;
+    let btn = document.createElement('button');
+    btn.textContent = '👁 Show original';
+    btn.setAttribute('data-sa-interv-toggle', '1');
+    btn.style.cssText = [
+        'display:inline-block','margin-left:6px','padding:1px 8px','font-size:11px',
+        'line-height:1.6','cursor:pointer','border-radius:4px','vertical-align:middle',
+        'background:rgba(24,119,242,0.08)','color:rgb(24,119,242)',
+        'border:1px solid rgba(24,119,242,0.25)',
+        'font-family:-apple-system,BlinkMacSystemFont,sans-serif',
+    ].join(';');
+    btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        isOriginal = !isOriginal;
+        fieldEl.textContent = isOriginal ? originalText : rewrittenText;
+        btn.textContent = isOriginal ? '✏ Show rewritten' : '👁 Show original';
+    });
+    fieldEl.parentNode.insertBefore(btn, fieldEl.nextSibling);
+}
+
+async function _applyFBUserIntervention(userID, profile, existingOverlay) {
+    if (!manipConfig_FBU.enabled || !manipConfig_FBU.endpoint) return;
+    let fields = manipConfig_FBU.fields || {};
+    let fieldsToIntervene = Object.keys(fields).filter(function(f) { return fields[f]; });
+    if (fieldsToIntervene.length === 0) { if (existingOverlay) existingOverlay(); return; }
+
+    let removeOverlay = existingOverlay || _createUserInterventionOverlay();
+
+    let domValues = {};
+    fieldsToIntervene.forEach(function(f) {
+        let el = _fbuGetFieldEl(f);
+        if (el) domValues[f] = (el.innerText || el.textContent || '').trim();
+    });
+
+    let payload = {
+        survey_type: 'facebook-user',
+        platform: 'facebook',
+        account_id: userID,
+        profile_name: domValues.profile_name || profile.profile_name || null,
+        followers_count: domValues.followers_count || null,
+        following_count: domValues.following_count || null,
+        bio: domValues.bio || profile.bio || null,
+        fields_to_intervene: fieldsToIntervene
+    };
+
+    let result;
+    try {
+        let response = await fetch(manipConfig_FBU.endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!response.ok) { removeOverlay(); return; }
+        result = await response.json();
+    } catch(e) { removeOverlay(); return; }
+
+    let originalValues = {};
+    let profileSnapshot = null;
+
+    function applyFields() {
+        let appliedAny = false;
+        for (let field of fieldsToIntervene) {
+            if (!result[field]) continue;
+            let el = _fbuGetFieldEl(field);
+            if (!el) continue;
+            if (originalValues[field] === undefined) originalValues[field] = (el.innerText || el.textContent || '').trim();
+            if ((el.innerText || el.textContent || '').trim() === result[field]) { appliedAny = true; continue; }
+            if (!profileSnapshot) {
+                try { profileSnapshot = extractFacebookProfile(); } catch(e) {}
+            }
+            el.textContent = result[field];
+            appliedAny = true;
+            if (manipConfig_FBU.mode === 'aware') {
+                let next = el.nextSibling;
+                let hasToggle = next && next.nodeType === 1 && next.getAttribute && next.getAttribute('data-sa-interv-toggle');
+                if (!hasToggle) _fbuToggleBtn(el, originalValues[field], result[field]);
+            }
+        }
+        if (appliedAny) removeOverlay();
+
+        // Patch snapshot: profile_name and bio use selectors that can match unrelated nav elements.
+        // originalValues are captured directly from the target elements, so they're always correct.
+        if (profileSnapshot) {
+            if (originalValues.profile_name !== undefined) profileSnapshot.profile_name = originalValues.profile_name;
+            if (originalValues.bio !== undefined) profileSnapshot.bio = originalValues.bio;
+        }
+
+        let appliedFields = {};
+        for (let field of fieldsToIntervene) {
+            if (result[field]) appliedFields[field] = { original: originalValues[field] || '', rewritten: result[field] };
+        }
+        manipApplied_FBU[userID] = { applied: true, fields: appliedFields, profileSnapshot: profileSnapshot };
+    }
+
+    applyFields();
+    [200, 600, 1500].forEach(function(delay) { setTimeout(applyFields, delay); });
 }
 
 // ── Survey injection ──────────────────────────────────────────────────────────
@@ -546,6 +663,8 @@ window.addEventListener('mh:download-request', function(e) {
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 
 function initializeSurveys() {
+    let _earlyOverlayRemove = checkFacebookUserURL() ? _createUserInterventionOverlay(4000) : null;
+
     chrome.storage.local.get(['config', 'isEnabled', 'activeTargetList', 'clientID', 'isGuided', 'selectors', 'manipulationMaps'], function(result) {
         const _rawFB = (result.selectors && result.selectors.facebook) ? result.selectors.facebook : {};
         SEL_FB = Object.assign({}, _rawFB.shared || {}, _rawFB.account || {}, _rawFB.post || {});
@@ -553,6 +672,8 @@ function initializeSurveys() {
 
         const _postConfFB = result.config && result.config.surveys && result.config.surveys['facebook-post'];
         manipConfig_FB = (_postConfFB && _postConfFB.manipulation) || {};
+        const _userConfFBU = result.config && result.config.surveys && result.config.surveys['facebook-user'];
+        manipConfig_FBU = (_userConfFBU && _userConfFBU.manipulation) || {};
         if (manipConfig_FB.enabled && manipConfig_FB.source !== 'api' && result.manipulationMaps && result.manipulationMaps['facebook-post']) {
             let fullMap = result.manipulationMaps['facebook-post'];
             manipMapId_FB = (fullMap._meta && fullMap._meta.map_id) || '';
@@ -594,6 +715,16 @@ function initializeSurveys() {
                                     chrome.runtime.sendMessage({ action: 'downloadMedia', urls: [profile.bannerUrl], userId: values.account_id || 'user', postId: 'banner', surveyType: activeSurvey });
                                 }
                             });
+                            let _maU = manipApplied_FBU[values.account_id];
+                            if (_maU) {
+                                values.intervention_applied = true;
+                                values.intervention_label   = 'user-intervention';
+                                values.intervention_map_id  = '';
+                                values.intervention_fields  = _maU.fields;
+                                if (_maU.profileSnapshot) values.user_profile = _maU.profileSnapshot;
+                            } else {
+                                values.intervention_applied = false;
+                            }
                         } else {
                             let _ma = manipApplied_FB[values.post_id];
                             if (_ma) {
@@ -631,9 +762,19 @@ function initializeSurveys() {
                     currentContext.renderSurvey(surveyID, null, {
                         user_profile: function() { return extractFacebookProfile(); }
                     });
+                    if (manipConfig_FBU.enabled) {
+                        let profile = extractFacebookProfile();
+                        _applyFBUserIntervention(surveyID, profile, _earlyOverlayRemove);
+                        _earlyOverlayRemove = null;
+                    } else if (_earlyOverlayRemove) {
+                        _earlyOverlayRemove();
+                        _earlyOverlayRemove = null;
+                    }
                 }
             }
         }
+
+        if (_earlyOverlayRemove) { _earlyOverlayRemove(); _earlyOverlayRemove = null; }
 
         // Facebook updates <title> via React internals — MutationObserver can't catch it.
         // Poll the URL directly instead; 500ms is imperceptible and catches all pushState navs.

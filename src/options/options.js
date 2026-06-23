@@ -486,7 +486,7 @@ function buildSurveyCard(key, survey) {
     };
     let annotationHint = annotationHints[key] || 'Comma-separated identifiers';
     const noManipulationKeys = new Set(['tiktok-post', 'youtube-video', 'youtube-user']);
-    const userInterventionKeys = new Set(['x-user', 'bluesky-user', 'truthsocial-user', 'mastodon-user', 'instagram-user', 'tiktok-user']);
+    const userInterventionKeys = new Set(['x-user', 'bluesky-user', 'truthsocial-user', 'mastodon-user', 'instagram-user', 'tiktok-user', 'facebook-user']);
     let hasManipulation = !noManipulationKeys.has(key) && (!key.endsWith('-user') || userInterventionKeys.has(key));
     let isUserInterv = userInterventionKeys.has(key);
     return `
@@ -606,10 +606,10 @@ function buildSurveyCard(key, survey) {
           <label class="field-label">Fields to Intervene</label>
           <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="${key}_ui-field-profile_name" style="margin:0;"> Profile Name</label>
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="${key}_ui-field-handle" style="margin:0;"> Username / Handle</label>
+            ${key !== 'facebook-user' ? `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="${key}_ui-field-handle" style="margin:0;"> Username / Handle</label>` : ''}
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="${key}_ui-field-followers_count" style="margin:0;"> Follower Count</label>
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="${key}_ui-field-following_count" style="margin:0;"> Following Count</label>
-            ${(key !== 'truthsocial-user' && key !== 'instagram-user' && key !== 'tiktok-user') ? `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="${key}_ui-field-posts_count" style="margin:0;"> Posts Count</label>` : ''}
+            ${(key !== 'truthsocial-user' && key !== 'instagram-user' && key !== 'tiktok-user' && key !== 'facebook-user') ? `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="${key}_ui-field-posts_count" style="margin:0;"> Posts Count</label>` : ''}
             ${key === 'tiktok-user' ? `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="${key}_ui-field-likes_count" style="margin:0;"> Likes Count</label>` : ''}
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="${key}_ui-field-bio" style="margin:0;"> Bio / Description</label>
           </div>

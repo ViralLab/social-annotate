@@ -1,6 +1,6 @@
 from intervention_server import UserInterventionHandler
 
-USER_FIELDS = ["profile_name", "handle", "followers_count", "following_count", "bio"]
+USER_FIELDS = ["profile_name", "handle", "followers_count", "following_count", "posts_count", "likes_count", "bio"]
 
 
 class MinusOneUserHandler(UserInterventionHandler):

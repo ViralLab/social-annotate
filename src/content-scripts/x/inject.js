@@ -511,6 +511,25 @@ function extractUserProfile() {
         }
     } catch (e) { /* skip */ }
 
+    // Posts count — X shows "1,234 posts" in an <h2> above the timeline tabs
+    try {
+        let postsEl = SEL.user_post_count ? document.querySelector(SEL.user_post_count) : null;
+        if (!postsEl) {
+            let headings = document.querySelectorAll('h2[role="heading"] div, h2[role="heading"] span');
+            for (let h of headings) {
+                if (h.childElementCount === 0 && /^[\d,.KMBkmb\s]+\s+posts?$/i.test(h.textContent.trim())) {
+                    postsEl = h; break;
+                }
+            }
+        }
+        if (postsEl) {
+            let text = postsEl.textContent.trim();
+            profile.postsText = text;
+            let numMatch = text.match(/([\d,.]+[KMB]?)/);
+            if (numMatch) profile.postsCount = numMatch[1];
+        }
+    } catch (e) { /* skip */ }
+
     // Location
     try {
         let locEl = document.querySelector(SEL.userLocation || '[data-testid="UserLocation"]');
@@ -605,6 +624,18 @@ function _xuGetFieldEl(field) {
         }
         case 'bio':
             return document.querySelector(SEL.userBio || '[data-testid="UserDescription"]');
+        case 'posts_count': {
+            // X shows "1,234 posts" in an <h2> above the timeline tabs
+            if (SEL.user_post_count) {
+                let el = document.querySelector(SEL.user_post_count);
+                if (el) return el;
+            }
+            let headings = document.querySelectorAll('h2[role="heading"] div, h2[role="heading"] span');
+            for (let h of headings) {
+                if (h.childElementCount === 0 && /^[\d,.KMBkmb\s]+\s+posts?$/i.test(h.textContent.trim())) return h;
+            }
+            return null;
+        }
     }
     return null;
 }
@@ -650,6 +681,7 @@ async function _applyXUserIntervention(userID, profile) {
         handle: profile.handle || null,
         followers_count: profile.followersCount || null,
         following_count: profile.followingCount || null,
+        posts_count: profile.postsCount || null,
         bio: profile.bio || null,
         fields_to_intervene: fieldsToIntervene
     };
@@ -668,6 +700,9 @@ async function _applyXUserIntervention(userID, profile) {
     // Captured lazily inside applyFields — first time an element is found in the DOM
     // (React may not have rendered it yet at fetch-response time)
     let originalValues = {};
+    // Profile snapshot captured right before the first DOM mutation — the latest
+    // point where extractUserProfile still sees real (un-rewritten) values.
+    let profileSnapshot = null;
 
     function applyFields() {
         let appliedAny = false;
@@ -680,6 +715,10 @@ async function _applyXUserIntervention(userID, profile) {
                 originalValues[field] = el.textContent;
             }
             if (el.textContent === result[field]) { appliedAny = true; continue; }
+            // Snapshot the full profile right before we mutate for the first time
+            if (!profileSnapshot) {
+                try { profileSnapshot = extractUserProfile(); } catch (e) {}
+            }
             el.textContent = result[field];
             appliedAny = true;
             // Only add toggle once — check after <a> ancestor (count fields) or after el
@@ -692,6 +731,14 @@ async function _applyXUserIntervention(userID, profile) {
             }
         }
         if (appliedAny) removeOverlay();
+
+        // Refresh manipApplied each pass — originals may have been captured
+        // on a later retry once React rendered the profile elements.
+        let appliedFields = {};
+        for (let field of fieldsToIntervene) {
+            if (result[field]) appliedFields[field] = { original: originalValues[field] || '', rewritten: result[field] };
+        }
+        manipApplied_XU[userID] = { applied: true, fields: appliedFields, profileSnapshot: profileSnapshot };
     }
 
     applyFields();
@@ -699,12 +746,6 @@ async function _applyXUserIntervention(userID, profile) {
     [200, 600, 1500].forEach(function(delay) {
         setTimeout(applyFields, delay);
     });
-
-    let appliedFields = {};
-    for (let field of fieldsToIntervene) {
-        if (result[field]) appliedFields[field] = { original: originalValues[field] || '', rewritten: result[field] };
-    }
-    manipApplied_XU[userID] = { applied: true, fields: appliedFields };
 }
 
 // ─────────────────────────────────────────────────────────
@@ -1057,7 +1098,8 @@ function initializeSurveys() {
                             values.intervention_applied = true;
                             values.intervention_label   = 'user-intervention';
                             values.intervention_map_id  = '';
-                            values.intervention_extras  = _maU.fields;
+                            values.intervention_fields  = _maU.fields;
+                            if (_maU.profileSnapshot) values.user_profile = _maU.profileSnapshot;
                         } else {
                             values.intervention_applied = false;
                         }

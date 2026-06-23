@@ -562,6 +562,8 @@ function restructureOutput(flat) {
             intervention.map_id = flat[k];
         } else if (k === 'original_text') {
             intervention.original_text = flat[k];
+        } else if (k === 'intervention_fields') {
+            intervention.fields = flat[k];
         } else if (k === 'intervention_extras') {
             // Extra fields returned by the live API — spread into the intervention group
             if (flat[k] && typeof flat[k] === 'object') {

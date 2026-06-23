@@ -524,6 +524,16 @@ function extractUserProfile() {
     } catch (e) {}
 
     try {
+        let postsEl = SEL_TS.user_post_count ? document.querySelector(SEL_TS.user_post_count) : null;
+        if (postsEl) {
+            let text = postsEl.textContent.trim();
+            profile.postsText = text;
+            let numMatch = text.match(/([\d,.]+[KMB]?)/i);
+            if (numMatch) profile.postsCount = numMatch[1];
+        }
+    } catch (e) {}
+
+    try {
         let urlEl = document.querySelector(SEL_TS.userUrl || '.max-w-\\[300px\\] a');
         if (urlEl) profile.websiteUrl = urlEl.href;
     } catch(e) {}
@@ -564,6 +574,16 @@ function _tsuGetFieldEl(field) {
         }
         case 'bio':
             return document.querySelector(SEL_TS.userBio || 'div.mt-6.space-y-3 > p[data-markup="true"]');
+        case 'posts_count': {
+            if (!SEL_TS.user_post_count) return null;
+            let btn = document.querySelector(SEL_TS.user_post_count);
+            if (!btn) return null;
+            let children = btn.querySelectorAll('span, div, p');
+            for (let s of children) {
+                if (s.childElementCount === 0 && /^[\d,.KMBkmb]+$/.test(s.textContent.trim())) return s;
+            }
+            return btn;
+        }
     }
     return null;
 }
@@ -607,6 +627,7 @@ async function _applyTSUserIntervention(userID, profile) {
         handle: profile.handle || null,
         followers_count: profile.followersCount || null,
         following_count: profile.followingCount || null,
+        posts_count: profile.postsCount || null,
         bio: profile.bio || null,
         fields_to_intervene: fieldsToIntervene
     };
@@ -623,6 +644,7 @@ async function _applyTSUserIntervention(userID, profile) {
     } catch (e) { removeOverlay(); return; }
 
     let originalValues = {};
+    let profileSnapshot = null;
 
     function applyFields() {
         let appliedAny = false;
@@ -632,6 +654,9 @@ async function _applyTSUserIntervention(userID, profile) {
             if (!el) continue;
             if (originalValues[field] === undefined) originalValues[field] = el.textContent;
             if (el.textContent === result[field]) { appliedAny = true; continue; }
+            if (!profileSnapshot) {
+                try { profileSnapshot = extractUserProfile(); } catch (e) {}
+            }
             el.textContent = result[field];
             appliedAny = true;
             if (manipConfig_TSU.mode === 'aware') {
@@ -643,16 +668,18 @@ async function _applyTSUserIntervention(userID, profile) {
             }
         }
         if (appliedAny) removeOverlay();
+
+        // Refresh manipApplied each pass — originals may have been captured
+        // on a later retry once React rendered the profile elements.
+        let appliedFields = {};
+        for (let field of fieldsToIntervene) {
+            if (result[field]) appliedFields[field] = { original: originalValues[field] || '', rewritten: result[field] };
+        }
+        manipApplied_TSU[userID] = { applied: true, fields: appliedFields, profileSnapshot: profileSnapshot };
     }
 
     applyFields();
     [200, 600, 1500].forEach(function(delay) { setTimeout(applyFields, delay); });
-
-    let appliedFields = {};
-    for (let field of fieldsToIntervene) {
-        if (result[field]) appliedFields[field] = { original: originalValues[field] || '', rewritten: result[field] };
-    }
-    manipApplied_TSU[userID] = { applied: true, fields: appliedFields };
 }
 
 // ─────────────────────────────────────────────────────────
@@ -798,7 +825,8 @@ function initializeSurveys() {
                             values.intervention_applied = true;
                             values.intervention_label   = 'user-intervention';
                             values.intervention_map_id  = '';
-                            values.intervention_extras  = _maU.fields;
+                            values.intervention_fields  = _maU.fields;
+                            if (_maU.profileSnapshot) values.user_profile = _maU.profileSnapshot;
                         } else {
                             values.intervention_applied = false;
                         }

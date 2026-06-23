@@ -234,7 +234,7 @@ function loadPage() {
             showManipMapStatus(key, loadedMap || null);
             // User intervention field checkboxes
             let uiFieldsLoaded = manip.fields || {};
-            ['profile_name','handle','followers_count','following_count','bio'].forEach(function(f) {
+            ['profile_name','handle','followers_count','following_count','posts_count','likes_count','bio'].forEach(function(f) {
                 let fEl = document.getElementById(key + '_ui-field-' + f);
                 if (fEl) fEl.checked = !!uiFieldsLoaded[f];
             });
@@ -486,7 +486,7 @@ function buildSurveyCard(key, survey) {
     };
     let annotationHint = annotationHints[key] || 'Comma-separated identifiers';
     const noManipulationKeys = new Set(['tiktok-post', 'youtube-video', 'youtube-user']);
-    const userInterventionKeys = new Set(['x-user', 'bluesky-user', 'truthsocial-user', 'mastodon-user']);
+    const userInterventionKeys = new Set(['x-user', 'bluesky-user', 'truthsocial-user', 'mastodon-user', 'instagram-user', 'tiktok-user']);
     let hasManipulation = !noManipulationKeys.has(key) && (!key.endsWith('-user') || userInterventionKeys.has(key));
     let isUserInterv = userInterventionKeys.has(key);
     return `
@@ -609,6 +609,8 @@ function buildSurveyCard(key, survey) {
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="${key}_ui-field-handle" style="margin:0;"> Username / Handle</label>
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="${key}_ui-field-followers_count" style="margin:0;"> Follower Count</label>
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="${key}_ui-field-following_count" style="margin:0;"> Following Count</label>
+            ${(key !== 'truthsocial-user' && key !== 'instagram-user' && key !== 'tiktok-user') ? `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="${key}_ui-field-posts_count" style="margin:0;"> Posts Count</label>` : ''}
+            ${key === 'tiktok-user' ? `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="${key}_ui-field-likes_count" style="margin:0;"> Likes Count</label>` : ''}
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="${key}_ui-field-bio" style="margin:0;"> Bio / Description</label>
           </div>
         </div>
@@ -1128,7 +1130,7 @@ function saveOptionsPage() {
                 };
                 // User intervention field checkboxes
                 let uiFields = {};
-                ['profile_name','handle','followers_count','following_count','bio'].forEach(function(f) {
+                ['profile_name','handle','followers_count','following_count','posts_count','likes_count','bio'].forEach(function(f) {
                     let fEl = document.getElementById(key + '_ui-field-' + f);
                     if (fEl) uiFields[f] = fEl.checked;
                 });

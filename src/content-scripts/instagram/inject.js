@@ -35,6 +35,10 @@ let manipMapId_IGR  = '';
 let manipApplied_IGR = {};
 let manipConfig_IGC = {};
 let manipApplied_IGC = {};
+
+// ── User intervention state ───────────────────────────────
+let manipConfig_IGU  = {};
+let manipApplied_IGU = {};
 const _inFlight_IGC = new Set();
 let _processedCount_IG     = 0;
 registerHealthCounter(function () { return _processedCount_IG; });
@@ -860,6 +864,166 @@ function processCurrentReel() {
     });
 }
 
+// ── User intervention helpers ─────────────────────────────
+
+function _iguGetFieldEl(field) {
+    switch (field) {
+        case 'profile_name':
+            return document.querySelector(SEL_IG.userDisplayName || 'section h1[dir="auto"], section > div span[dir="auto"]:first-of-type');
+        case 'handle':
+            return document.querySelector(SEL_IG.userHandle || 'section h2[dir="auto"]');
+        case 'followers_count': {
+            // Try selector first; if it fails, search for "followers" text pattern
+            let a = document.querySelector(SEL_IG.userFollowers || 'a[href$="/followers/"], a[href$="/followers"]');
+            if (a) {
+                let spans = a.querySelectorAll('span');
+                for (let s of spans) {
+                    if (s.childElementCount === 0 && /^[\d,.]/.test(s.textContent.trim())) return s;
+                }
+                return a;
+            }
+            // Fallback: search all spans for "X followers" text pattern
+            let allSpans = document.querySelectorAll('section span[dir="auto"]');
+            for (let s of allSpans) {
+                if (/^[\d,.][\d,.KMBkmb\s]*\s+followers?$/i.test(s.textContent.trim())) return s;
+            }
+            return null;
+        }
+        case 'following_count': {
+            let a = document.querySelector(SEL_IG.userFollowing || 'a[href$="/following/"], a[href$="/following"]');
+            if (a) {
+                let spans = a.querySelectorAll('span');
+                for (let s of spans) {
+                    if (s.childElementCount === 0 && /^[\d,.]/.test(s.textContent.trim())) return s;
+                }
+                return a;
+            }
+            // Fallback: search all spans for "X following" text pattern
+            let allSpans = document.querySelectorAll('section span[dir="auto"]');
+            for (let s of allSpans) {
+                if (/^[\d,.][\d,.KMBkmb\s]*\s+following$/i.test(s.textContent.trim())) return s;
+            }
+            return null;
+        }
+        case 'bio':
+            return document.querySelector(SEL_IG.userBio || '._aade');
+        case 'posts_count': {
+            // Try configured selector first
+            if (SEL_IG.user_post_count) {
+                let a = document.querySelector(SEL_IG.user_post_count);
+                if (a) {
+                    let spans = a.querySelectorAll('span');
+                    for (let s of spans) {
+                        if (s.childElementCount === 0 && /^[\d,.]/.test(s.textContent.trim())) return s;
+                    }
+                    return a;
+                }
+            }
+            // Fallback: search all spans for "X posts" text pattern
+            let allSpans = document.querySelectorAll('section span[dir="auto"]');
+            for (let s of allSpans) {
+                if (/^[\d,.][\d,.KMBkmb\s]*\s+posts?$/i.test(s.textContent.trim())) return s;
+            }
+            return null;
+        }
+    }
+    return null;
+}
+
+function _iguToggleBtn(fieldEl, originalText, rewrittenText) {
+    let isOriginal = false;
+    let btn = document.createElement('button');
+    btn.textContent = '👁 Show original';
+    btn.setAttribute('data-sa-interv-toggle', '1');
+    btn.style.cssText = [
+        'display:inline-block','margin-left:6px','padding:1px 8px','font-size:11px',
+        'line-height:1.6','cursor:pointer','border-radius:4px','vertical-align:middle',
+        'background:rgba(0,0,0,0.08)','color:rgb(0,0,0)',
+        'border:1px solid rgba(0,0,0,0.25)',
+        'font-family:-apple-system,BlinkMacSystemFont,sans-serif',
+    ].join(';');
+    btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        isOriginal = !isOriginal;
+        fieldEl.textContent = isOriginal ? originalText : rewrittenText;
+        btn.textContent = isOriginal ? '✏ Show rewritten' : '👁 Show original';
+    });
+    let container = fieldEl.closest('a') || fieldEl.closest('button');
+    let insertAfter = container || fieldEl;
+    insertAfter.parentNode.insertBefore(btn, insertAfter.nextSibling);
+}
+
+async function _applyIGUserIntervention(userID, profile) {
+    if (!manipConfig_IGU.enabled || !manipConfig_IGU.endpoint) return;
+    let fields = manipConfig_IGU.fields || {};
+    let fieldsToIntervene = Object.keys(fields).filter(function(f) { return fields[f]; });
+    if (fieldsToIntervene.length === 0) return;
+
+    let removeOverlay = _createUserInterventionOverlay();
+
+    let payload = {
+        survey_type: 'instagram-user',
+        platform: 'instagram',
+        account_id: userID,
+        profile_name: profile.profile_name || null,
+        handle: profile.handle || null,
+        followers_count: profile.followersCount || null,
+        following_count: profile.followingCount || null,
+        posts_count: profile.postsCount || null,
+        bio: profile.bio || null,
+        fields_to_intervene: fieldsToIntervene
+    };
+
+    let result;
+    try {
+        let response = await fetch(manipConfig_IGU.endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!response.ok) { removeOverlay(); return; }
+        result = await response.json();
+    } catch (e) { removeOverlay(); return; }
+
+    let originalValues = {};
+    let profileSnapshot = null;
+
+    function applyFields() {
+        let appliedAny = false;
+        for (let field of fieldsToIntervene) {
+            if (!result[field]) continue;
+            let el = _iguGetFieldEl(field);
+            if (!el) continue;
+            if (originalValues[field] === undefined) originalValues[field] = el.textContent;
+            if (el.textContent === result[field]) { appliedAny = true; continue; }
+            if (!profileSnapshot) {
+                try { profileSnapshot = extractUserProfile(); } catch (e) {}
+            }
+            el.textContent = result[field];
+            appliedAny = true;
+            if (manipConfig_IGU.mode === 'aware') {
+                let container = el.closest('a') || el.closest('button');
+                let checkAfter = container || el;
+                let next = checkAfter.nextSibling;
+                let hasToggle = next && next.nodeType === 1 && next.getAttribute && next.getAttribute('data-sa-interv-toggle');
+                if (!hasToggle) _iguToggleBtn(el, originalValues[field], result[field]);
+            }
+        }
+        if (appliedAny) removeOverlay();
+
+        // Refresh manipApplied each pass — originals may have been captured
+        // on a later retry once React rendered the profile elements.
+        let appliedFields = {};
+        for (let field of fieldsToIntervene) {
+            if (result[field]) appliedFields[field] = { original: originalValues[field] || '', rewritten: result[field] };
+        }
+        manipApplied_IGU[userID] = { applied: true, fields: appliedFields, profileSnapshot: profileSnapshot };
+    }
+
+    applyFields();
+    [200, 600, 1500].forEach(function(delay) { setTimeout(applyFields, delay); });
+}
+
 // ─────────────────────────────────────────────────────────
 
 function injectInstagramUserSurvey(injectElement, userID) {
@@ -1207,6 +1371,10 @@ function initializeSurveys() {
             window.__sa_intervApi.init({ endpoint: manipConfig_IGC.endpoint, survey_type: 'instagram-comment', platform: 'instagram', mode: manipConfig_IGC.mode, logOriginal: manipConfig_IGC.logOriginal });
         }
 
+        // Load config for instagram-user intervention
+        const _userConfIG = result.config && result.config.surveys && result.config.surveys['instagram-user'];
+        manipConfig_IGU = (_userConfIG && _userConfIG.manipulation) || {};
+
         const currentPlatform = 'instagram';
         for (let index = 0; index < availableContextsInstagram.length; ++index) {
             let currentContext = availableContextsInstagram[index];
@@ -1228,23 +1396,30 @@ function initializeSurveys() {
                         values.studyID = studyID;
 
                         // Attach intervention metadata (each context has its own applied map)
+                        let isUserSurvey = currentContext.name === 'instagram-user';
                         let _manipApplied = currentContext.name === 'instagram-reel' ? manipApplied_IGR
                             : currentContext.name === 'instagram-comment' ? manipApplied_IGC
+                            : isUserSurvey ? manipApplied_IGU
                             : manipApplied_IG;
-                        let _ma = _manipApplied[values.post_id];
+
+                        // For user surveys, key is account_id; for post surveys, key is post_id
+                        let lookupKey = isUserSurvey ? values.account_id : (values.post_id || values.account_id);
+                        let _ma = _manipApplied[lookupKey];
+
                         if (_ma) {
                             values.intervention_applied = true;
-                            values.intervention_label   = _ma.label;
-                            values.intervention_map_id  = _ma.map_id;
+                            values.intervention_label   = _ma.label || (isUserSurvey ? 'user-intervention' : '');
+                            values.intervention_map_id  = _ma.map_id || '';
                             if (_ma.original_text !== undefined) values.original_text = _ma.original_text;
+                            if (_ma.fields) values.intervention_fields = _ma.fields;
                             if (_ma.extras) values.intervention_extras = _ma.extras;
+                            if (isUserSurvey && _ma.profileSnapshot) values.user_profile = _ma.profileSnapshot;
                         } else {
                             values.intervention_applied = false;
                         }
 
                         storeResults(values, currentPlatform);
 
-                        let isUserSurvey = currentContext.name.endsWith('-user');
                         if (isUserSurvey) {
                             chrome.storage.local.get(['isProfileDownloadEnabled', 'isBannerDownloadEnabled'], function(res) {
                                 if (res.isProfileDownloadEnabled || res.isBannerDownloadEnabled) {
@@ -1278,6 +1453,10 @@ function initializeSurveys() {
                         currentContext.renderSurvey(surveyID, null, {
                             user_profile: () => extractUserProfile()
                         });
+                        if (manipConfig_IGU.enabled) {
+                            let profile = extractUserProfile();
+                            _applyIGUserIntervention(surveyID, profile);
+                        }
                     }
                 }
             }

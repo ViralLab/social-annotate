@@ -13,6 +13,8 @@ let manipConfig_TT  = {};
 let manipMap_TT     = {};
 let manipMapId_TT   = '';
 let manipApplied_TT     = {};
+let manipConfig_TTU = {};
+let manipApplied_TTU = {};
 let _processedCount_TT     = 0;
 registerHealthCounter(function () { return _processedCount_TT; });
 
@@ -282,6 +284,115 @@ function extractUserProfile() {
     return profile;
 }
 
+// ── TikTok user intervention ──────────────────────────────
+
+function _ttuGetFieldEl(field) {
+    switch (field) {
+        case 'profile_name':
+            return document.querySelector(SEL_TT.userDisplayName || 'h1[data-e2e="user-title"]');
+        case 'handle':
+            return document.querySelector(SEL_TT.userHandle || 'h2[data-e2e="user-subtitle"]');
+        case 'followers_count':
+            return document.querySelector(SEL_TT.userFollowers || 'strong[data-e2e="followers-count"]');
+        case 'following_count':
+            return document.querySelector(SEL_TT.userFollowing || 'strong[data-e2e="following-count"]');
+        case 'likes_count':
+            return document.querySelector(SEL_TT.userTotalLikes || 'strong[data-e2e="likes-count"]');
+        case 'bio':
+            return document.querySelector(SEL_TT.userBio || 'h2[data-e2e="user-bio"]');
+    }
+    return null;
+}
+
+function _ttuToggleBtn(fieldEl, originalText, rewrittenText) {
+    let isOriginal = false;
+    let btn = document.createElement('button');
+    btn.textContent = '👁 Show original';
+    btn.setAttribute('data-sa-interv-toggle', '1');
+    btn.style.cssText = [
+        'display:inline-block','margin-left:6px','padding:1px 8px','font-size:11px',
+        'line-height:1.6','cursor:pointer','border-radius:4px','vertical-align:middle',
+        'background:rgba(254,44,85,0.08)','color:rgb(254,44,85)',
+        'border:1px solid rgba(254,44,85,0.25)',
+        'font-family:-apple-system,BlinkMacSystemFont,sans-serif',
+    ].join(';');
+    btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        isOriginal = !isOriginal;
+        fieldEl.textContent = isOriginal ? originalText : rewrittenText;
+        btn.textContent = isOriginal ? '✏ Show rewritten' : '👁 Show original';
+    });
+    let insertAfter = fieldEl;
+    insertAfter.parentNode.insertBefore(btn, insertAfter.nextSibling);
+}
+
+async function _applyTTUserIntervention(userID, profile) {
+    if (!manipConfig_TTU.enabled || !manipConfig_TTU.endpoint) return;
+    let fields = manipConfig_TTU.fields || {};
+    let fieldsToIntervene = Object.keys(fields).filter(function(f) { return fields[f]; });
+    if (fieldsToIntervene.length === 0) return;
+
+    let removeOverlay = _createUserInterventionOverlay();
+
+    let payload = {
+        survey_type: 'tiktok-user',
+        platform: 'tiktok',
+        account_id: userID,
+        profile_name: profile.profile_name || null,
+        handle: profile.handle || null,
+        followers_count: profile.followersCount || null,
+        following_count: profile.followingCount || null,
+        likes_count: profile.totalLikes || null,
+        bio: profile.bio || null,
+        fields_to_intervene: fieldsToIntervene
+    };
+
+    let result;
+    try {
+        let response = await fetch(manipConfig_TTU.endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!response.ok) { removeOverlay(); return; }
+        result = await response.json();
+    } catch(e) { removeOverlay(); return; }
+
+    let originalValues = {};
+    let profileSnapshot = null;
+
+    function applyFields() {
+        let appliedAny = false;
+        for (let field of fieldsToIntervene) {
+            if (!result[field]) continue;
+            let el = _ttuGetFieldEl(field);
+            if (!el) continue;
+            if (originalValues[field] === undefined) originalValues[field] = el.textContent;
+            if (el.textContent === result[field]) { appliedAny = true; continue; }
+            if (!profileSnapshot) {
+                try { profileSnapshot = extractUserProfile(); } catch(e) {}
+            }
+            el.textContent = result[field];
+            appliedAny = true;
+            if (manipConfig_TTU.mode === 'aware') {
+                let next = el.nextSibling;
+                let hasToggle = next && next.nodeType === 1 && next.getAttribute && next.getAttribute('data-sa-interv-toggle');
+                if (!hasToggle) _ttuToggleBtn(el, originalValues[field], result[field]);
+            }
+        }
+        if (appliedAny) removeOverlay();
+
+        let appliedFields = {};
+        for (let field of fieldsToIntervene) {
+            if (result[field]) appliedFields[field] = { original: originalValues[field] || '', rewritten: result[field] };
+        }
+        manipApplied_TTU[userID] = { applied: true, fields: appliedFields, profileSnapshot: profileSnapshot };
+    }
+
+    applyFields();
+    [200, 600, 1500].forEach(function(delay) { setTimeout(applyFields, delay); });
+}
+
 function injectTikTokUserSurvey() {
     let surveyContainer = document.createElement('div');
     surveyContainer.className = 'survey-container-user';
@@ -327,6 +438,9 @@ function initializeSurveys() {
 
         const _postConfTT = result.config && result.config.surveys && result.config.surveys['tiktok-reel'];
         manipConfig_TT = (_postConfTT && _postConfTT.manipulation) || {};
+
+        const _userConfTT = result.config && result.config.surveys && result.config.surveys['tiktok-user'];
+        manipConfig_TTU = (_userConfTT && _userConfTT.manipulation) || {};
         if (manipConfig_TT.enabled && result.manipulationMaps && result.manipulationMaps['tiktok-reel']) {
             let fullMap = result.manipulationMaps['tiktok-reel'];
             manipMapId_TT = (fullMap._meta && fullMap._meta.map_id) || '';
@@ -386,12 +500,19 @@ function initializeSurveys() {
                             });
                         }
 
-                        let _ma = manipApplied_TT[values.post_id];
+                        let _ma  = manipApplied_TT[values.post_id];
+                        let _maU = manipApplied_TTU[values.account_id];
                         if (_ma) {
                             values.intervention_applied = true;
-                            values.intervention_label = _ma.label;
-                            values.intervention_map_id = _ma.map_id;
+                            values.intervention_label   = _ma.label;
+                            values.intervention_map_id  = _ma.map_id;
                             if (_ma.original_text !== undefined) values.original_text = _ma.original_text;
+                        } else if (_maU) {
+                            values.intervention_applied = true;
+                            values.intervention_label   = 'user-intervention';
+                            values.intervention_map_id  = '';
+                            values.intervention_fields  = _maU.fields;
+                            if (_maU.profileSnapshot) values.user_profile = _maU.profileSnapshot;
                         } else {
                             values.intervention_applied = false;
                         }
@@ -411,6 +532,10 @@ function initializeSurveys() {
                     currentContext.renderSurvey(surveyID, null, {
                         user_profile: () => extractUserProfile()
                     });
+                    if (currentContext.name === 'tiktok-user' && manipConfig_TTU.enabled) {
+                        let profile = extractUserProfile();
+                        _applyTTUserIntervention(surveyID, profile);
+                    }
                 }
             }
         }

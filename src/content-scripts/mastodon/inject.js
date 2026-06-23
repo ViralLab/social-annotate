@@ -422,8 +422,8 @@ function extractUserProfile() {
     } catch(e) {}
 
     try {
-        let bioEl = document.querySelector(SEL_MD.userBio || '.account__header__content');
-        if (bioEl) profile.bio = bioEl.textContent.trim();
+        let bioEl = document.querySelector(SEL_MD.userBio || '._comp_account_bio__bio, .account__header__content');
+        if (bioEl) profile.bio = (bioEl.innerText || bioEl.textContent).trim();
     } catch(e) {}
 
     try {
@@ -436,6 +436,14 @@ function extractUserProfile() {
         if (followingEl) profile.followingCount = followingEl.textContent.trim();
     } catch(e) {}
 
+    try {
+        let postsEl = SEL_MD.user_post_count ? document.querySelector(SEL_MD.user_post_count) : null;
+        if (postsEl) {
+            let numEl = postsEl.querySelector('strong, abbr') || postsEl;
+            profile.postsCount = numEl.textContent.trim();
+        }
+    } catch(e) {}
+
     return profile;
 }
 
@@ -445,8 +453,14 @@ function _mduGetFieldEl(field) {
     switch (field) {
         case 'profile_name':
             return document.querySelector(SEL_MD.userDisplayName || 'h1');
-        case 'handle':
-            return document.querySelector(SEL_MD.userHandle || '.display-name__account');
+        case 'handle': {
+            if (SEL_MD.userHandle) return document.querySelector(SEL_MD.userHandle);
+            // Prefer profile-header scoped handle to avoid matching the logged-in user's navbar element
+            const headerScoped = document.querySelector(
+                '._comp_account_header__handle, .account__header__display-name .display-name__account'
+            );
+            return headerScoped || null;
+        }
         case 'followers_count': {
             let a = document.querySelector(SEL_MD.userFollowers || 'a[href$="/followers"]');
             if (!a) return null;
@@ -472,6 +486,18 @@ function _mduGetFieldEl(field) {
         }
         case 'bio':
             return document.querySelector(SEL_MD.userBio || '.account__header__content');
+        case 'posts_count': {
+            if (!SEL_MD.user_post_count) return null;
+            let a = document.querySelector(SEL_MD.user_post_count);
+            if (!a) return null;
+            let abbr = a.querySelector('abbr');
+            if (abbr) return abbr;
+            let children = a.querySelectorAll('span, strong');
+            for (let s of children) {
+                if (s.childElementCount === 0 && /^[\d,.KMBkmb]+$/.test(s.textContent.trim())) return s;
+            }
+            return a;
+        }
     }
     return null;
 }
@@ -515,6 +541,7 @@ async function _applyMDUserIntervention(userID, profile) {
         handle: profile.handle || null,
         followers_count: profile.followersCount || null,
         following_count: profile.followingCount || null,
+        posts_count: profile.postsCount || null,
         bio: profile.bio || null,
         fields_to_intervene: fieldsToIntervene
     };
@@ -531,6 +558,7 @@ async function _applyMDUserIntervention(userID, profile) {
     } catch (e) { removeOverlay(); return; }
 
     let originalValues = {};
+    let profileSnapshot = null;
 
     function applyFields() {
         let appliedAny = false;
@@ -540,6 +568,9 @@ async function _applyMDUserIntervention(userID, profile) {
             if (!el) continue;
             if (originalValues[field] === undefined) originalValues[field] = el.textContent;
             if (el.textContent === result[field]) { appliedAny = true; continue; }
+            if (!profileSnapshot) {
+                try { profileSnapshot = extractUserProfile(); } catch (e) {}
+            }
             el.textContent = result[field];
             appliedAny = true;
             if (manipConfig_MDU.mode === 'aware') {
@@ -551,16 +582,18 @@ async function _applyMDUserIntervention(userID, profile) {
             }
         }
         if (appliedAny) removeOverlay();
+
+        // Refresh manipApplied each pass — originals may have been captured
+        // on a later retry once React rendered the profile elements.
+        let appliedFields = {};
+        for (let field of fieldsToIntervene) {
+            if (result[field]) appliedFields[field] = { original: originalValues[field] || '', rewritten: result[field] };
+        }
+        manipApplied_MDU[userID] = { applied: true, fields: appliedFields, profileSnapshot: profileSnapshot };
     }
 
     applyFields();
     [200, 600, 1500].forEach(function(delay) { setTimeout(applyFields, delay); });
-
-    let appliedFields = {};
-    for (let field of fieldsToIntervene) {
-        if (result[field]) appliedFields[field] = { original: originalValues[field] || '', rewritten: result[field] };
-    }
-    manipApplied_MDU[userID] = { applied: true, fields: appliedFields };
 }
 
 // ─────────────────────────────────────────────────────────
@@ -681,7 +714,8 @@ function initializeSurveys() {
                             values.intervention_applied = true;
                             values.intervention_label   = 'user-intervention';
                             values.intervention_map_id  = '';
-                            values.intervention_extras  = _maU.fields;
+                            values.intervention_fields  = _maU.fields;
+                            if (_maU.profileSnapshot) values.user_profile = _maU.profileSnapshot;
                         } else {
                             values.intervention_applied = false;
                         }

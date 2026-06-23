@@ -358,6 +358,17 @@ function extractUserProfile() {
         }
     } catch (e) { /* skip */ }
 
+    // Posts count
+    try {
+        let postsEl = document.querySelector(SEL_BS.user_post_count || '[data-testid="profileHeaderFollowsButton"] + div[dir="auto"]');
+        if (postsEl) {
+            let text = postsEl.textContent.trim();
+            profile.postsText = text;
+            let numMatch = text.match(/([\d,.]+[KMB]?)/);
+            if (numMatch) profile.postsCount = numMatch[1];
+        }
+    } catch (e) { /* skip */ }
+
     return profile;
 }
 
@@ -410,6 +421,38 @@ function _bsuGetFieldEl(field) {
         }
         case 'bio':
             return document.querySelector(SEL_BS.userBio || '[data-testid="profileHeaderDescription"]');
+        case 'posts_count': {
+            let el = SEL_BS.user_post_count ? document.querySelector(SEL_BS.user_post_count) : null;
+            // Structural fallback: the posts div is a sibling of the follows button, but `+`/`~` selectors
+            // can fail across React renders. Walk the follows button's parent and find the div whose text
+            // matches the "N posts" pattern.
+            if (!el) {
+                let follows = document.querySelector('[data-testid="profileHeaderFollowsButton"]');
+                if (follows && follows.parentElement) {
+                    for (let c of follows.parentElement.querySelectorAll('div')) {
+                        if (/^[\d,.][\d,.KMBkmb\s]*posts?$/i.test(c.textContent.trim())) { el = c; break; }
+                    }
+                }
+            }
+            if (!el) return null;
+            // Numeric leaf span (in case the structure ever shifts to span-based)
+            for (let s of el.querySelectorAll('span, div')) {
+                if (s.childElementCount === 0 && /^[\d,.KMBkmb]+$/.test(s.textContent.trim())) return s;
+            }
+            // Idempotent wrap of the raw text node so mutation doesn't wipe the "posts" sibling span
+            let wrapped = el.querySelector('span[data-sa-postcount]');
+            if (wrapped) return wrapped;
+            for (let node of Array.from(el.childNodes)) {
+                if (node.nodeType === 3 && /\S/.test(node.textContent)) {
+                    let wrap = document.createElement('span');
+                    wrap.setAttribute('data-sa-postcount', '1');
+                    wrap.textContent = node.textContent.replace(/\s+$/, '');
+                    node.parentNode.replaceChild(wrap, node);
+                    return wrap;
+                }
+            }
+            return null;
+        }
     }
     return null;
 }
@@ -454,6 +497,7 @@ async function _applyBSUserIntervention(userID, profile) {
         handle: profile.handle || null,
         followers_count: profile.followersCount || null,
         following_count: profile.followingCount || null,
+        posts_count: profile.postsCount || null,
         bio: profile.bio || null,
         fields_to_intervene: fieldsToIntervene
     };
@@ -470,6 +514,8 @@ async function _applyBSUserIntervention(userID, profile) {
     } catch (e) { removeOverlay(); return; }
 
     let originalValues = {};
+    // Snapshot the full profile right before the first DOM mutation
+    let profileSnapshot = null;
 
     function applyFields() {
         let appliedAny = false;
@@ -479,6 +525,9 @@ async function _applyBSUserIntervention(userID, profile) {
             if (!el) continue;
             if (originalValues[field] === undefined) originalValues[field] = el.textContent;
             if (el.textContent === result[field]) { appliedAny = true; continue; }
+            if (!profileSnapshot) {
+                try { profileSnapshot = extractUserProfile(); } catch (e) {}
+            }
             el.textContent = result[field];
             appliedAny = true;
             if (manipConfig_BSU.mode === 'aware') {
@@ -490,16 +539,18 @@ async function _applyBSUserIntervention(userID, profile) {
             }
         }
         if (appliedAny) removeOverlay();
+
+        // Refresh manipApplied each pass — originals may have been captured
+        // on a later retry once React rendered the profile elements.
+        let appliedFields = {};
+        for (let field of fieldsToIntervene) {
+            if (result[field]) appliedFields[field] = { original: originalValues[field] || '', rewritten: result[field] };
+        }
+        manipApplied_BSU[userID] = { applied: true, fields: appliedFields, profileSnapshot: profileSnapshot };
     }
 
     applyFields();
     [200, 600, 1500].forEach(function(delay) { setTimeout(applyFields, delay); });
-
-    let appliedFields = {};
-    for (let field of fieldsToIntervene) {
-        if (result[field]) appliedFields[field] = { original: originalValues[field] || '', rewritten: result[field] };
-    }
-    manipApplied_BSU[userID] = { applied: true, fields: appliedFields };
 }
 
 // ─────────────────────────────────────────────────────────
@@ -721,7 +772,8 @@ function initializeSurveys() {
                             values.intervention_applied = true;
                             values.intervention_label   = 'user-intervention';
                             values.intervention_map_id  = '';
-                            values.intervention_extras  = _maU.fields;
+                            values.intervention_fields  = _maU.fields;
+                            if (_maU.profileSnapshot) values.user_profile = _maU.profileSnapshot;
                         } else {
                             values.intervention_applied = false;
                         }

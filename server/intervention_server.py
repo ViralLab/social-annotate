@@ -69,6 +69,8 @@ class UserInterventionHandler(ABC):
         handle            str  — @username
         followers_count   str  — follower count string as shown on screen
         following_count   str  — following count string as shown on screen
+        posts_count       str  — posts count string as shown on screen (not all platforms)
+        likes_count       str  — total likes count (TikTok)
         bio               str  — profile bio / description
         fields_to_intervene  list[str]  — subset the researcher enabled
 

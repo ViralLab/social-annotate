@@ -658,11 +658,20 @@ function _xuToggleBtn(fieldEl, originalText, rewrittenText) {
         fieldEl.textContent = isOriginal ? originalText : rewrittenText;
         btn.textContent = isOriginal ? '✏ Show rewritten' : '👁 Show original';
     });
-    // Insert after the enclosing <a> (if any) so the button doesn't end up
-    // between the count and the "Following"/"Followers" label inside the link.
     let anchor = fieldEl.closest('a');
-    let insertAfter = anchor || fieldEl;
-    insertAfter.parentNode.insertBefore(btn, insertAfter.nextSibling);
+    if (anchor) {
+        // followers/following: insert after the <a> block
+        anchor.parentNode.insertBefore(btn, anchor.nextSibling);
+    } else {
+        // posts_count (and others): fieldEl is a block-level div in a flex column.
+        // Wrap fieldEl + button together so they become one flex item side-by-side.
+        let wrapper = document.createElement('div');
+        wrapper.style.cssText = 'display:flex;align-items:center;gap:4px;';
+        fieldEl.parentNode.insertBefore(wrapper, fieldEl);
+        wrapper.appendChild(fieldEl);
+        wrapper.appendChild(btn);
+        btn.style.marginLeft = '0';
+    }
 }
 
 async function _applyXUserIntervention(userID, profile) {

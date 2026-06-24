@@ -1162,8 +1162,11 @@ function saveOptionsPage() {
 
 function exportOptions() {
     chrome.storage.local.get(['config'], function (result) {
-        let url = 'data:text/plain;charset=utf-8,' + JSON.stringify(result.config, null, '\t');
-        chrome.downloads.download({ url: url, filename: 'config.json' });
+        let blob = new Blob([JSON.stringify(result.config, null, '\t')], { type: 'application/json' });
+        let url = URL.createObjectURL(blob);
+        chrome.downloads.download({ url: url, filename: 'config.json' }, function () {
+            URL.revokeObjectURL(url);
+        });
     });
 }
 

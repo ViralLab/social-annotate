@@ -15,7 +15,7 @@
 
         <div class="actions">
           <a href="https://github.com/ViralLab/social-annotate/releases/latest" class="btn-cta">
-            <span class="btn-icon">⬇</span> Download Extension
+            Download Extension
           </a>
         </div>
 
@@ -29,27 +29,33 @@
       </div>
     </section>
 
-    <!-- ── Demo placeholder (GIFs go here) ── -->
-    <section class="demo-section">
-      <div class="demo-inner">
-        <div class="demo-frame">
-          <div class="demo-chrome">
+    <!-- ── Showcase sections ── -->
+    <section class="showcase" v-for="(s, i) in showcases" :key="s.label" :class="{ 'showcase--flip': i % 2 === 1 }">
+      <div class="showcase-row">
+        <div class="showcase-text">
+          <p class="showcase-label">{{ s.label }}</p>
+          <h2 class="showcase-heading">{{ s.heading }}</h2>
+          <p class="showcase-desc">{{ s.desc }}</p>
+        </div>
+        <div class="showcase-frame">
+          <div class="frame-chrome">
             <span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>
           </div>
-          <div class="demo-body">
-            <p class="demo-placeholder">Demo GIF coming soon</p>
+          <div class="frame-body">
+            <video v-if="s.video" :src="s.video" class="frame-img" autoplay loop muted playsinline />
+            <p v-else class="frame-placeholder">{{ s.placeholder }}</p>
           </div>
         </div>
       </div>
     </section>
 
     <!-- ── Features ── -->
-    <section class="features-section">
+    <section class="features-section reveal">
       <div class="section-inner">
         <h2>Everything you need to annotate at scale</h2>
         <div class="feature-grid">
-          <div class="feature" v-for="f in features" :key="f.title">
-            <span class="feature-icon">{{ f.icon }}</span>
+          <div class="feature" v-for="(f, i) in features" :key="f.title" :style="{ animationDelay: (520 + i * 60) + 'ms' }">
+            <span class="feature-rule"></span>
             <h3>{{ f.title }}</h3>
             <p>{{ f.details }}</p>
           </div>
@@ -58,78 +64,155 @@
     </section>
 
     <!-- ── Supported Platforms ── -->
-    <section class="platforms-section">
+    <section class="platforms-section reveal">
       <div class="section-inner">
         <h2>Supported Platforms</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Platform</th>
-              <th>Post Annotation</th>
-              <th>User / Profile</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="p in platforms" :key="p.name">
-              <td>{{ p.name }}</td>
-              <td class="center">{{ p.post }}</td>
-              <td class="center">{{ p.profile }}</td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th rowspan="2" class="th-platform">Platform</th>
+                <th colspan="5" class="group-header">Data Collection</th>
+                <th colspan="2" class="group-header border-left">Intervention</th>
+              </tr>
+              <tr>
+                <th class="sub-th">Posts</th>
+                <th class="sub-th">Accounts</th>
+                <th class="sub-th">Comments</th>
+                <th class="sub-th">Videos</th>
+                <th class="sub-th">Reels</th>
+                <th class="sub-th border-left">Account</th>
+                <th class="sub-th">Post</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template v-for="(row, i) in platforms" :key="i">
+                <tr v-if="row.sep" class="sep-row"><td colspan="8"></td></tr>
+                <tr v-else>
+                  <td>{{ row.name }}</td>
+                  <td class="center"><span v-if="row.posts"    class="check">✓</span></td>
+                  <td class="center"><span v-if="row.accounts" class="check">✓</span></td>
+                  <td class="center"><span v-if="row.comments" class="check">✓</span></td>
+                  <td class="center"><span v-if="row.videos"   class="check">✓</span></td>
+                  <td class="center"><span v-if="row.reels"    class="check">✓</span></td>
+                  <td class="center border-left"><span v-if="row.account" class="check">✓</span></td>
+                  <td class="center"><span v-if="row.post"     class="check">✓</span></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
 
-    <!-- ── How It Works ── -->
-    <section class="how-section">
-      <div class="section-inner">
-        <h2>How It Works</h2>
-        <p class="how-desc">
-          Social Annotate uses a <code>MutationObserver</code> to detect new posts as they load.
-          For each post it creates a <strong>shadow DOM</strong> container so survey styles never
-          collide with the platform's CSS. The survey form runs inside a sandboxed
-          <code>&lt;iframe&gt;</code> and communicates via <code>postMessage</code>.
-          All state lives in <code>chrome.storage.local</code> — nothing leaves the browser
-          unless you export or configure an API endpoint.
-        </p>
-        <pre class="arch"><code>Browser Tab (x.com)
-  └─ inject.js — detects posts via MutationObserver
-       └─ Shadow DOM host per post
-            └─ sandboxed &lt;iframe&gt; with survey form
-                 └─ postMessage → inject.js → background.js
-                      └─ chrome.storage.local / downloads / API</code></pre>
-      </div>
-    </section>
 
   </div>
 </template>
 
 <script setup>
+import { ref, onMounted } from 'vue'
+
+const showcases = [
+  {
+    label: 'In-Feed Annotation',
+    heading: 'Survey forms appear directly above each post.',
+    desc: 'No tab-switching, no copy-pasting. The annotation form injects directly into the feed on X, Instagram, Bluesky, and more — annotators stay in context the entire time.',
+    video: '/social-annotate/demos/infeed.mp4',
+    placeholder: '',
+  },
+  {
+    label: 'Full Configuration',
+    heading: 'Build any survey in minutes.',
+    desc: 'Radio buttons, sliders, text inputs, dropdowns — configure the form schema visually or in JSON. Each platform and survey type gets its own independent settings.',
+    video: '/social-annotate/demos/form_builder.mp4',
+    placeholder: '',
+  },
+  {
+    label: 'In-Feed Intervention',
+    heading: 'Rewrite posts before participants see them.',
+    desc: 'Replace text and images in-feed using a pre-built static map or a live server. Blind mode hides the original entirely; aware mode lets participants toggle between versions.',
+    video: '/social-annotate/demos/intervention_scroll.mp4',
+    placeholder: '',
+  },
+]
+
 const features = [
-  { icon: '🗂️', title: 'In-Feed Surveys',         details: 'Annotation forms appear directly alongside posts on X, Instagram, Bluesky, LinkedIn, WhatsApp, Telegram, and Truth Social — no copy-pasting, no context switching.' },
-  { icon: '⚙️', title: 'Fully Configurable',       details: 'Build survey forms visually or in JSON. Supports radio buttons, sliders, text inputs, and checkboxes. Per-survey IRB consent overlays included.' },
-  { icon: '🎯', title: 'Guided Annotation Mode',   details: 'Upload a target list of post IDs or usernames; the extension navigates annotators through the list in order and tracks progress automatically.' },
-  { icon: '🛠️', title: 'Self-Healing Selectors',   details: 'An LLM-powered Python agent detects when platform DOM changes break injection and proposes updated CSS selectors — no manual hunting required.' },
-  { icon: '📦', title: 'JSONL Export',             details: 'Download all collected labels from the popup in one click, or stream them to your own API endpoint on every submission.' },
-  { icon: '🔒', title: 'IRB-Ready Consent',        details: 'Write consent text in Markdown per survey. A timestamped JSON consent record is automatically saved to disk for legal compliance.' },
+  { title: 'In-Feed Surveys',         details: 'Annotation forms appear directly alongside posts on X, Instagram, Bluesky, LinkedIn, WhatsApp, Telegram, and Truth Social — no copy-pasting, no context switching.' },
+  { title: 'Fully Configurable',       details: 'Build survey forms visually or in JSON. Supports radio buttons, sliders, text inputs, and checkboxes. Per-survey IRB consent overlays included.' },
+  { title: 'In-Feed Intervention',     details: 'Replace post text and images in-feed before participants see them. Use a pre-built static map or stream rewrites from a live server. Blind and aware modes supported.' },
+  { title: 'Guided Annotation Mode',   details: 'Upload a target list of post IDs or usernames; the extension navigates annotators through the list in order and tracks progress automatically.' },
+  { title: 'Self-Healing Selectors',   details: 'An LLM-powered Python agent detects when platform DOM changes break injection and proposes updated CSS selectors — no manual hunting required.' },
+  { title: 'JSONL Export',             details: 'Download all collected labels from the popup in one click, or stream them to your own API endpoint on every submission.' },
+  { title: 'IRB-Ready Consent',        details: 'Write consent text in Markdown per survey. A timestamped JSON consent record is automatically saved to disk for legal compliance.' },
+  { title: 'Multi-Platform Coverage',  details: 'Annotation and intervention across X, Instagram, TikTok, Facebook, Bluesky, Mastodon, LinkedIn, Reddit, YouTube, WhatsApp, Telegram, and Truth Social.' },
+  { title: 'Media Download',           details: 'Automatically saves profile pictures, profile banners, post images, and reels to disk alongside annotations — organized by platform and survey type.' },
 ]
 
 const platforms = [
-  { name: 'X / Twitter',  post: '✅', profile: '✅' },
-  { name: 'Instagram',    post: '✅', profile: '✅' },
-  { name: 'Bluesky',      post: '✅', profile: '✅' },
-  { name: 'WhatsApp Web', post: '✅', profile: '—'  },
-  { name: 'Telegram Web', post: '✅', profile: '—'  },
-  { name: 'LinkedIn',     post: '✅', profile: '✅' },
-  { name: 'Truth Social', post: '✅', profile: '✅' },
+  { name: 'X / Twitter',  posts: true,  accounts: true,  comments: false, videos: false, reels: false, account: true,  post: true  },
+  { name: 'TikTok',       posts: false, accounts: true,  comments: true,  videos: true,  reels: true,  account: false, post: false },
+  { name: 'Instagram',    posts: true,  accounts: true,  comments: true,  videos: false, reels: true,  account: true,  post: true  },
+  { name: 'Facebook',     posts: true,  accounts: true,  comments: false, videos: false, reels: false, account: true,  post: true  },
+  { name: 'Bluesky',      posts: true,  accounts: true,  comments: false, videos: false, reels: false, account: true,  post: true  },
+  { name: 'Mastodon',     posts: true,  accounts: true,  comments: false, videos: false, reels: false, account: true,  post: true  },
+  { name: 'Truth Social', posts: true,  accounts: true,  comments: false, videos: false, reels: false, account: true,  post: true  },
+  { sep: true },
+  { name: 'LinkedIn',     posts: true,  accounts: true,  comments: false, videos: false, reels: false, account: false, post: true  },
+  { name: 'Reddit',       posts: true,  accounts: true,  comments: true,  videos: false, reels: false, account: false, post: true  },
+  { name: 'YouTube',      posts: false, accounts: true,  comments: true,  videos: true,  reels: false, account: false, post: false },
+  { sep: true },
+  { name: 'WhatsApp',     posts: true,  accounts: false, comments: false, videos: false, reels: false, account: false, post: true  },
+  { name: 'Telegram',     posts: true,  accounts: true,  comments: false, videos: false, reels: false, account: false, post: true  },
 ]
+
+// Scroll-triggered reveal for sections below the fold
+onMounted(() => {
+  const observer = new IntersectionObserver(
+    (entries) => entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } }),
+    { threshold: 0.08 }
+  )
+  document.querySelectorAll('.reveal, .showcase').forEach(el => observer.observe(el))
+})
 </script>
 
 <style scoped>
-/* ── Tokens ── */
-:root {
-  --gold: #c9a860;
-  --gold-dim: rgba(201, 168, 96, 0.35);
+/* ── Hero load animation ── */
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes typing {
+  from { clip-path: inset(0 100% 0 0); }
+  to   { clip-path: inset(0 0% 0 0); }
+}
+@keyframes blink-cursor {
+  0%, 100% { border-color: transparent; }
+  50%       { border-color: #777; }
+}
+
+.badge,
+.hero h1,
+.actions,
+.secondary-links {
+  animation: fadeSlideUp 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.badge            { animation-delay: 0ms; }
+.hero h1          { animation-delay: 80ms; }
+.actions          { animation-delay: 2400ms; }
+.secondary-links  { animation-delay: 2500ms; }
+
+/* ── Scroll reveal ── */
+.showcase,
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.showcase.visible,
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 /* ── Page ── */
@@ -145,20 +228,17 @@ const platforms = [
   padding: 110px 24px 80px;
   text-align: center;
 }
-
 .hero-inner {
   max-width: 820px;
   margin: 0 auto;
 }
-
 .badge {
   font-family: 'Courier New', Courier, monospace;
   font-size: 12px;
-  color: #555;
-  letter-spacing: 0.06em;
+  color: #c9a860;
+  letter-spacing: 0.08em;
   margin: 0 0 32px;
 }
-
 .hero h1 {
   font-family: 'Playfair Display', Georgia, serif;
   font-size: clamp(3.4rem, 8vw, 6.5rem);
@@ -170,25 +250,23 @@ const platforms = [
   border: none;
   padding: 0;
 }
-
 .gold {
   color: #c9a860;
   font-style: italic;
 }
-
 .tagline {
   font-family: 'Courier New', Courier, monospace;
   font-size: 1rem;
-  color: #666;
+  font-weight: 700;
+  color: #bbb;
   letter-spacing: 0.03em;
   margin: 0 0 40px;
+  white-space: nowrap;
+  animation: typing 1.8s steps(49, end) 0.5s both;
 }
 
-/* ── CTA button ── */
-.actions {
-  margin-bottom: 20px;
-}
-
+/* ── CTA ── */
+.actions { margin-bottom: 20px; }
 .btn-cta {
   display: inline-flex;
   align-items: center;
@@ -207,10 +285,7 @@ const platforms = [
   background: rgba(201, 168, 96, 0.08);
   color: #d4b870;
 }
-
-.btn-icon {
-  font-size: 13px;
-}
+.btn-icon { font-size: 13px; }
 
 /* ── Secondary links ── */
 .secondary-links {
@@ -219,35 +294,73 @@ const platforms = [
   justify-content: center;
   gap: 10px;
   font-size: 13px;
-  color: #444;
 }
 .secondary-links a {
-  color: #555;
+  color: #888;
+  font-weight: 500;
   text-decoration: none;
   transition: color 0.15s;
 }
-.secondary-links a:hover {
-  color: #c9a860;
+.secondary-links a:hover { color: #c9a860; }
+.dot { color: #555; }
+
+/* ── Showcase sections ── */
+.showcase {
+  padding: 100px 24px;
+  border-top: 1px solid #1a1a1a;
 }
-.dot {
-  color: #2e2e2e;
+.showcase-row {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 64px;
+}
+.showcase--flip .showcase-row {
+  flex-direction: row-reverse;
 }
 
-/* ── Demo frame ── */
-.demo-section {
-  padding: 0 24px 80px;
+/* Text side */
+.showcase-text {
+  flex: 0 0 300px;
+  min-width: 0;
 }
-.demo-inner {
-  max-width: 880px;
-  margin: 0 auto;
+.showcase-label {
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #c9a860;
+  margin: 0 0 16px;
 }
-.demo-frame {
+.showcase-heading {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: clamp(1.4rem, 2.5vw, 2rem);
+  font-weight: 700;
+  color: #f0ebe0;
+  line-height: 1.25;
+  margin: 0 0 16px;
+  border: none;
+  padding: 0;
+}
+.showcase-desc {
+  font-size: 14px;
+  font-weight: 500;
+  color: #aaa;
+  line-height: 1.75;
+  margin: 0;
+}
+
+/* Frame side */
+.showcase-frame {
+  flex: 1;
+  min-width: 0;
   border: 1px solid #1e1e1e;
   border-radius: 10px;
   overflow: hidden;
   background: #0a0a0a;
 }
-.demo-chrome {
+.frame-chrome {
   background: #141414;
   border-bottom: 1px solid #1e1e1e;
   padding: 10px 14px;
@@ -256,25 +369,46 @@ const platforms = [
   align-items: center;
 }
 .dot-r, .dot-y, .dot-g {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
+  width: 10px; height: 10px; border-radius: 50%;
 }
 .dot-r { background: #3a1a1a; }
 .dot-y { background: #3a3018; }
 .dot-g { background: #183a1e; }
-.demo-body {
-  height: 340px;
+.frame-body {
+  min-height: 300px;
+  max-height: 560px;
+  overflow: hidden;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
 }
-.demo-placeholder {
+.frame-img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.frame-placeholder {
   font-family: 'Courier New', monospace;
-  font-size: 12px;
-  color: #2a2a2a;
+  font-size: 11px;
+  color: #3a3a3a;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+  text-align: center;
+  padding: 0 24px;
+  margin: 0;
+}
+
+/* Stack on mobile */
+@media (max-width: 768px) {
+  .showcase-row,
+  .showcase--flip .showcase-row {
+    flex-direction: column;
+    gap: 36px;
+  }
+  .showcase-text {
+    flex: none;
+    text-align: center;
+  }
 }
 
 /* ── Section shared ── */
@@ -312,13 +446,13 @@ const platforms = [
   padding: 28px 24px;
   transition: background 0.15s;
 }
-.feature:hover {
-  background: #131313;
-}
-.feature-icon {
-  font-size: 18px;
+.feature:hover { background: #131313; }
+.feature-rule {
   display: block;
-  margin-bottom: 14px;
+  width: 20px;
+  height: 1px;
+  background: #c9a860;
+  margin-bottom: 16px;
 }
 .feature h3 {
   font-family: 'Playfair Display', Georgia, serif;
@@ -331,7 +465,8 @@ const platforms = [
 }
 .feature p {
   font-size: 13px;
-  color: #555;
+  font-weight: 500;
+  color: #999;
   line-height: 1.65;
   margin: 0;
 }
@@ -351,29 +486,62 @@ const platforms = [
   border: none;
   padding: 0;
 }
+.table-wrap {
+  overflow-x: auto;
+}
 table {
   width: 100%;
   border-collapse: collapse;
   font-size: 13.5px;
 }
 thead th {
-  text-align: left;
+  text-align: center;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #3a3a3a;
-  padding: 10px 14px;
-  border-bottom: 1px solid #1a1a1a;
+  color: #777;
+  padding: 12px 16px;
+  border-bottom: 1px solid #2a2a2a;
+}
+.th-platform {
+  text-align: left;
+  vertical-align: bottom;
+}
+.group-header {
+  border-bottom: none;
+  padding-bottom: 4px;
+  font-size: 10px;
+  color: #888;
+}
+.sub-th {
+  padding-top: 4px;
+  font-size: 10.5px;
+  color: #777;
+}
+.border-left {
+  border-left: 1px solid #2a2a2a;
 }
 tbody td {
-  padding: 12px 14px;
-  color: #666;
-  border-bottom: 1px solid #141414;
+  padding: 12px 16px;
+  color: #aaa;
+  font-weight: 500;
+  font-size: 14px;
+  border-bottom: 1px solid #1e1e1e;
 }
 tbody tr:last-child td { border-bottom: none; }
-tbody tr:hover td { background: #111; }
+tbody tr:hover td { background: #141414; color: #ccc; }
+.sep-row td {
+  padding: 2px 0;
+  background: transparent !important;
+  border-bottom: 1px solid #252525;
+}
 td.center { text-align: center; }
+.check {
+  font-size: 15px;
+  font-weight: 700;
+  color: #c9a860;
+}
 
 /* ── How it works ── */
 .how-section {
@@ -382,7 +550,8 @@ td.center { text-align: center; }
 }
 .how-desc {
   font-size: 14px;
-  color: #555;
+  font-weight: 500;
+  color: #aaa;
   line-height: 1.8;
   margin: 0 0 28px;
   max-width: 640px;

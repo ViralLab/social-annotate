@@ -4,7 +4,7 @@ export default defineConfig({
   title: 'Social Annotate',
   description: 'Self-Healing Browser Extension to Annotate and Collect Social Media Data',
   base: '/social-annotate/',
-  appearance: 'dark',
+  appearance: 'force-dark',
   head: [
     ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
     ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
@@ -18,6 +18,7 @@ export default defineConfig({
       { text: 'Home', link: '/' },
       { text: 'Installation', link: '/installation/' },
       { text: 'Configuration', link: '/configuration/' },
+      { text: 'Intervention', link: '/intervention/' },
       { text: 'Agent', link: '/agent/' },
       { text: 'About', link: '/about/' },
     ],
@@ -42,6 +43,18 @@ export default defineConfig({
             { text: 'Guided Mode', link: '/configuration/#guided-mode' },
             { text: 'Data Export', link: '/configuration/#data-export' },
             { text: 'API Endpoint', link: '/configuration/#api-endpoint' },
+          ],
+        },
+      ],
+      '/intervention/': [
+        {
+          text: 'Intervention',
+          items: [
+            { text: 'Overview', link: '/intervention/#intervention' },
+            { text: 'Modes', link: '/intervention/#modes' },
+            { text: 'Static Map', link: '/intervention/#static-map' },
+            { text: 'Live Server', link: '/intervention/#live-server' },
+            { text: 'User / Profile', link: '/intervention/#user-profile-intervention' },
           ],
         },
       ],

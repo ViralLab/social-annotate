@@ -1,6 +1,6 @@
 # Social Annotate
 
-**[https://varollab.com/social-annotate](https://varollab.com/social-annotate)** · [Installation](https://varollab.com/social-annotate/installation/) · [Configuration](https://varollab.com/social-annotate/configuration/) · [Intervention](https://varollab.com/social-annotate/intervention/) · [Agent](https://varollab.com/social-annotate/agent/)
+**[varollab.com/social-annotate](https://varollab.com/social-annotate)** · [Installation](https://varollab.com/social-annotate/installation/) · [Configuration](https://varollab.com/social-annotate/configuration/) · [Intervention](https://varollab.com/social-annotate/intervention/) · [Agent](https://varollab.com/social-annotate/agent/)
 
 > A Chrome browser extension that injects customizable annotation surveys directly into social media feeds — so researchers can label content in context, without leaving the platform.
 

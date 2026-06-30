@@ -1,33 +1,29 @@
 # Social Annotate
 
+**[socialannotate.github.io](https://alinajafi1998.github.io/social-annotate/)** · [Installation](https://alinajafi1998.github.io/social-annotate/installation/) · [Configuration](https://alinajafi1998.github.io/social-annotate/configuration/) · [Intervention](https://alinajafi1998.github.io/social-annotate/intervention/) · [Agent](https://alinajafi1998.github.io/social-annotate/agent/)
+
 > A Chrome browser extension that injects customizable annotation surveys directly into social media feeds — so researchers can label content in context, without leaving the platform.
 
 Human-labeled data is at the core of computational social science and content moderation research. Social Annotate eliminates the friction of switching between a platform and a separate labeling tool: annotators see real posts in their native interface, answer a configurable survey inline, and their labels are stored locally and optionally sent to a research server in real time.
 
 ---
 
-## A Visual Demo Is Worth a Thousand Words
-
-[![Watch the demo](https://github.com/uluturki/twitter_annotate/blob/master/docs/img/youtube-thumbnail.png)](https://www.youtube.com/watch?v=rSJiVwJzM2k)
-
----
-
 ## Supported Platforms
 
-| Platform | Posts | Accounts | Comments | Videos / Reels |
-|---|:---:|:---:|:---:|:---:|
-| <img src="src/images/x.png" width="16"> X / Twitter | ✅ | ✅ | | |
-| <img src="src/images/tiktok.png" width="16"> TikTok | ✅ | ✅ | | ✅ |
-| <img src="src/images/instagram.png" width="16"> Instagram | ✅ | ✅ | ✅ | ✅ |
-| <img src="src/images/facebook.png" width="16"> Facebook | ✅ | ✅ | | |
-| <img src="src/images/bluesky.png" width="16"> Bluesky | ✅ | ✅ | | |
-| <img src="src/images/mastodon.png" width="16"> Mastodon | ✅ | ✅ | | |
-| <img src="src/images/truthsocial.png" width="16"> Truth Social | ✅ | ✅ | | |
-| <img src="src/images/linkedin.png" width="16"> LinkedIn | ✅ | ✅ | | |
-| <img src="src/images/reddit.png" width="16"> Reddit | ✅ | ✅ | ✅ | |
-| <img src="src/images/youtube.png" width="16"> YouTube | ✅ | ✅ | ✅ | ✅ |
-| <img src="src/images/whatsapp.png" width="16"> WhatsApp Web | ✅ | | | |
-| <img src="src/images/telegram.png" width="16"> Telegram Web | ✅ | ✅ | | |
+|  | Platform | Posts | Accounts | Comments | Videos | Reels | Intervention Account | Intervention Post |
+|:---:|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| <img src="src/images/x.png" width="16"> | X / Twitter | ✅ | ✅ | | | | ✅ | ✅ |
+| <img src="src/images/tiktok.png" width="16"> | TikTok | | ✅ | ✅ | ✅ | ✅ | | |
+| <img src="src/images/instagram.png" width="16"> | Instagram | ✅ | ✅ | ✅ | | ✅ | ✅ | ✅ |
+| <img src="src/images/facebook.png" width="16"> | Facebook | ✅ | ✅ | | | | ✅ | ✅ |
+| <img src="src/images/bluesky.png" width="16"> | Bluesky | ✅ | ✅ | | | | ✅ | ✅ |
+| <img src="src/images/mastodon.png" width="16"> | Mastodon | ✅ | ✅ | | | | ✅ | ✅ |
+| <img src="src/images/truthsocial.png" width="16"> | Truth Social | ✅ | ✅ | | | | ✅ | ✅ |
+| <img src="src/images/linkedin.png" width="16"> | LinkedIn | ✅ | ✅ | | | | | ✅ |
+| <img src="src/images/reddit.png" width="16"> | Reddit | ✅ | ✅ | ✅ | | | | ✅ |
+| <img src="src/images/youtube.png" width="16"> | YouTube | | ✅ | ✅ | ✅ | | | |
+| <img src="src/images/whatsapp.png" width="16"> | WhatsApp | ✅ | | | | | | ✅ |
+| <img src="src/images/telegram.png" width="16"> | Telegram | ✅ | ✅ | | | | | ✅ |
 
 ---
 
@@ -35,12 +31,12 @@ Human-labeled data is at the core of computational social science and content mo
 
 - **In-feed surveys** — annotation forms appear directly alongside posts; no copy-pasting, no context switching.
 - **Fully configurable questions** — build survey forms visually or write raw JSON. Supports radio buttons, sliders, text inputs, and checkboxes.
+- **In-feed intervention** — replace post text and images before participants see them. Load a pre-built static map or stream rewrites from a live server. Blind and aware modes supported.
 - **Per-survey informed consent** — write IRB consent text in Markdown per survey. When enabled, a full-screen consent overlay blocks annotation until the participant approves — and a timestamped consent record is automatically saved to disk for legal compliance.
 - **Guided annotation mode** — upload a target list (post IDs or usernames); the extension navigates annotators through the list in order and tracks progress.
-- **Media downloads** — optionally save post images, videos, profile pictures, and banners alongside labels, organized into a consistent folder structure.
+- **Media downloads** — optionally save post images, videos, reels, profile pictures, and banners alongside labels, organized into a consistent folder structure.
 - **JSONL export** — download all collected labels from the popup in one click, or stream them to an API endpoint on every submission.
 - **Config import / export** — share a study configuration as a single JSON file across your team.
-- **Light and dark themes** — both the extension UI and injected survey forms support user-toggleable themes.
 - **Self-healing selectors** — an accompanying Python agent pipeline detects when platform DOM changes break injection and proposes updated CSS selectors automatically.
 
 ---
@@ -62,7 +58,7 @@ Social Annotate is distributed as an unpacked Chrome extension (Chrome MV3).
 ## Quick Start
 
 1. Click the Social Annotate icon in the toolbar to open the **popup**.
-2. Select an active survey from the dropdown (default: `x-post`).
+2. Select a platform from the left dropdown (e.g. `X`) and a survey type from the right dropdown (e.g. `post`).
 3. Navigate to the corresponding platform — a survey form will appear next to each post.
 4. Fill in the survey and click **Submit**. The annotation counter in the popup increments.
 5. Click **Export** in the popup footer to download your labels as a `.jsonl` file.
@@ -75,12 +71,16 @@ Social Annotate is distributed as an unpacked Chrome extension (Chrome MV3).
 
 | Control | Description |
 |---|---|
-| **Active Survey** dropdown | Switches which survey type is active (e.g. `x-post`, `bluesky-user`). Only one survey is active at a time to prevent duplicate forms. |
+| **Platform** dropdown | Left dropdown — selects the platform (e.g. `Instagram`, `Reddit`). |
+| **Survey Type** dropdown | Right dropdown — selects the content type for the chosen platform (e.g. `post`, `user`, `comment`). Only one survey is active at a time to prevent duplicate forms. |
+| **Annotations** counter | Running count of submissions collected for the active survey. |
+| **Feed health** indicator | Shows what fraction of posts on the current page were successfully injected. A green dot means full coverage; amber or red signals a selector issue. |
 | **Extension** toggle | Globally enables or disables injection without uninstalling. |
 | **Guided Mode** toggle | Activates target-list navigation. The progress bar and Prev / Next controls appear. |
 | **Download Media** toggle | (Post surveys) Saves post images and videos to disk on each submission. |
 | **Download Profile Picture / Banner** toggles | (User surveys) Saves avatar and banner images on each submission. |
 | **Export** button | Downloads all collected annotations for the active survey as a `.jsonl` file. |
+| **Debug** button | Opens a Selector Diagnostics panel showing each tracked CSS selector and whether it matched on the current page. Useful for troubleshooting injection failures. |
 | ⚙️ icon | Opens the Options page. |
 | ☀️ / 🌙 icon | Toggles light/dark theme. |
 
@@ -246,7 +246,7 @@ Guided mode walks annotators through a pre-defined target list one item at a tim
 
 ## Extending to New Platforms
 
-Each platform requires four additions:
+Each platform requires the following additions:
 
 | File | Purpose |
 |---|---|
@@ -284,16 +284,24 @@ The agent runs an 11-step pipeline:
 ### Prerequisites
 
 ```bash
-pip install anthropic playwright beautifulsoup4
+# Install Python dependencies (requires uv)
+uv sync
 playwright install chromium
 ```
 
-Set your API key in the environment:
+Set your LLM API key in the environment (Gemini is checked first):
 
 ```bash
-export ANTHROPIC_API_KEY=sk-...   # Claude (checked first)
+export GEMINI_API_KEY=...          # Gemini 2.5 Pro (checked first)
 # or
-export GEMINI_API_KEY=...         # Gemini (fallback)
+export ANTHROPIC_API_KEY=sk-...    # Claude (fallback)
+```
+
+Optional model overrides:
+
+```bash
+export GEMINI_MODEL=gemini-2.5-pro          # default
+export CLAUDE_MODEL=claude-haiku-4-5-20251001  # default
 ```
 
 ### Usage
@@ -302,19 +310,33 @@ Point the agent at a saved HTML fixture of the target platform:
 
 ```bash
 # Inspect proposed selectors without applying them
-python run_healer.py --file test_fixtures/x_twitter/x.html
+python run_healer.py --file test_fixtures/x_twitter/post/x.html
+
+# Add extra context for the LLM (useful for historical snapshots)
+python run_healer.py --file test_fixtures/x_twitter/post/twitter_2010.html \
+  --context "This is a 2010 snapshot — no engagement metrics exist"
 
 # Retry LLM extraction up to 5 times
-python run_healer.py --file test_fixtures/x_twitter/x.html --retries 5
+python run_healer.py --file test_fixtures/x_twitter/post/x.html --retries 5
 
 # Apply the proposed selectors to src/selectors.json automatically
-python run_healer.py --file test_fixtures/x_twitter/x.html --apply
+python run_healer.py --file test_fixtures/x_twitter/post/x.html --apply
 
 # Skip the browser step — LLM extraction only (fast, offline)
-python run_healer.py --file test_fixtures/x_twitter/x.html --llm-only
+python run_healer.py --file test_fixtures/x_twitter/post/x.html --llm-only
 ```
 
-Platform is auto-detected from the filename. Override with `--platform x` if needed.
+Platform is auto-detected from the fixture path. Override with `--platform x` if needed.
+
+### Batch Evaluation
+
+To run the agent across multiple platforms in sequence and record results:
+
+```bash
+python experiment/run_batch.py
+```
+
+Results are written to `experiment/results.md`.
 
 ---
 

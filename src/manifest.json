@@ -1,6 +1,6 @@
 {
   "name": "Social Annotate",
-  "version": "1.0",
+  "version": "1.0.0",
   "description": "Social Annotate application developed by Ali Najafi, Ismail Uluturk and Onur Varol",
   "permissions": [
     "activeTab",

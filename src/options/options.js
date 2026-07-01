@@ -106,6 +106,16 @@ function loadPage() {
         const downloadFolderEl = document.getElementById('download-folder');
         if (downloadFolderEl) downloadFolderEl.value = result.config.downloadFolder || '';
 
+        const copyClientIdBtn = document.getElementById('copy-client-id');
+        if (copyClientIdBtn) {
+            copyClientIdBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(result.clientID || '').then(() => {
+                    copyClientIdBtn.textContent = 'Copied!';
+                    setTimeout(() => { copyClientIdBtn.textContent = 'Copy ID'; }, 1500);
+                });
+            });
+        }
+
         const SURVEY_GROUPS = [
             { label: 'X',           keys: ['x-user', 'x-post'] },
             { label: 'Bluesky',     keys: ['bluesky-user', 'bluesky-post'] },
@@ -1251,8 +1261,7 @@ function escapeAttr(str) {
         confirmBtn.disabled = true;
         confirmBtn.textContent = '⏳ Resetting…';
 
-        // Generate a fresh client ID (same algorithm as background.js)
-        let clientID = '_' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 5);
+        let clientID = crypto.randomUUID();
 
         let initialStorage = {
             "resultsArrays": {

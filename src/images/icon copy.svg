@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4361EE"/>
+      <stop offset="100%" stop-color="#9B5DE5"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background rounded square -->
+  <rect width="128" height="128" rx="20" fill="url(#bg)"/>
+
+  <!-- Speech bubble with tail pointing bottom-left -->
+  <path fill="white"
+    d="M26,10 H102 Q118,10 118,26 V74 Q118,90 102,90 H40 L14,110 L26,90 Q10,90 10,74 V26 Q10,10 26,10 Z"/>
+
+  <!-- Q1: label stub -->
+  <rect x="24" y="28" width="42" height="8" rx="4" fill="#4361EE" opacity="0.18"/>
+  <!-- Q1: radio empty -->
+  <circle cx="80" cy="32" r="6" fill="none" stroke="#4361EE" stroke-width="2" opacity="0.35"/>
+  <!-- Q1: radio selected -->
+  <circle cx="96" cy="32" r="6" fill="#4361EE" opacity="0.7"/>
+  <circle cx="96" cy="32" r="2.5" fill="white"/>
+
+  <!-- Q2: label stub -->
+  <rect x="24" y="44" width="32" height="8" rx="4" fill="#4361EE" opacity="0.18"/>
+  <!-- Q2: slider track -->
+  <rect x="24" y="57" width="80" height="5" rx="2.5" fill="#4361EE" opacity="0.12"/>
+  <!-- Q2: slider fill -->
+  <rect x="24" y="57" width="46" height="5" rx="2.5" fill="#9B5DE5" opacity="0.6"/>
+  <!-- Q2: slider thumb -->
+  <circle cx="70" cy="59.5" r="7" fill="#9B5DE5" opacity="0.85"/>
+  <circle cx="70" cy="59.5" r="2.5" fill="white" opacity="0.9"/>
+
+  <!-- Submit button -->
+  <rect x="50" y="70" width="56" height="14" rx="7" fill="#4361EE" opacity="0.78"/>
+  <rect x="62" y="74.5" width="32" height="3" rx="1.5" fill="white" opacity="0.85"/>
+  <rect x="66" y="79"   width="24" height="2.5" rx="1.25" fill="white" opacity="0.5"/>
+</svg>

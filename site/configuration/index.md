@@ -156,17 +156,15 @@ SocialAnnotateExports/
 
 ## API Endpoint
 
-If an **API Endpoint** is configured, every submission fires a POST request with the annotation JSON as the body (`Content-Type: application/json`). A minimal Flask receiver:
+If an **API Endpoint** is configured, every submission fires a POST request with the annotation JSON as the body (`Content-Type: application/json`). Any HTTP server can receive these — Flask, FastAPI, Express, a cloud function, or any endpoint that accepts JSON POST requests.
 
-```python
-from flask import Flask, request
+The repository ships a ready-to-use collector at `flask-collect/main.py` that appends every submission to a `responses.jsonl` file:
 
-app = Flask(__name__)
-
-@app.route('/response', methods=['POST'])
-def receive():
-    print(request.json)
-    return '', 200
-
-app.run(port=5000)
+```bash
+pip install flask flask-cors
+python flask-collect/main.py
 ```
+
+Set `http://127.0.0.1:5050/response` as the **API Endpoint** in Global Settings. The server just needs to return any `2xx` response — the extension does not read the body.
+
+This is also the recommended approach for **multi-annotator studies**. Deploy the server on a shared machine or cloud instance and give all annotators its public URL (e.g. `http://192.168.1.10:5050/response`). Each annotator's extension posts independently — all responses land in the same `responses.jsonl` on the server, tagged with a per-device `clientID` so you can separate them later. The `clientID` is generated once at extension install time (base-36 timestamp + random suffix, e.g. `_lx3k1a-9f2zq`) and never changes, so it reliably identifies a single annotator across sessions.

@@ -399,7 +399,18 @@ onMounted(() => {
     })
     annotEvents = annotEvents.filter(ev => ev.age < ANNOT_LIFE)
 
-    // Spawn next annotation
+    // Hover: trigger annotation immediately on the closest node under the cursor
+    let hoveredNi = -1, minHD = 22
+    nodes.forEach((n, ni) => {
+      const hd = Math.hypot(n.x - mx, n.y - my)
+      if (hd < minHD) { minHD = hd; hoveredNi = ni }
+    })
+    if (hoveredNi >= 0 && !litMap.has(hoveredNi)) {
+      const col = ANNOT_COLORS[Math.floor(Math.random() * ANNOT_COLORS.length)]
+      annotEvents.push({ ni: hoveredNi, age: 0, col })
+    }
+
+    // Autonomous annotation timer
     if (--annotCooldown <= 0) {
       const candidates = nodes.map((_, i) => i).filter(i => !litMap.has(i))
       if (candidates.length) {
@@ -411,6 +422,15 @@ onMounted(() => {
 
     netRaf = requestAnimationFrame(draw)
   }
+
+  // Mouse tracking for hover
+  let mx = -9999, my = -9999
+  const hero = canvas.parentElement!
+  hero.addEventListener('mousemove', (e: MouseEvent) => {
+    const rect = canvas.getBoundingClientRect()
+    mx = e.clientX - rect.left; my = e.clientY - rect.top
+  })
+  hero.addEventListener('mouseleave', () => { mx = -9999; my = -9999 })
 
   resize()
   // On mobile use fewer clusters and no bridges to avoid crowding

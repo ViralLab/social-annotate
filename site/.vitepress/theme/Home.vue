@@ -30,6 +30,22 @@
       </div>
     </section>
 
+    <!-- ── Demo video ── -->
+    <section class="demo-section reveal">
+      <div class="section-inner">
+        <p class="demo-label">Overview</p>
+        <h2 class="demo-heading">A walkthrough of in-feed annotation, survey configuration, and data export.</h2>
+        <div class="demo-frame">
+          <div class="frame-chrome">
+            <span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>
+          </div>
+          <div class="demo-body">
+            <video src="/social-annotate/demos/demo1.mp4" class="demo-video" autoplay loop muted playsinline controls />
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- ── Showcase sections ── -->
     <section class="showcase" v-for="(s, i) in showcases" :key="s.label" :class="{ 'showcase--flip': i % 2 === 1 }">
       <div class="showcase-row">
@@ -187,11 +203,21 @@ onMounted(() => {
   const ANCHORS = [
     [0.18, 0.28], [0.82, 0.28],  // flanking text — upper left/right
     [0.18, 0.68], [0.82, 0.68],  // flanking text — lower left/right
-    [0.50, 0.08], [0.50, 0.90],  // top and bottom center
+    [0.50, 0.08], [0.05, 0.50],  // top-center, left-center
   ]
 
-  type NodeType = 'hub' | 'account' | 'post'
-  type Node = { x: number; y: number; vx: number; vy: number; type: NodeType; cluster: number }
+  // Platform presets: col, [accounts min,max], [posts min,max], [videos min,max], [spread min,max]
+  const PLATFORMS = [
+    { col: '220,220,220', ac:[3,5], po:[2,4], vi:[0,1], sp:[60,90]  },  // X
+    { col: '225,48,108',  ac:[2,3], po:[2,3], vi:[1,3], sp:[50,80]  },  // Instagram
+    { col: '69,201,208',  ac:[1,2], po:[1,2], vi:[3,5], sp:[55,85]  },  // TikTok
+    { col: '255,65,65',   ac:[1,2], po:[0,1], vi:[4,6], sp:[70,100] },  // YouTube
+    { col: '210,60,60',   ac:[2,4], po:[2,3], vi:[0,1], sp:[45,70]  },  // TruthSocial
+    { col: '41,182,246',  ac:[1,2], po:[6,9], vi:[0,0], sp:[30,50]  },  // Telegram — cascade (many posts, tight chain)
+  ]
+
+  type NodeType = 'hub' | 'account' | 'post' | 'video'
+  type Node = { x: number; y: number; vx: number; vy: number; type: NodeType; cluster: number; platIdx: number }
   let W = 0, H = 0, nodes: Node[] = []
 
   function resize() {
@@ -199,15 +225,19 @@ onMounted(() => {
     H = canvas.height = canvas.offsetHeight
   }
 
-  function spawnCluster(ai: number): Node[] {
+  function spawnCluster(ai: number, platIdx: number): Node[] {
     const [fx, fy] = ANCHORS[ai]
     const mobile = W < 640
-    const accounts = 1 + Math.floor(Math.random() * (mobile ? 2 : 5))  // mobile: 1–2, desktop: 1–5
-    const posts    = 1 + Math.floor(Math.random() * (mobile ? 2 : 5))  // mobile: 1–2, desktop: 1–5
-    const spread   = mobile ? 30 + Math.random() * 30 : 50 + Math.random() * 70
+    const p = PLATFORMS[platIdx]
+    const ri = (a: number, b: number) => a + Math.floor(Math.random() * (b - a + 1))
+    const accounts = mobile ? ri(1, 2) : ri(p.ac[0], p.ac[1])
+    const posts    = mobile ? ri(0, 1) : ri(p.po[0], p.po[1])
+    const videos   = mobile ? 0        : ri(p.vi[0], p.vi[1])
+    const spread   = mobile ? ri(25, 45) : ri(p.sp[0], p.sp[1])
     const types: NodeType[] = ['hub',
       ...Array(accounts).fill('account') as NodeType[],
       ...Array(posts).fill('post') as NodeType[],
+      ...Array(videos).fill('video') as NodeType[],
     ]
     return types.map(t => ({
       x: fx * W + (Math.random() - 0.5) * spread,
@@ -216,6 +246,7 @@ onMounted(() => {
       vy: (Math.random() - 0.5) * 0.7,
       type: t,
       cluster: ai,
+      platIdx,
     }))
   }
 
@@ -228,6 +259,7 @@ onMounted(() => {
       vy: (Math.random() - 0.5) * 0.4,
       type: Math.random() > 0.5 ? 'account' : 'post',
       cluster: -1,
+      platIdx: Math.floor(Math.random() * PLATFORMS.length),
     }
   }
 
@@ -239,7 +271,7 @@ onMounted(() => {
   let annotCooldown = 80
 
   function drawAnnotation(node: Node, t: number, alpha: number, col: string) {
-    const baseR = node.type === 'hub' ? 13 : node.type === 'account' ? 7 : 0
+    const baseR = node.type === 'hub' ? 13 : node.type === 'account' ? 7 : 0  // post/video: ring from center
     const ringR = baseR + 7 + Math.max(0, (0.12 - t) / 0.12) * 14
     ctx.beginPath(); ctx.arc(node.x, node.y, ringR, 0, Math.PI * 2)
     ctx.strokeStyle = `rgba(${col},${alpha * 0.85})`; ctx.lineWidth = 1.3; ctx.stroke()
@@ -263,14 +295,24 @@ onMounted(() => {
         ctx.fillRect(bx + pad, by + pad + l * 7, lt * maxWs[l], 1.6)
       }
 
-      // Tiny checkmark after fill
+      // Checkmark (green) or X mark (red) after fill
       if (fillT > 0.92) {
         const ck = Math.min((fillT - 0.92) / 0.08, 1)
+        const isRed = col === '210,50,50'
         ctx.strokeStyle = `rgba(${col},${cardAlpha * ck})`; ctx.lineWidth = 1.2
         ctx.beginPath()
-        ctx.moveTo(bx + cw - 13, by + ch / 2 - 1)
-        ctx.lineTo(bx + cw - 9,  by + ch / 2 + 3)
-        ctx.lineTo(bx + cw - 4,  by + ch / 2 - 5)
+        if (isRed) {
+          // × mark
+          ctx.moveTo(bx + cw - 13, by + ch / 2 - 4)
+          ctx.lineTo(bx + cw - 4,  by + ch / 2 + 4)
+          ctx.moveTo(bx + cw - 4,  by + ch / 2 - 4)
+          ctx.lineTo(bx + cw - 13, by + ch / 2 + 4)
+        } else {
+          // ✓ checkmark
+          ctx.moveTo(bx + cw - 13, by + ch / 2 - 1)
+          ctx.lineTo(bx + cw - 9,  by + ch / 2 + 3)
+          ctx.lineTo(bx + cw - 4,  by + ch / 2 - 5)
+        }
         ctx.stroke()
       }
     }
@@ -290,32 +332,115 @@ onMounted(() => {
     ctx.strokeStyle = `rgba(${col},${alpha * 0.85})`; ctx.lineWidth = 1.2; ctx.stroke()
   }
 
-  function drawHub(x: number, y: number, litCol: string | null) {
-    const col = litCol ?? '201,168,96'
-    const g = ctx.createRadialGradient(x, y, 0, x, y, 24)
-    g.addColorStop(0, `rgba(${col},0.18)`)
-    g.addColorStop(1, `rgba(${col},0)`)
-    ctx.beginPath(); ctx.arc(x, y, 24, 0, Math.PI * 2)
-    ctx.fillStyle = g; ctx.fill()
-    drawAvatarIcon(x, y, 13, col, litCol ? 0.95 : 0.8)
+  function drawGlyph(platIdx: number, x: number, y: number, col: string, alpha: number) {
+    ctx.strokeStyle = `rgba(${col},${alpha})`
+    ctx.fillStyle   = `rgba(${col},${alpha})`
+    if (platIdx === 0) {
+      // 𝕏 — blackboard bold X: left stroke doubled, right stroke single
+      ctx.lineWidth = 1.6
+      ctx.beginPath(); ctx.moveTo(x-5, y-5.5); ctx.lineTo(x+5.5, y+5); ctx.stroke()   // left /1
+      ctx.beginPath(); ctx.moveTo(x-2, y-5.5); ctx.lineTo(x+5.5, y+2); ctx.stroke()   // left /2 (inner parallel)
+      ctx.beginPath(); ctx.moveTo(x+5, y-5.5); ctx.lineTo(x-5.5, y+5); ctx.stroke()   // right stroke (single)
+    } else if (platIdx === 1) {
+      // Instagram — rounded square + inner circle + viewfinder dot (keep as-is)
+      ctx.lineWidth = 1.5
+      ctx.beginPath(); ctx.roundRect(x-5.5, y-5.5, 11, 11, 2.5); ctx.stroke()
+      ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI*2); ctx.stroke()
+      ctx.beginPath(); ctx.arc(x+3.5, y-3.5, 1, 0, Math.PI*2); ctx.fill()
+    } else if (platIdx === 2) {
+      // TikTok — music note with curved flag (matches their logo shape)
+      ctx.lineWidth = 1.6
+      ctx.beginPath(); ctx.arc(x-3, y+3.5, 3.2, 0, Math.PI*2); ctx.fill()  // note head
+      ctx.beginPath()
+      ctx.moveTo(x,   y+3.5)   // stem base
+      ctx.lineTo(x,   y-5)     // stem top
+      ctx.bezierCurveTo(x, y-8, x+8, y-7, x+8, y-3)  // curved flag arcing right
+      ctx.stroke()
+    } else if (platIdx === 3) {
+      // YouTube — rounded rect frame + play triangle (keep as-is)
+      ctx.lineWidth = 1.5
+      ctx.beginPath(); ctx.roundRect(x-6, y-4.5, 12, 9, 2); ctx.stroke()
+      ctx.beginPath()
+      ctx.moveTo(x-2.5, y-3); ctx.lineTo(x-2.5, y+3); ctx.lineTo(x+4, y)
+      ctx.closePath(); ctx.fill()
+    } else if (platIdx === 4) {
+      // TruthSocial — bold serif T
+      ctx.lineWidth = 2.4
+      ctx.beginPath(); ctx.moveTo(x-5.5, y-4); ctx.lineTo(x+5.5, y-4); ctx.stroke()  // crossbar
+      ctx.lineWidth = 2.2
+      ctx.beginPath(); ctx.moveTo(x, y-4); ctx.lineTo(x, y+5); ctx.stroke()           // stem
+      ctx.lineWidth = 1.3
+      ctx.beginPath(); ctx.moveTo(x-2.2, y+5); ctx.lineTo(x+2.2, y+5); ctx.stroke()  // bottom serif
+    } else {
+      // Telegram — official SVG paths (viewBox 0 0 240 240), scaled to fit hexagon
+      const s = 11 / 120
+      ctx.save()
+      ctx.translate(x, y)
+      ctx.scale(s, s)
+      ctx.translate(-120, -120)
+      ctx.fillStyle = `rgba(${col},${alpha})`
+      ctx.fill(new Path2D('M81.229,128.772l14.237,39.406s1.78,3.687,3.686,3.687,30.255-29.492,30.255-29.492l31.525-60.89L81.737,118.6Z'))
+      ctx.fill(new Path2D('M81.486,130.178,52.2,120.636s-3.5-1.42-2.373-4.64c.232-.664.7-1.229,2.1-2.2,6.489-4.523,120.106-45.36,120.106-45.36s3.208-1.081,5.1-.362a2.766,2.766,0,0,1,1.885,2.055,9.357,9.357,0,0,1,.254,2.585c-.009.752-.1,1.449-.169,2.542-.692,11.165-21.4,94.493-21.4,94.493s-1.239,4.876-5.678,5.043A8.13,8.13,0,0,1,146.1,172.5c-8.711-7.493-38.819-27.727-45.472-32.177a1.27,1.27,0,0,1-.546-.9c-.093-.469.417-1.05.417-1.05s52.426-46.6,53.821-51.492c.108-.379-.3-.566-.848-.4-3.482,1.281-63.844,39.4-70.506,43.607A3.21,3.21,0,0,1,81.486,130.178Z'))
+      ctx.restore()
+    }
   }
 
-  function drawAccount(x: number, y: number, litCol: string | null) {
-    const col = litCol ?? '201,168,96'
+  function drawHub(x: number, y: number, litCol: string | null, platCol: string, platIdx: number) {
+    const col = litCol ?? platCol
+    // soft glow
+    const g = ctx.createRadialGradient(x, y, 0, x, y, 26)
+    g.addColorStop(0, `rgba(${col},0.16)`)
+    g.addColorStop(1, `rgba(${col},0)`)
+    ctx.beginPath(); ctx.arc(x, y, 26, 0, Math.PI * 2)
+    ctx.fillStyle = g; ctx.fill()
+    // regular hexagon (circumradius 13, pointy-top)
+    const R = 13
+    ctx.beginPath()
+    for (let i = 0; i < 6; i++) {
+      const a = -Math.PI / 2 + (i * Math.PI) / 3
+      const px = x + R * Math.cos(a), py = y + R * Math.sin(a)
+      i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py)
+    }
+    ctx.closePath()
+    ctx.strokeStyle = `rgba(${col},${litCol ? 0.95 : 0.72})`
+    ctx.lineWidth = 1.5; ctx.stroke()
+    drawGlyph(platIdx, x, y, col, litCol ? 0.95 : 0.7)
+  }
+
+  function drawAccount(x: number, y: number, litCol: string | null, platCol: string) {
+    const col = litCol ?? platCol
     drawAvatarIcon(x, y, 7, col, litCol ? 0.92 : 0.6)
   }
 
-  function drawPost(x: number, y: number, litCol: string | null) {
-    const col = litCol ?? '201,168,96'
-    const w = 30, h = 18
+  function drawPost(x: number, y: number, litCol: string | null, platCol: string) {
+    const col = litCol ?? platCol
+    const w = 40, h = 26
     const lx = x - w / 2, ty = y - h / 2
-    ctx.beginPath(); ctx.roundRect(lx, ty, w, h, 3)
+    ctx.beginPath(); ctx.roundRect(lx, ty, w, h, 4)
     ctx.fillStyle = litCol ? 'rgba(14,10,10,0.92)' : 'rgba(18,18,18,0.8)'; ctx.fill()
     ctx.strokeStyle = `rgba(${col},${litCol ? 0.7 : 0.3})`
     ctx.lineWidth = litCol ? 1.1 : 0.8; ctx.stroke()
     ctx.fillStyle = `rgba(${col},${litCol ? 0.5 : 0.32})`
-    ctx.fillRect(lx + 4, ty + 5, w - 10, 1.8)
-    ctx.fillRect(lx + 4, ty + 10, w - 16, 1.8)
+    ctx.fillRect(lx + 5, ty + 7,  w - 12, 2)
+    ctx.fillRect(lx + 5, ty + 13, w - 18, 2)
+    ctx.fillRect(lx + 5, ty + 19, w - 22, 2)
+  }
+
+  function drawVideo(x: number, y: number, litCol: string | null, platCol: string) {
+    const col = litCol ?? platCol
+    const w = 22, h = 32
+    const lx = x - w / 2, ty = y - h / 2
+    ctx.beginPath(); ctx.roundRect(lx, ty, w, h, 4)
+    ctx.fillStyle = litCol ? 'rgba(10,10,18,0.93)' : 'rgba(14,14,20,0.8)'; ctx.fill()
+    ctx.strokeStyle = `rgba(${col},${litCol ? 0.75 : 0.32})`
+    ctx.lineWidth = litCol ? 1.1 : 0.8; ctx.stroke()
+    const ts = 5
+    ctx.beginPath()
+    ctx.moveTo(x - ts * 0.45, y - ts * 0.75)
+    ctx.lineTo(x - ts * 0.45, y + ts * 0.75)
+    ctx.lineTo(x + ts * 0.85, y)
+    ctx.closePath()
+    ctx.fillStyle = `rgba(${col},${litCol ? 0.85 : 0.5})`; ctx.fill()
   }
 
   function draw() {
@@ -328,6 +453,8 @@ onMounted(() => {
     for (let i = 0; i < nodes.length; i++) {
       for (let j = i + 1; j < nodes.length; j++) {
         const sameCluster = nodes[i].cluster >= 0 && nodes[i].cluster === nodes[j].cluster
+        // no edges to/from hub — it floats above the cluster as a header
+        if (nodes[i].type === 'hub' || nodes[j].type === 'hub') continue
         const limit = sameCluster ? 160 : 90
         const dx = nodes[i].x - nodes[j].x, dy = nodes[i].y - nodes[j].y
         const d = Math.sqrt(dx * dx + dy * dy)
@@ -349,7 +476,7 @@ onMounted(() => {
         const dx = nodes[i].x - nodes[j].x
         const dy = nodes[i].y - nodes[j].y
         const d = Math.sqrt(dx * dx + dy * dy)
-        const minDist = 40
+        const minDist = 50
         if (d < minDist && d > 0) {
           const force = (minDist - d) / minDist * 0.25
           nodes[i].vx += (dx / d) * force
@@ -364,15 +491,22 @@ onMounted(() => {
     const litMap = new Map(annotEvents.map(e => [e.ni, e.col]))
     nodes.forEach((n, ni) => {
       const litCol = litMap.get(ni) ?? null
-      if (n.type === 'hub') drawHub(n.x, n.y, litCol)
-      else if (n.type === 'account') drawAccount(n.x, n.y, litCol)
-      else drawPost(n.x, n.y, litCol)
+      const { col: platCol } = PLATFORMS[n.platIdx]
+      if (n.type === 'hub') drawHub(n.x, n.y, litCol, platCol, n.platIdx)
+      else if (n.type === 'account') drawAccount(n.x, n.y, litCol, platCol)
+      else if (n.type === 'video') drawVideo(n.x, n.y, litCol, platCol)
+      else drawPost(n.x, n.y, litCol, platCol)
 
-      // Cluster gravity
+      // Cluster gravity — hub floats above the cluster, other nodes at anchor
       if (n.cluster >= 0) {
         const [fx, fy] = ANCHORS[n.cluster]
-        n.vx += (fx * W - n.x) * 0.00012
-        n.vy += (fy * H - n.y) * 0.00012
+        if (n.type === 'hub') {
+          n.vx += (fx * W - n.x) * 0.0004
+          n.vy += (fy * H - 55 - n.y) * 0.0004  // 55px above anchor
+        } else {
+          n.vx += (fx * W - n.x) * 0.00012
+          n.vy += (fy * H - n.y) * 0.00012
+        }
       }
 
       // Repel from center (elliptical)
@@ -399,9 +533,10 @@ onMounted(() => {
     })
     annotEvents = annotEvents.filter(ev => ev.age < ANNOT_LIFE)
 
-    // Hover: trigger annotation immediately on the closest node under the cursor
+    // Hover: trigger annotation on closest non-hub node under cursor
     let hoveredNi = -1, minHD = 22
     nodes.forEach((n, ni) => {
+      if (n.type === 'hub') return
       const hd = Math.hypot(n.x - mx, n.y - my)
       if (hd < minHD) { minHD = hd; hoveredNi = ni }
     })
@@ -410,9 +545,9 @@ onMounted(() => {
       annotEvents.push({ ni: hoveredNi, age: 0, col })
     }
 
-    // Autonomous annotation timer
+    // Autonomous annotation timer (non-hub nodes only)
     if (--annotCooldown <= 0) {
-      const candidates = nodes.map((_, i) => i).filter(i => !litMap.has(i))
+      const candidates = nodes.map((_, i) => i).filter(i => nodes[i].type !== 'hub' && !litMap.has(i))
       if (candidates.length) {
         const col = ANNOT_COLORS[Math.floor(Math.random() * ANNOT_COLORS.length)]
         annotEvents.push({ ni: candidates[Math.floor(Math.random() * candidates.length)], age: 0, col })
@@ -433,11 +568,11 @@ onMounted(() => {
   hero.addEventListener('mouseleave', () => { mx = -9999; my = -9999 })
 
   resize()
-  // On mobile use fewer clusters and no bridges to avoid crowding
   const mobile = W < 640
   const clusterIndices = mobile ? [0, 3, 4] : ANCHORS.map((_, i) => i)
-  const bridgeCount = mobile ? 0 : 5
-  nodes = clusterIndices.flatMap(i => spawnCluster(i)).concat(Array.from({ length: bridgeCount }, mkBridge))
+  // Shuffle platforms so each cluster gets a unique one, no duplicates
+  const shuffledPlats = PLATFORMS.map((_, i) => i).sort(() => Math.random() - 0.5)
+  nodes = clusterIndices.flatMap((ai, ci) => spawnCluster(ai, shuffledPlats[ci]))
   draw()
   window.addEventListener('resize', resize)
 })
@@ -877,6 +1012,53 @@ td.center { text-align: center; }
   font-size: 15px;
   font-weight: 700;
   color: #c9a860;
+}
+
+/* ── Demo video ── */
+.demo-section {
+  padding: 64px 24px;
+  border-top: 1px solid #1a1a1a;
+}
+.demo-label {
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #c9a860;
+  margin: 0 0 16px;
+  text-align: center;
+}
+.demo-heading {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: clamp(1.2rem, 2vw, 1.6rem);
+  font-weight: 700;
+  color: #e8e0d0;
+  line-height: 1.35;
+  margin: 0 0 40px;
+  border: none;
+  padding: 0;
+  text-align: center;
+  max-width: 580px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.demo-frame {
+  border: 1px solid #1e1e1e;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #0a0a0a;
+}
+.demo-body {
+  display: flex;
+  justify-content: center;
+  background: #080808;
+}
+.demo-video {
+  width: 100%;
+  height: auto;
+  display: block;
+  max-height: 600px;
+  object-fit: contain;
 }
 
 /* ── How it works ── */

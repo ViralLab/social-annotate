@@ -31,8 +31,17 @@
 /* ── Navbar ── */
 .VPNav {
   border-bottom: 1px solid #1a1a1a !important;
-  background: rgba(10, 10, 10, 0.9) !important;
+  background: transparent !important;
+}
+.VPNav::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 10, 10, 0.9);
   backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  z-index: -1;
+  pointer-events: none;
 }
 .VPNavBar {
   background: transparent !important;
@@ -122,4 +131,47 @@
 /* ── Selection ── */
 ::selection {
   background: rgba(255, 255, 255, 0.12);
+}
+
+/* ── Mobile nav (hamburger + screen overlay) ── */
+.VPNavBarHamburger .bar {
+  background-color: #e0e0e0 !important;
+}
+.VPNavScreen {
+  background-color: #0a0a0a !important;
+}
+.VPNavScreenMenuLink {
+  color: #ccc !important;
+  border-bottom-color: #1e1e1e !important;
+}
+.VPNavScreenMenuLink:hover {
+  color: #fff !important;
+}
+.VPNavScreenMenuGroupLink {
+  color: #ccc !important;
+}
+.VPNavScreenMenuGroupLink:hover {
+  color: #fff !important;
+}
+.VPNavScreenMenuGroup .button {
+  color: #ccc !important;
+  border-bottom-color: #1e1e1e !important;
+}
+.VPNavScreenMenuGroup .button:hover {
+  color: #fff !important;
+}
+.VPNavScreenMenuGroupSection .title {
+  color: #555 !important;
+}
+
+/* ── Mobile doc tables ── */
+@media (max-width: 768px) {
+  .vp-doc table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    font-size: 13px;
+  }
+  .vp-doc h1 { font-size: 1.8rem; }
+  .vp-doc h2 { font-size: 1.3rem; }
 }

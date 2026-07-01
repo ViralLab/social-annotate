@@ -90,9 +90,17 @@ Social Annotate is released under the [GPL-3.0 License](https://github.com/Viral
 }
 .team-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 24px;
   margin: 32px 0 40px;
+}
+@media (max-width: 480px) {
+  .team-grid {
+    grid-template-columns: 1fr;
+    max-width: 320px;
+    margin-left: auto;
+    margin-right: auto;
+  }
 }
 .person-card {
   background: #111;

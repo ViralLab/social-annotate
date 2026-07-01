@@ -398,16 +398,67 @@ onMounted(() => {
   margin: 0;
 }
 
-/* Stack on mobile */
+/* ── Mobile ── */
 @media (max-width: 768px) {
+  /* Hero */
+  .hero {
+    padding: 72px 20px 56px;
+  }
+  .tagline {
+    white-space: normal;
+    animation: none;
+    clip-path: none;
+    font-size: 0.9rem;
+  }
+  .secondary-links {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* Showcase */
+  .showcase {
+    padding: 64px 20px;
+  }
   .showcase-row,
   .showcase--flip .showcase-row {
     flex-direction: column;
-    gap: 36px;
+    gap: 32px;
   }
   .showcase-text {
     flex: none;
     text-align: center;
+  }
+  .showcase-label {
+    text-align: center;
+  }
+
+  /* Features */
+  .features-section {
+    padding: 56px 0;
+  }
+  .feature-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  /* Platforms */
+  .platforms-section {
+    padding: 56px 0;
+  }
+  .platforms-section h2,
+  .features-section h2 {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero h1 {
+    font-size: 2.6rem;
+  }
+  .feature-grid {
+    grid-template-columns: 1fr;
+  }
+  .showcase-heading {
+    font-size: 1.3rem;
   }
 }
 

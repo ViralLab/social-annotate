@@ -76,6 +76,7 @@ gtag('config', 'G-DYD9B51MWR');`],
       ],
     },
     search: { provider: 'local' },
+    docFooter: { prev: false, next: false },
     socialLinks: [
       { icon: 'github', link: 'https://github.com/ViralLab/social-annotate' },
     ],

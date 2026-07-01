@@ -12,18 +12,18 @@ Human-labeled data is at the core of computational social science and content mo
 
 |  | Platform | Posts | Accounts | Comments | Videos | Reels | Intervention Account | Intervention Post |
 |:---:|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| <img src="src/images/x.png" width="44"> | X / Twitter | ✅ | ✅ | | | | ✅ | ✅ |
-| <img src="src/images/tiktok.png" width="44"> | TikTok | | ✅ | ✅ | ✅ | ✅ | | |
-| <img src="src/images/instagram.png" width="44"> | Instagram | ✅ | ✅ | ✅ | | ✅ | ✅ | ✅ |
-| <img src="src/images/facebook.png" width="44"> | Facebook | ✅ | ✅ | | | | ✅ | ✅ |
-| <img src="src/images/bluesky.png" width="44"> | Bluesky | ✅ | ✅ | | | | ✅ | ✅ |
-| <img src="src/images/mastodon.png" width="44"> | Mastodon | ✅ | ✅ | | | | ✅ | ✅ |
-| <img src="src/images/truthsocial.png" width="44"> | Truth Social | ✅ | ✅ | | | | ✅ | ✅ |
-| <img src="src/images/linkedin.png" width="44"> | LinkedIn | ✅ | ✅ | | | | | ✅ |
-| <img src="src/images/reddit.png" width="44"> | Reddit | ✅ | ✅ | ✅ | | | | ✅ |
-| <img src="src/images/youtube.png" width="44"> | YouTube | | ✅ | ✅ | ✅ | | | |
-| <img src="src/images/whatsapp.png" width="44"> | WhatsApp | ✅ | | | | | | ✅ |
-| <img src="src/images/telegram.png" width="44"> | Telegram | ✅ | ✅ | | | | | ✅ |
+| <img src="src/images/x.png" width="88"> | X / Twitter | ✅ | ✅ | | | | ✅ | ✅ |
+| <img src="src/images/tiktok.png" width="88"> | TikTok | | ✅ | ✅ | ✅ | ✅ | | |
+| <img src="src/images/instagram.png" width="88"> | Instagram | ✅ | ✅ | ✅ | | ✅ | ✅ | ✅ |
+| <img src="src/images/facebook.png" width="88"> | Facebook | ✅ | ✅ | | | | ✅ | ✅ |
+| <img src="src/images/bluesky.png" width="88"> | Bluesky | ✅ | ✅ | | | | ✅ | ✅ |
+| <img src="src/images/mastodon.png" width="88"> | Mastodon | ✅ | ✅ | | | | ✅ | ✅ |
+| <img src="src/images/truthsocial.png" width="88"> | Truth Social | ✅ | ✅ | | | | ✅ | ✅ |
+| <img src="src/images/linkedin.png" width="88"> | LinkedIn | ✅ | ✅ | | | | | ✅ |
+| <img src="src/images/reddit.png" width="88"> | Reddit | ✅ | ✅ | ✅ | | | | ✅ |
+| <img src="src/images/youtube.png" width="88"> | YouTube | | ✅ | ✅ | ✅ | | | |
+| <img src="src/images/whatsapp.png" width="88"> | WhatsApp | ✅ | | | | | | ✅ |
+| <img src="src/images/telegram.png" width="88"> | Telegram | ✅ | ✅ | | | | | ✅ |
 
 ---
 

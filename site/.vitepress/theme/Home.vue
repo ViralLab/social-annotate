@@ -40,7 +40,7 @@
             <span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>
           </div>
           <div class="demo-body">
-            <video :src="'/social-annotate/demos/demo1.mp4'" class="demo-video" autoplay loop muted playsinline controls />
+            <video :src="'/social-annotate/demos/demo1.mp4'" class="demo-video" playsinline controls />
           </div>
         </div>
       </div>

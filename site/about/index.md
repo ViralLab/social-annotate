@@ -42,8 +42,6 @@ const team = [
 
 ## Team
 
-Social Annotate is developed by researchers at Sabanci University and the University of South Florida.
-
 <div class="team-grid">
   <div class="person-card" v-for="p in team" :key="p.name">
     <img :src="p.avatar" :alt="p.name" class="person-avatar" />
@@ -62,19 +60,7 @@ Issues and pull requests are welcome. For questions, open a [GitHub issue](https
 
 ## Citation
 
-If you use Social Annotate in your research, please cite:
-
-```bibtex
-@article{najafi2026socialannotate,
-  title   = {Social-Annotate: Self-Healing Browser Extension to Annotate and Collect Social Media Data},
-  author  = {Najafi, Ali and Varol, Onur and Uluturk, Ismail},
-  journal = {Journal of Open Source Software},
-  volume  = {X},
-  number  = {XX},
-  pages   = {XXXX},
-  year    = {2026}
-}
-```
+Coming soon.
 
 ---
 

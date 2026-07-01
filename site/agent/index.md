@@ -49,16 +49,16 @@ Save an HTML snapshot of the target platform (e.g. by using *Save Page As* in Ch
 
 ```bash
 # Inspect proposed selectors without applying them
-python run_healer.py --file test_fixtures/x_twitter/x.html
+python run_healer.py --file test_fixtures/x_twitter/post/x.html
 
 # Retry LLM extraction up to 5 times
-python run_healer.py --file test_fixtures/x_twitter/x.html --retries 5
+python run_healer.py --file test_fixtures/x_twitter/post/x.html --retries 5
 
 # Apply the proposed selectors to src/selectors.json automatically
-python run_healer.py --file test_fixtures/x_twitter/x.html --apply
+python run_healer.py --file test_fixtures/x_twitter/post/x.html --apply
 
 # LLM extraction only — no browser step (fast, offline)
-python run_healer.py --file test_fixtures/x_twitter/x.html --llm-only
+python run_healer.py --file test_fixtures/x_twitter/post/x.html --llm-only
 ```
 
 Platform is auto-detected from the filename. Override with `--platform x` if needed.
@@ -69,13 +69,18 @@ The repository ships with saved HTML fixtures for all supported platforms under 
 
 ```
 test_fixtures/
-├── x_twitter/
-├── instagram/
-├── bluesky/
-├── linkedin/
-├── whatsapp/
-├── telegram/
-└── truthsocial/
+├── x_twitter/       post/  user/
+├── instagram/       post/  user/  reel/  comments/
+├── facebook/        feed/  post/  user/
+├── tiktok/          post/  user/
+├── bluesky/         post/  user/
+├── mastodon/        post/  user/
+├── linkedin/        post/  user/
+├── reddit/          feed/  post/  user/  user_posts/
+├── youtube/         post/  user/  shorts/
+├── telegram/        post/
+├── whatsapp/        post/
+└── truthsocial/     post/  user/
 ```
 
 ## Profile Annotation Healer
@@ -83,7 +88,7 @@ test_fixtures/
 A separate script handles user/profile page selectors:
 
 ```bash
-python run_profile_healer.py --file test_fixtures/x_twitter/x_profile.html
+python run_profile_healer.py --file test_fixtures/x_twitter/user/x.html
 ```
 
 Same flags as `run_healer.py`.

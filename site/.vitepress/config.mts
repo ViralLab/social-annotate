@@ -6,6 +6,7 @@ export default defineConfig({
   base: '/social-annotate/',
   appearance: 'force-dark',
   head: [
+    ['link', { rel: 'icon', href: '/social-annotate/icon.svg', type: 'image/svg+xml' }],
     ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
     ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
     ['link', { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,700;0,800;1,700&display=swap' }],
@@ -52,9 +53,8 @@ export default defineConfig({
           items: [
             { text: 'Overview', link: '/intervention/#intervention' },
             { text: 'Modes', link: '/intervention/#modes' },
-            { text: 'Static Map', link: '/intervention/#static-map' },
             { text: 'Live Server', link: '/intervention/#live-server' },
-            { text: 'User / Profile', link: '/intervention/#user-profile-intervention' },
+            { text: 'Static Map', link: '/intervention/#static-map' },
           ],
         },
       ],

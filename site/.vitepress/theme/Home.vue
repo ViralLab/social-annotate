@@ -3,6 +3,7 @@
 
     <!-- ── Hero ── -->
     <section class="hero">
+      <canvas ref="netCanvas" class="net-canvas"></canvas>
       <div class="hero-inner">
         <p class="badge">Research Tool &nbsp;·&nbsp; Open Source</p>
 
@@ -109,8 +110,11 @@
   </div>
 </template>
 
-<script setup>
-import { ref, onMounted } from 'vue'
+<script setup lang="ts">
+import { ref, onMounted, onUnmounted } from 'vue'
+
+const netCanvas = ref(null)
+let netRaf = 0
 
 const showcases = [
   {
@@ -172,6 +176,255 @@ onMounted(() => {
     { threshold: 0.08 }
   )
   document.querySelectorAll('.reveal, .showcase').forEach(el => observer.observe(el))
+
+  // ── Network background animation ──
+  const canvas = netCanvas.value as HTMLCanvasElement | null
+  if (!canvas) return
+  const ctx = canvas.getContext('2d')!
+  const MAX_SPEED = 0.9
+
+  // Cluster anchors as fractions [fx, fy] — corners + sides, away from center
+  const ANCHORS = [
+    [0.18, 0.28], [0.82, 0.28],  // flanking text — upper left/right
+    [0.18, 0.68], [0.82, 0.68],  // flanking text — lower left/right
+    [0.50, 0.08], [0.50, 0.90],  // top and bottom center
+  ]
+
+  type NodeType = 'hub' | 'account' | 'post'
+  type Node = { x: number; y: number; vx: number; vy: number; type: NodeType; cluster: number }
+  let W = 0, H = 0, nodes: Node[] = []
+
+  function resize() {
+    W = canvas.width = canvas.offsetWidth
+    H = canvas.height = canvas.offsetHeight
+  }
+
+  function spawnCluster(ai: number): Node[] {
+    const [fx, fy] = ANCHORS[ai]
+    const mobile = W < 640
+    const accounts = 1 + Math.floor(Math.random() * (mobile ? 2 : 5))  // mobile: 1–2, desktop: 1–5
+    const posts    = 1 + Math.floor(Math.random() * (mobile ? 2 : 5))  // mobile: 1–2, desktop: 1–5
+    const spread   = mobile ? 30 + Math.random() * 30 : 50 + Math.random() * 70
+    const types: NodeType[] = ['hub',
+      ...Array(accounts).fill('account') as NodeType[],
+      ...Array(posts).fill('post') as NodeType[],
+    ]
+    return types.map(t => ({
+      x: fx * W + (Math.random() - 0.5) * spread,
+      y: fy * H + (Math.random() - 0.5) * spread,
+      vx: (Math.random() - 0.5) * 0.7,
+      vy: (Math.random() - 0.5) * 0.7,
+      type: t,
+      cluster: ai,
+    }))
+  }
+
+  // Bridge nodes that drift between clusters
+  function mkBridge(): Node {
+    return {
+      x: Math.random() * W,
+      y: Math.random() * H,
+      vx: (Math.random() - 0.5) * 0.4,
+      vy: (Math.random() - 0.5) * 0.4,
+      type: Math.random() > 0.5 ? 'account' : 'post',
+      cluster: -1,
+    }
+  }
+
+  // ── Annotation events ──
+  const ANNOT_COLORS = ['210,50,50', '60,190,80']
+  type AnnotEvent = { ni: number; age: number; col: string }
+  const ANNOT_LIFE = 200
+  let annotEvents: AnnotEvent[] = []
+  let annotCooldown = 80
+
+  function drawAnnotation(node: Node, t: number, alpha: number, col: string) {
+    const baseR = node.type === 'hub' ? 13 : node.type === 'account' ? 7 : 0
+    const ringR = baseR + 7 + Math.max(0, (0.12 - t) / 0.12) * 14
+    ctx.beginPath(); ctx.arc(node.x, node.y, ringR, 0, Math.PI * 2)
+    ctx.strokeStyle = `rgba(${col},${alpha * 0.85})`; ctx.lineWidth = 1.3; ctx.stroke()
+
+    if (t > 0.14) {
+      const cardAlpha = alpha * Math.min((t - 0.14) / 0.08, 1)
+      const offX = node.x > W * 0.72 ? -60 : 18
+      const cw = 54, ch = 30
+      const bx = node.x + offX, by = node.y - ch / 2
+      ctx.beginPath(); ctx.roundRect(bx, by, cw, ch, 3)
+      ctx.fillStyle = `rgba(14,12,8,${cardAlpha * 0.93})`; ctx.fill()
+      ctx.strokeStyle = `rgba(${col},${cardAlpha * 0.45})`; ctx.lineWidth = 0.8; ctx.stroke()
+
+      // 3 lines fill left-to-right, one at a time
+      const fillT = Math.max(0, t - 0.2) / 0.52
+      const pad = 5
+      const maxWs = [cw - pad * 2, cw - pad * 2 - 10, cw - pad * 2 - 18]
+      for (let l = 0; l < 3; l++) {
+        const lt = Math.max(0, Math.min(1, fillT * 3 - l))
+        ctx.fillStyle = `rgba(${col},${cardAlpha * (0.55 - l * 0.07)})`
+        ctx.fillRect(bx + pad, by + pad + l * 7, lt * maxWs[l], 1.6)
+      }
+
+      // Tiny checkmark after fill
+      if (fillT > 0.92) {
+        const ck = Math.min((fillT - 0.92) / 0.08, 1)
+        ctx.strokeStyle = `rgba(${col},${cardAlpha * ck})`; ctx.lineWidth = 1.2
+        ctx.beginPath()
+        ctx.moveTo(bx + cw - 13, by + ch / 2 - 1)
+        ctx.lineTo(bx + cw - 9,  by + ch / 2 + 3)
+        ctx.lineTo(bx + cw - 4,  by + ch / 2 - 5)
+        ctx.stroke()
+      }
+    }
+  }
+
+  function drawAvatarIcon(x: number, y: number, r: number, col: string, alpha: number) {
+    // circle frame clipped, head dot + shoulder arc inside
+    ctx.save()
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.clip()
+    const headR = r * 0.33, headY = y - r * 0.22
+    const shoulderR = r * 0.58, shoulderY = y + r * 0.72
+    ctx.fillStyle = `rgba(${col},${alpha})`
+    ctx.beginPath(); ctx.arc(x, headY, headR, 0, Math.PI * 2); ctx.fill()
+    ctx.beginPath(); ctx.arc(x, shoulderY, shoulderR, Math.PI, 0, true); ctx.closePath(); ctx.fill()
+    ctx.restore()
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2)
+    ctx.strokeStyle = `rgba(${col},${alpha * 0.85})`; ctx.lineWidth = 1.2; ctx.stroke()
+  }
+
+  function drawHub(x: number, y: number, litCol: string | null) {
+    const col = litCol ?? '201,168,96'
+    const g = ctx.createRadialGradient(x, y, 0, x, y, 24)
+    g.addColorStop(0, `rgba(${col},0.18)`)
+    g.addColorStop(1, `rgba(${col},0)`)
+    ctx.beginPath(); ctx.arc(x, y, 24, 0, Math.PI * 2)
+    ctx.fillStyle = g; ctx.fill()
+    drawAvatarIcon(x, y, 13, col, litCol ? 0.95 : 0.8)
+  }
+
+  function drawAccount(x: number, y: number, litCol: string | null) {
+    const col = litCol ?? '201,168,96'
+    drawAvatarIcon(x, y, 7, col, litCol ? 0.92 : 0.6)
+  }
+
+  function drawPost(x: number, y: number, litCol: string | null) {
+    const col = litCol ?? '201,168,96'
+    const w = 30, h = 18
+    const lx = x - w / 2, ty = y - h / 2
+    ctx.beginPath(); ctx.roundRect(lx, ty, w, h, 3)
+    ctx.fillStyle = litCol ? 'rgba(14,10,10,0.92)' : 'rgba(18,18,18,0.8)'; ctx.fill()
+    ctx.strokeStyle = `rgba(${col},${litCol ? 0.7 : 0.3})`
+    ctx.lineWidth = litCol ? 1.1 : 0.8; ctx.stroke()
+    ctx.fillStyle = `rgba(${col},${litCol ? 0.5 : 0.32})`
+    ctx.fillRect(lx + 4, ty + 5, w - 10, 1.8)
+    ctx.fillRect(lx + 4, ty + 10, w - 16, 1.8)
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H)
+    const cx = W / 2, cy = H * 0.44
+    // Elliptical avoid zone — just the text character area, not a large buffer
+    const avoidRx = W * 0.17, avoidRy = H * 0.22
+
+    // Edges: same-cluster connects farther, cross-cluster needs to be close
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const sameCluster = nodes[i].cluster >= 0 && nodes[i].cluster === nodes[j].cluster
+        const limit = sameCluster ? 160 : 90
+        const dx = nodes[i].x - nodes[j].x, dy = nodes[i].y - nodes[j].y
+        const d = Math.sqrt(dx * dx + dy * dy)
+        if (d < limit) {
+          const alpha = (1 - d / limit) * (sameCluster ? 0.28 : 0.18)
+          ctx.beginPath()
+          ctx.moveTo(nodes[i].x, nodes[i].y)
+          ctx.lineTo(nodes[j].x, nodes[j].y)
+          ctx.strokeStyle = `rgba(201,168,96,${alpha})`
+          ctx.lineWidth = sameCluster ? 0.8 : 0.5
+          ctx.stroke()
+        }
+      }
+    }
+
+    // Node-to-node repulsion — prevent overlap
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const dx = nodes[i].x - nodes[j].x
+        const dy = nodes[i].y - nodes[j].y
+        const d = Math.sqrt(dx * dx + dy * dy)
+        const minDist = 40
+        if (d < minDist && d > 0) {
+          const force = (minDist - d) / minDist * 0.25
+          nodes[i].vx += (dx / d) * force
+          nodes[i].vy += (dy / d) * force
+          nodes[j].vx -= (dx / d) * force
+          nodes[j].vy -= (dy / d) * force
+        }
+      }
+    }
+
+    // Nodes + physics
+    const litMap = new Map(annotEvents.map(e => [e.ni, e.col]))
+    nodes.forEach((n, ni) => {
+      const litCol = litMap.get(ni) ?? null
+      if (n.type === 'hub') drawHub(n.x, n.y, litCol)
+      else if (n.type === 'account') drawAccount(n.x, n.y, litCol)
+      else drawPost(n.x, n.y, litCol)
+
+      // Cluster gravity
+      if (n.cluster >= 0) {
+        const [fx, fy] = ANCHORS[n.cluster]
+        n.vx += (fx * W - n.x) * 0.00012
+        n.vy += (fy * H - n.y) * 0.00012
+      }
+
+      // Repel from center (elliptical)
+      const dx = n.x - cx, dy = n.y - cy
+      const d = Math.sqrt(dx * dx + dy * dy)
+      const ellD = Math.sqrt((dx / avoidRx) ** 2 + (dy / avoidRy) ** 2)
+      if (ellD < 1 && d > 0) { n.vx += (dx / d) * 0.05; n.vy += (dy / d) * 0.05 }
+
+      // Speed clamp
+      const spd = Math.sqrt(n.vx * n.vx + n.vy * n.vy)
+      if (spd > MAX_SPEED) { n.vx = n.vx / spd * MAX_SPEED; n.vy = n.vy / spd * MAX_SPEED }
+
+      n.x += n.vx; n.y += n.vy
+      if (n.x < 0 || n.x > W) n.vx *= -1
+      if (n.y < 0 || n.y > H) n.vy *= -1
+    })
+
+    // Draw annotation overlays on top
+    annotEvents.forEach(ev => {
+      const t = ev.age / ANNOT_LIFE
+      const alpha = t < 0.12 ? t / 0.12 : t > 0.82 ? (1 - t) / 0.18 : 1
+      drawAnnotation(nodes[ev.ni], t, alpha, ev.col)
+      ev.age++
+    })
+    annotEvents = annotEvents.filter(ev => ev.age < ANNOT_LIFE)
+
+    // Spawn next annotation
+    if (--annotCooldown <= 0) {
+      const candidates = nodes.map((_, i) => i).filter(i => !litMap.has(i))
+      if (candidates.length) {
+        const col = ANNOT_COLORS[Math.floor(Math.random() * ANNOT_COLORS.length)]
+        annotEvents.push({ ni: candidates[Math.floor(Math.random() * candidates.length)], age: 0, col })
+      }
+      annotCooldown = 90 + Math.floor(Math.random() * 60)
+    }
+
+    netRaf = requestAnimationFrame(draw)
+  }
+
+  resize()
+  // On mobile use fewer clusters and no bridges to avoid crowding
+  const mobile = W < 640
+  const clusterIndices = mobile ? [0, 3, 4] : ANCHORS.map((_, i) => i)
+  const bridgeCount = mobile ? 0 : 5
+  nodes = clusterIndices.flatMap(i => spawnCluster(i)).concat(Array.from({ length: bridgeCount }, mkBridge))
+  draw()
+  window.addEventListener('resize', resize)
+})
+
+onUnmounted(() => {
+  cancelAnimationFrame(netRaf)
+  window.removeEventListener('resize', () => {})
 })
 </script>
 
@@ -225,10 +478,22 @@ onMounted(() => {
 
 /* ── Hero ── */
 .hero {
+  position: relative;
   padding: 110px 24px 80px;
   text-align: center;
+  overflow: hidden;
+}
+.net-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
 }
 .hero-inner {
+  position: relative;
+  z-index: 1;
   max-width: 820px;
   margin: 0 auto;
 }

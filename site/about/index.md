@@ -60,7 +60,14 @@ Issues and pull requests are welcome. For questions, open a [GitHub issue](https
 
 ## Citation
 
-Coming soon.
+```bibtex
+@article{najafi2026social,
+  title={Social-Annotate: Self-Healing Browser Extension to Annotate and Collect Social Media Data},
+  author={Najafi, Ali and Uluturk, Ismail and Varol, Onur},
+  journal={arXiv preprint arXiv:2607.01460},
+  year={2026}
+}
+```
 
 ---
 

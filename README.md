@@ -381,14 +381,11 @@ All persistent state lives in `chrome.storage.local`. The sandbox iframe is serv
 If you use Social Annotate in your research, please cite:
 
 ```bibtex
-@article{najafi2026socialannotate,
-  title   = {Social-Annotate: Self-Healing Browser Extension to Annotate and Collect Social Media Data},
-  author  = {Najafi, Ali and Varol, Onur and Uluturk, Ismail},
-  journal = {Journal of Open Source Software},
-  volume  = {X},
-  number  = {XX},
-  pages   = {XXXX},
-  year    = {2026}
+@article{najafi2026social,
+  title={Social-Annotate: Self-Healing Browser Extension to Annotate and Collect Social Media Data},
+  author={Najafi, Ali and Uluturk, Ismail and Varol, Onur},
+  journal={arXiv preprint arXiv:2607.01460},
+  year={2026}
 }
 ```
 

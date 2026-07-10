@@ -7,11 +7,11 @@ export default defineConfig({
   appearance: 'force-dark',
   head: [
     ['link', { rel: 'icon', href: '/social-annotate/icon.svg', type: 'image/svg+xml' }],
-    ['script', { async: '', src: 'https://www.googletagmanager.com/gtag/js?id=G-DYD9B51MWR' }],
+    ['script', { async: '', src: 'https://www.googletagmanager.com/gtag/js?id=G-C37NGZ2E32' }],
     ['script', {}, `window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}
 gtag('js', new Date());
-gtag('config', 'G-DYD9B51MWR');`],
+gtag('config', 'G-C37NGZ2E32');`],
     ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
     ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
     ['link', { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,700;0,800;1,700&display=swap' }],

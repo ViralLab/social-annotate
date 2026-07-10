@@ -25,7 +25,7 @@
           <span class="dot">·</span>
           <a href="https://github.com/ViralLab/social-annotate">GitHub</a>
           <span class="dot">·</span>
-          <a href="https://arxiv.org/html/2607.01460v1" target="_blank" rel="noopener">Read the Paper</a>
+          <a href="https://arxiv.org/pdf/2607.01460v1" target="_blank" rel="noopener">Read the Paper</a>
         </div>
       </div>
     </section>
